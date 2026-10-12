@@ -13,6 +13,17 @@ import vn.nhatrohomu.shared.Models.*;
 
 /** Khởi tạo cửa sổ/form trong dữ liệu tạm; không mở cửa sổ cho người dùng. */
 public final class GuiSmokeTest {
+  private static JScrollPane findScroll(java.awt.Container parent) {
+    for (java.awt.Component child : parent.getComponents()) {
+      if (child instanceof JScrollPane pane) return pane;
+      if (child instanceof java.awt.Container nested) {
+        JScrollPane pane = findScroll(nested);
+        if (pane != null) return pane;
+      }
+    }
+    return null;
+  }
+
   public static void main(String[] args) throws Exception {
     Path temp = Files.createTempDirectory("nhatrohomu-gui-test-");
     try {
@@ -51,6 +62,40 @@ public final class GuiSmokeTest {
       SwingUtilities.invokeAndWait(
           () -> {
             Design.setup();
+            JTable actionTable =
+                new JTable(
+                    new javax.swing.table.DefaultTableModel(
+                        new Object[][] {{"A"}, {"B"}}, new String[] {"Tên"}));
+            actionTable.setAutoCreateRowSorter(true);
+            int[] invoked = {0};
+            JButton rowButton =
+                vn.nhatrohomu.shared.Ui.button(
+                    "Chi tiết",
+                    () -> {
+                      if (actionTable.convertRowIndexToModel(actionTable.getSelectedRow()) != 1)
+                        throw new AssertionError("Wrong sorted row");
+                      invoked[0]++;
+                    });
+            vn.nhatrohomu.shared.RowActions.install(actionTable, java.util.List.of(rowButton));
+            if (rowButton.isVisible())
+              throw new AssertionError("Row action visible without selection");
+            actionTable.getRowSorter().toggleSortOrder(0);
+            actionTable.getRowSorter().toggleSortOrder(0);
+            actionTable.setRowSelectionInterval(0, 0);
+            if (!rowButton.isVisible()) throw new AssertionError("Selected row actions hidden");
+            actionTable
+                .getActionMap()
+                .get("open-row")
+                .actionPerformed(new java.awt.event.ActionEvent(actionTable, 0, ""));
+            if (invoked[0] != 1) throw new AssertionError("Enter did not open selected row");
+            actionTable.clearSelection();
+            if (rowButton.isVisible())
+              throw new AssertionError("Action still visible after clearing selection");
+            actionTable
+                .getActionMap()
+                .get("open-row")
+                .actionPerformed(new java.awt.event.ActionEvent(actionTable, 0, ""));
+            if (invoked[0] != 1) throw new AssertionError("Action ran without selection");
             AppWindow app = new AppWindow(repo, temp);
             try {
               Design.choose(Design.Mode.MADOKA, temp);
@@ -77,6 +122,17 @@ public final class GuiSmokeTest {
               throw new RuntimeException(ex);
             }
             try {
+              var roomPage = AppWindow.class.getDeclaredMethod("showRooms");
+              roomPage.setAccessible(true);
+              roomPage.invoke(app);
+              app.setSize(980, 640);
+              app.addNotify();
+              app.validate();
+              java.awt.Container roomBody = app.getContentPane();
+              JScrollPane roomScroll = findScroll(roomBody);
+              if (roomScroll == null || roomScroll.getViewport().getHeight() < 280)
+                throw new AssertionError("Rooms need usable height on a small window");
+              new vn.nhatrohomu.room.ui.RoomHistoryDialog(app, repo, meter, b -> {}).dispose();
               new RoomDialog(app, repo, null, () -> {}).dispose();
               new RoomDialog(app, repo, meter, () -> {}).dispose();
               ReadingDialog rentalBill = new ReadingDialog(app, repo, meter, () -> {});

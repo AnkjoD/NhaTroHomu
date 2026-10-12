@@ -10,6 +10,7 @@ public final class AllChecks {
     RentalTest.main(new String[0]);
     SafetyTest.main(new String[0]);
     ReportTest.main(new String[0]);
+    ProfileHistoryTest.main(new String[0]);
     if (java.awt.GraphicsEnvironment.isHeadless())
       System.out.println("SKIP: Swing checks require a desktop session.");
     else GuiSmokeTest.main(new String[0]);

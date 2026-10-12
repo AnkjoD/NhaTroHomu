@@ -48,7 +48,7 @@ public final class PaymentDialog extends JDialog {
     form.add(new JLabel("Ghi chú / phương thức thanh toán"));
     form.add(note);
     JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-    actions.add(
+    JButton reverse =
         Ui.button(
             "Đảo lần thu nhập nhầm",
             () -> {
@@ -68,7 +68,9 @@ public final class PaymentDialog extends JDialog {
               } catch (Exception ex) {
                 Ui.error(this, ex);
               }
-            }));
+            });
+    actions.add(reverse);
+    vn.nhatrohomu.shared.RowActions.install(table, List.of(reverse), false);
     actions.add(
         Ui.button(
             "Thêm lần thu",

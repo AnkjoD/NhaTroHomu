@@ -28,7 +28,8 @@ public final class DatabaseValidator {
           "payment_reversals",
           "water_transitions",
           "expenses",
-          "expense_reversals");
+          "expense_reversals",
+          "residents");
 
   public static void checkSafeSchema(Path file) throws SQLException {
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + file);
@@ -58,7 +59,7 @@ public final class DatabaseValidator {
           }
         }
       }
-      if (version == Schema.VERSION && !foundTriggers.equals(Schema.triggers().keySet()))
+      if (version >= 4 && !foundTriggers.equals(Schema.triggers().keySet()))
         throw new IllegalArgumentException("Backup thiếu cơ chế giữ lịch sử chứng từ.");
     }
   }
@@ -118,6 +119,13 @@ public final class DatabaseValidator {
         if (r.next()) throw new IllegalArgumentException("Trạng thái không hợp lệ trong " + table);
       }
     }
+    try (Statement s = c.createStatement();
+        ResultSet r =
+            s.executeQuery(
+                "SELECT 1 FROM tenants WHERE typeof(zalo_auto)<>'integer' OR zalo_auto NOT IN(0,1)"
+                    + " LIMIT 1")) {
+      if (r.next()) throw new IllegalArgumentException("Cờ tự điền Zalo không hợp lệ.");
+    }
     Map<Long, Room> rooms = new HashMap<>();
     Map<Long, Tenant> tenants = new HashMap<>();
     Map<Long, Contract> contracts = new HashMap<>();
@@ -163,7 +171,15 @@ public final class DatabaseValidator {
                 r.getString("name"),
                 r.getString("phone"),
                 r.getString("note"),
-                r.getBoolean("active"));
+                r.getBoolean("active"),
+                r.getString("zalo"),
+                r.getBoolean("zalo_auto"),
+                r.getString("identity_no"),
+                r.getString("birthday"),
+                r.getString("address"),
+                RentalStore.residents(c, r.getLong("id")));
+        flag(r.getInt("zalo_auto"));
+        vn.nhatrohomu.shared.TenantRules.tenant(t);
         tenants.put(t.id(), t);
       }
     }

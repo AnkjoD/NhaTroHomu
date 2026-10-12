@@ -68,33 +68,92 @@ public final class RentalStore implements RentalRepository {
                 r.getString("name"),
                 r.getString("phone"),
                 r.getString("note"),
-                true));
+                true,
+                r.getString("zalo"),
+                r.getBoolean("zalo_auto"),
+                r.getString("identity_no"),
+                r.getString("birthday"),
+                r.getString("address"),
+                residents(c, r.getLong("id"))));
+    }
+    return result;
+  }
+
+  static List<Resident> residents(Connection c, long id) throws SQLException {
+    List<Resident> result = new ArrayList<>();
+    try (PreparedStatement p =
+        c.prepareStatement("SELECT * FROM residents WHERE tenant_id=? ORDER BY id")) {
+      p.setLong(1, id);
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next())
+          result.add(
+              new Resident(
+                  r.getString("name"),
+                  r.getString("relationship"),
+                  r.getString("birthday"),
+                  r.getString("identity_no"),
+                  r.getString("phone")));
+      }
     }
     return result;
   }
 
   public void saveTenant(Tenant tenant) throws SQLException {
-    DataRules.name(tenant.name(), "Tên người thuê", 120);
-    DataRules.text(tenant.phone(), "Điện thoại", 40, false);
-    DataRules.text(tenant.note(), "Ghi chú", 2000, false);
-    if (tenant.name().isBlank())
-      throw new IllegalArgumentException("Tên người thuê không được trống.");
-    if (tenant.name().length() > 120
-        || tenant.phone().length() > 40
-        || tenant.note().length() > 2000)
-      throw new IllegalArgumentException("Thông tin người thuê quá dài.");
+    vn.nhatrohomu.shared.TenantRules.tenant(tenant);
     String sql =
         tenant.id() == 0
-            ? "INSERT INTO tenants(name,phone,note) VALUES(?,?,?)"
-            : "UPDATE tenants SET name=?,phone=?,note=? WHERE id=? AND active=1";
-    try (Connection c = connection();
-        PreparedStatement p = c.prepareStatement(sql)) {
-      p.setString(1, tenant.name().trim());
-      p.setString(2, tenant.phone().trim());
-      p.setString(3, tenant.note().trim());
-      if (tenant.id() != 0) p.setLong(4, tenant.id());
-      if (p.executeUpdate() != 1)
-        throw new IllegalArgumentException("Người thuê không tồn tại hoặc đã lưu trữ.");
+            ? "INSERT INTO tenants(name,phone,note,zalo,zalo_auto,identity_no,birthday,address)"
+                + " VALUES(?,?,?,?,?,?,?,?)"
+            : "UPDATE tenants SET"
+                + " name=?,phone=?,note=?,zalo=?,zalo_auto=?,identity_no=?,birthday=?,address=?"
+                + " WHERE id=? AND active=1";
+    try (Connection c = connection()) {
+      c.setAutoCommit(false);
+      try {
+        long id = tenant.id();
+        try (PreparedStatement p = c.prepareStatement(sql)) {
+          p.setString(1, tenant.name().trim());
+          p.setString(2, tenant.phone().trim());
+          p.setString(3, tenant.note().trim());
+          p.setString(4, tenant.zaloAuto() ? "" : tenant.zalo().trim());
+          p.setBoolean(5, tenant.zaloAuto());
+          p.setString(6, tenant.identity().trim());
+          p.setString(7, tenant.birthday().trim());
+          p.setString(8, tenant.address().trim());
+          if (id != 0) p.setLong(9, id);
+          if (p.executeUpdate() != 1)
+            throw new IllegalArgumentException("Người thuê không tồn tại hoặc đã lưu trữ.");
+        }
+        if (id == 0)
+          try (Statement s = c.createStatement();
+              ResultSet r = s.executeQuery("SELECT last_insert_rowid()")) {
+            r.next();
+            id = r.getLong(1);
+          }
+        try (PreparedStatement p = c.prepareStatement("DELETE FROM residents WHERE tenant_id=?")) {
+          p.setLong(1, id);
+          p.executeUpdate();
+        }
+        try (PreparedStatement p =
+            c.prepareStatement(
+                "INSERT INTO residents(tenant_id,name,relationship,birthday,identity_no,phone)"
+                    + " VALUES(?,?,?,?,?,?)")) {
+          for (Resident r : tenant.residents()) {
+            p.setLong(1, id);
+            p.setString(2, r.name().trim());
+            p.setString(3, r.relationship().trim());
+            p.setString(4, r.birthday().trim());
+            p.setString(5, r.identity().trim());
+            p.setString(6, r.phone().trim());
+            p.addBatch();
+          }
+          p.executeBatch();
+        }
+        c.commit();
+      } catch (SQLException | RuntimeException e) {
+        c.rollback();
+        throw e;
+      }
     }
   }
 

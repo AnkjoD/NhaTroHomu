@@ -23,7 +23,7 @@ vn.nhatrohomu
 
 Các store hiện vẫn kết hợp SQL và một số quy tắc ghi nghiệp vụ. Đây là ứng dụng desktop được chia theo chức năng, chưa phải kiến trúc backend hay hệ thống nhiều module độc lập.
 
-## Schema 4 đang chạy
+## Schema 5 đang chạy
 
 | Bảng | Trường/quan hệ chính |
 |---|---|
@@ -42,7 +42,7 @@ Các store hiện vẫn kết hợp SQL và một số quy tắc ghi nghiệp v�
 | expenses | FK phòng nullable, tên phòng snapshot, loại/người nhận, tiền nguyên INTEGER, ngày, phương thức, note, request_key |
 | expense_reversals | FK khoản chi unique, thời điểm đảo, lý do |
 
-**14 bảng**: danh sách này là schema thực tế, không phải danh sách bảng cho các tính năng tương lai. Phần lớn tiền/chỉ số cũ lưu TEXT để đọc bằng BigDecimal; khoản chi mới dùng INTEGER đồng.
+**15 bảng**: danh sách này là schema thực tế, không phải danh sách bảng cho các tính năng tương lai. Phần lớn tiền/chỉ số cũ lưu TEXT để đọc bằng BigDecimal; khoản chi mới dùng INTEGER đồng.
 
 ```mermaid
 erDiagram
@@ -80,3 +80,9 @@ erDiagram
 ## Nâng cấp tiếp theo
 
 Điều khoản/giá có hiệu lực, số đo/đồng hồ độc lập, hóa đơn có từng dòng, thu–phân bổ nhiều hóa đơn, giảm trừ/hoàn tiền và quyết toán cọc cần migration mới. Không thêm bảng rỗng rồi coi tính năng đã có; mỗi bảng phải đi cùng luồng UI, transaction, đối soát và kiểm thử.
+
+### Hồ sơ và người ở cùng (v5)
+
+`tenants` bổ sung `zalo`, `zalo_auto`, `identity_no`, `birthday`, `address`. Khi `zalo_auto=1`, số liên hệ được đọc từ `phone`; giá trị nhập riêng được lưu khi `zalo_auto=0`. `residents` có `id`, FK `tenant_id`, `name`, `relationship`, `birthday`, `identity_no`, `phone`: một người thuê có nhiều người ở cùng. Lưu toàn bộ hồ sơ và danh sách trong một transaction; lỗi không làm mất gia đình cũ. Danh sách được thay bằng hồ sơ hiện tại khi lưu, không phải sổ lịch sử cư trú. Các dữ liệu này không nằm trong snapshot hóa đơn. Backup chứa giấy tờ chưa mã hóa.
+
+Lịch sử phòng truy vấn theo `room_id` và khoảng kỳ, chỉ lấy hóa đơn chưa hủy, không tải ảnh BLOB. `InvoiceCsv` dùng cùng danh sách 22 cột cho toàn bộ hóa đơn và lịch sử phòng; xuất UTF-8 BOM, bảo vệ ô công thức và chỉ thay file sau khi ghi thành công.

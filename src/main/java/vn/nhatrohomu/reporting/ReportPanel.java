@@ -59,11 +59,13 @@ public final class ReportPanel extends JPanel {
     filters.add(new JLabel("Tháng thu / kỳ kiểm tra"));
     filters.add(month);
     filters.add(room);
-    filters.add(Ui.button("Xem", this::load));
+    filters.add(Ui.refreshButton(this::load));
     filters.add(Ui.button("Xuất CSV", this::export));
     heading.add(filters, BorderLayout.SOUTH);
     add(heading, BorderLayout.NORTH);
     add(tabs);
+    room.addActionListener(e -> load());
+    month.addActionListener(e -> load());
     load();
   }
 
@@ -144,6 +146,7 @@ public final class ReportPanel extends JPanel {
   }
 
   private void render(YearMonth selected) {
+    int selectedTab = tabs.getSelectedIndex();
     tabs.removeAll();
     BigDecimal debt =
         snapshot.debts().stream()
@@ -202,6 +205,7 @@ public final class ReportPanel extends JPanel {
                 Ui.error(this, ex);
               }
             });
+    vn.nhatrohomu.shared.RowActions.install(debts, java.util.List.of(collect));
     String[] buckets = {"Chưa quá hạn", "1–30 ngày", "31–60 ngày", "61–90 ngày", ">90 ngày"};
     StringBuilder age =
         new StringBuilder(
@@ -269,7 +273,7 @@ public final class ReportPanel extends JPanel {
                 Ui.error(this, ex);
               }
             }));
-    expenseActions.add(
+    JButton reverseExpense =
         Ui.button(
             "Đảo khoản chi nhập nhầm",
             () -> {
@@ -291,7 +295,9 @@ public final class ReportPanel extends JPanel {
               } catch (Exception ex) {
                 Ui.error(this, ex);
               }
-            }));
+            });
+    expenseActions.add(reverseExpense);
+    vn.nhatrohomu.shared.RowActions.install(expenses, java.util.List.of(reverseExpense), false);
     tabs.addTab(
         "Khoản đã chi",
         page(
@@ -358,6 +364,7 @@ public final class ReportPanel extends JPanel {
                             })
                     .toArray(Object[][]::new)),
             null));
+    if (selectedTab >= 0 && selectedTab < tabs.getTabCount()) tabs.setSelectedIndex(selectedTab);
   }
 
   private static String csv(String text) {

@@ -67,13 +67,13 @@ public final class AppWindow extends JFrame {
     top.add(branding, BorderLayout.NORTH);
     JPanel menu = new JPanel(new GridLayout(0, 1, 0, 10));
     menu.setOpaque(false);
-    menu.add(nav("bill", "Tổng quan", this::showDashboard));
+    menu.add(nav("dashboard", "Tổng quan", this::showDashboard));
     menu.add(nav("rooms", "Phòng trọ", this::showRooms));
-    menu.add(nav("rooms", "Người thuê", this::showTenants));
-    menu.add(nav("bill", "Hợp đồng", this::showContracts));
+    menu.add(nav("tenant", "Người thuê", this::showTenants));
+    menu.add(nav("contract", "Hợp đồng", this::showContracts));
     menu.add(nav("bill", "Hóa đơn", this::showHistory));
-    menu.add(nav("bill", "Công nợ", this::showDebts));
-    menu.add(nav("bill", "Báo cáo", this::showReports));
+    menu.add(nav("debt", "Công nợ", this::showDebts));
+    menu.add(nav("report", "Báo cáo", this::showReports));
     menu.add(nav("settings", "Cài đặt", this::showSettings));
     top.add(menu, BorderLayout.CENTER);
     sidebar.add(top, BorderLayout.NORTH);
@@ -83,7 +83,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.6.0", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.7.1", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -224,32 +224,25 @@ public final class AppWindow extends JFrame {
       java.util.Map<Long, Contract> occupied = new java.util.HashMap<>();
       for (Contract contract : contracts)
         if (contract.covers(java.time.LocalDate.now())) occupied.put(contract.roomId(), contract);
-      JPanel top = Design.clear(new BorderLayout(0, 24));
+      JPanel top = Design.clear(new BorderLayout(0, 12));
       JPanel heading =
           header("Phòng trọ", "Trạng thái thuê, chỉ số và hóa đơn của từng phòng.", null);
       JPanel addArea = Design.clear(new GridBagLayout());
       addArea.add(Design.primary(Ui.button("+  Thêm phòng", () -> roomDialog(null))));
       heading.add(addArea, BorderLayout.EAST);
       top.add(heading, BorderLayout.NORTH);
-      JPanel stats = Design.clear(new GridLayout(1, 3, 16, 0));
-      stats.add(
-          stat(
-              "PHÒNG ĐANG SỬ DỤNG",
-              String.valueOf(rooms.size()),
-              "Không bao gồm phòng đã ngừng",
-              "rooms"));
-      stats.add(
-          stat(
-              "CHƯA CÓ HỢP ĐỒNG",
-              String.valueOf(rooms.size() - occupied.size()),
-              "Không có hợp đồng thuê tại hôm nay",
-              "bill"));
-      stats.add(
-          stat("ĐANG THUÊ", String.valueOf(occupied.size()), "Theo thời hạn hợp đồng", "rooms"));
-      JPanel overview = Design.clear(new BorderLayout(0, 16));
-      overview.add(Design.banner(), BorderLayout.NORTH);
-      overview.add(stats, BorderLayout.SOUTH);
-      top.add(overview, BorderLayout.CENTER);
+      top.add(
+          Design.label(
+              rooms.size()
+                  + " phòng · "
+                  + occupied.size()
+                  + " đang thuê · "
+                  + (rooms.size() - occupied.size())
+                  + " chưa có hợp đồng hiện tại",
+              13,
+              Design.MUTED,
+              false),
+          BorderLayout.CENTER);
       JPanel listHead = Design.clear(new BorderLayout(12, 0));
       listHead.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 0));
       listHead.add(Design.label("Danh sách phòng", 18, Design.INK, true), BorderLayout.WEST);
@@ -333,6 +326,19 @@ public final class AppWindow extends JFrame {
       scroll.setBorder(BorderFactory.createEmptyBorder());
       scroll.getViewport().setBackground(Ui.BACKGROUND);
       scroll.getVerticalScrollBar().setUnitIncrement(20);
+      scroll
+          .getViewport()
+          .addComponentListener(
+              new java.awt.event.ComponentAdapter() {
+                public void componentResized(java.awt.event.ComponentEvent e) {
+                  GridLayout layout = (GridLayout) grid.getLayout();
+                  int columns = scroll.getViewport().getWidth() < 850 ? 1 : 2;
+                  if (layout.getColumns() != columns) {
+                    layout.setColumns(columns);
+                    grid.revalidate();
+                  }
+                }
+              });
       JPanel hint = Design.clear(new FlowLayout(FlowLayout.LEFT, 0, 0));
       hint.setBorder(BorderFactory.createEmptyBorder(14, 0, 0, 0));
       hint.add(
@@ -366,7 +372,7 @@ public final class AppWindow extends JFrame {
     String latest = repository.latestMonth(r.id());
     JPanel card = Design.card(Design.SURFACE);
     card.setLayout(new BorderLayout(0, 18));
-    card.setPreferredSize(new Dimension(360, 218));
+    card.setPreferredSize(new Dimension(360, 252));
     JPanel top = Design.clear(new BorderLayout());
     JPanel identity = Ui.column();
     identity.setOpaque(false);
@@ -421,19 +427,26 @@ public final class AppWindow extends JFrame {
     top.add(menu, BorderLayout.EAST);
     card.add(top, BorderLayout.NORTH);
     JPanel info = Design.clear(new GridLayout(2, 1, 0, 12));
-    info.add(metric("bolt", "Điện gần nhất", Ui.n(previous.electricity()) + " kWh"));
+    info.add(metric("bolt", "Chỉ số điện gần nhất", Ui.n(previous.electricity()) + " kWh"));
     info.add(
         metric(
             "water",
-            r.waterMode().equals("METER") ? "Nước gần nhất" : "Nước cố định",
+            r.waterMode().equals("METER") ? "Chỉ số nước gần nhất" : "Nước cố định",
             r.waterMode().equals("METER")
                 ? Ui.n(previous.water()) + " m³"
                 : r.fixedWater() == null ? "Theo mặc định" : Ui.n(r.fixedWater()) + " m³ / kỳ"));
     card.add(info, BorderLayout.CENTER);
     JPanel footer = Design.clear(new BorderLayout(8, 0));
-    footer.add(
-        Design.badge(latest == null ? "Chưa chốt kỳ đầu" : "Kỳ gần nhất · " + latest),
-        BorderLayout.WEST);
+    JPanel periods = Ui.column();
+    periods.setOpaque(false);
+    periods.add(
+        Design.label(
+            latest == null ? "Chưa chốt kỳ đầu" : "Kỳ gần nhất · " + latest,
+            11,
+            Design.MUTED,
+            false));
+    periods.add(Ui.button("Lịch sử điện nước", () -> roomHistory(r)));
+    footer.add(periods, BorderLayout.WEST);
     footer.add(
         Design.primary(
             Ui.button(
@@ -447,7 +460,13 @@ public final class AppWindow extends JFrame {
                 })),
         BorderLayout.EAST);
     card.add(footer, BorderLayout.SOUTH);
+    Ui.contextMenu(card, popup);
     return card;
+  }
+
+  private void roomHistory(Room room) {
+    new vn.nhatrohomu.room.ui.RoomHistoryDialog(this, repository, room, this::billDialog)
+        .setVisible(true);
   }
 
   private JPanel metric(String icon, String text, String value) {
@@ -575,7 +594,14 @@ public final class AppWindow extends JFrame {
                   Ui.error(this, ex);
                 }
               }));
+      vn.nhatrohomu.shared.RowActions.install(
+          table,
+          java.util.Arrays.stream(a.getComponents())
+              .filter(c -> c instanceof JButton)
+              .map(c -> (JButton) c)
+              .toList());
       a.add(Ui.button("Xuất CSV", this::exportCsv));
+      a.add(Ui.refreshButton(this::showHistory));
       JPanel paging = actions();
       JButton
           back =
@@ -657,6 +683,12 @@ public final class AppWindow extends JFrame {
         + Ui.n(b.waterUsed())
         + " × "
         + Ui.money(b.waterRate())
+        + "\nTiền nước: "
+        + Ui.money(b.waterCost())
+        + "\nTiền điện: "
+        + Ui.money(b.electricityCost())
+        + "\nCộng điện + nước: "
+        + Ui.money(b.utilitiesCost())
         + "\n\nTỔNG: "
         + Ui.money(b.total())
         + "\nTrạng thái: "
@@ -755,35 +787,13 @@ public final class AppWindow extends JFrame {
     Ui.background(
         this,
         () -> {
-          try (BufferedWriter w = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-            w.write(
-                "\uFEFFKỳ,Phòng,Điện kWh,Nước m³,Đơn giá điện,Đơn giá nước,Tổng VND,Đã thu đủ,Tiền"
-                    + " đã thu VND,Còn thiếu VND,Ghi chú\r\n");
-            for (int offset = 0; ; offset += 50) {
-              List<Bill> page = repository.bills(50, offset);
-              if (page.isEmpty()) break;
-              for (Bill b : page)
-                w.write(
-                    String.join(
-                            ",",
-                            csv(b.month()),
-                            csv(b.roomName()),
-                            Ui.n(b.electricityUsed()),
-                            Ui.n(b.waterUsed()),
-                            Ui.n(b.electricityRate()),
-                            Ui.n(b.waterRate()),
-                            Ui.n(b.total()),
-                            b.paid() ? "Có" : "Không",
-                            Ui.n(repository.received(b.id())),
-                            Ui.n(b.total().subtract(repository.received(b.id()))),
-                            csv(b.tenantName()),
-                            Ui.n(b.rent()),
-                            Ui.n(b.feeTotal()),
-                            csv(b.dueDate()),
-                            csv(b.note()))
-                        + "\r\n");
-            }
+          java.util.List<Bill> all = new java.util.ArrayList<>();
+          for (int offset = 0; ; offset += 50) {
+            List<Bill> page = repository.bills(50, offset);
+            if (page.isEmpty()) break;
+            all.addAll(page);
           }
+          vn.nhatrohomu.reporting.InvoiceCsv.write(path, all, repository);
           return true;
         },
         ok -> JOptionPane.showMessageDialog(this, "Đã xuất toàn bộ hóa đơn CSV."));

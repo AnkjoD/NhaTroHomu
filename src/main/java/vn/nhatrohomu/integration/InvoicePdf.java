@@ -98,6 +98,8 @@ public final class InvoicePdf {
                   Ui.money(fee.amount()));
           }
           document.add(table);
+          document.add(
+              new Paragraph("Cộng điện + nước: " + Ui.money(bill.utilitiesCost()), normal));
           BigDecimal received =
               payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
           document.add(

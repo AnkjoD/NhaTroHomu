@@ -18,7 +18,33 @@ public final class Models {
 
   public record Payment(long id, long billId, BigDecimal amount, String date, String note) {}
 
-  public record Tenant(long id, String name, String phone, String note, boolean active) {
+  public record Resident(
+      String name, String relationship, String birthday, String identity, String phone) {}
+
+  public record Tenant(
+      long id,
+      String name,
+      String phone,
+      String note,
+      boolean active,
+      String zalo,
+      boolean zaloAuto,
+      String identity,
+      String birthday,
+      String address,
+      java.util.List<Resident> residents) {
+    public Tenant {
+      residents = java.util.List.copyOf(residents);
+    }
+
+    public Tenant(long id, String name, String phone, String note, boolean active) {
+      this(id, name, phone, note, active, phone, true, "", "", "", java.util.List.of());
+    }
+
+    public String zaloContact() {
+      return zaloAuto ? phone : zalo;
+    }
+
     @Override
     public String toString() {
       return name + (phone.isBlank() ? "" : " · " + phone);
@@ -139,6 +165,18 @@ public final class Models {
 
     public BigDecimal feeTotal() {
       return fees.stream().map(Charge::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public BigDecimal electricityCost() {
+      return electricityUsed().multiply(electricityRate);
+    }
+
+    public BigDecimal waterCost() {
+      return waterUsed.multiply(waterRate);
+    }
+
+    public BigDecimal utilitiesCost() {
+      return electricityCost().add(waterCost());
     }
 
     public BigDecimal electricityUsed() {

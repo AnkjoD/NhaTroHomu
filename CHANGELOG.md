@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.1
+
+- Thao tác theo dòng chỉ hiện khi chọn; menu chuột phải, nhấp đúp / Enter mở thao tác mặc định.
+- Nút cập nhật dùng icon; icon thanh bên riêng từng mục. Lưu vẫn tự cập nhật; không bỏ yêu cầu tải lại đang chờ.
+- Báo cáo giữ tab đang xem khi cập nhật, đổi bộ lọc phòng tự tải lại.
+
+
+## 0.7.0
+
+- Thu gọn trang phòng, chuyển một cột khi cửa sổ hẹp; thêm lịch sử điện nước theo phòng/khoảng kỳ.
+- Sửa CSV lệch cột; bổ sung số cũ/mới, thành tiền từng tiện ích và tổng điện nước; PDF/TXT có tổng điện nước.
+- Hồ sơ CCCD/giấy tờ, ngày sinh, địa chỉ, Zalo tự điền có thể ghi đè và danh sách người ở cùng. Schema 5 nâng cấp có backup.
+
 ## 0.6.0 — 2026-10-12
 
 - Đổi tên sản phẩm thành NhaTroHomu và chia namespace Java theo chức năng.

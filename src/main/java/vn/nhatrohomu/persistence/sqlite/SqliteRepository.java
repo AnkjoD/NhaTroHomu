@@ -448,6 +448,27 @@ public final class SqliteRepository implements Repository {
     return list;
   }
 
+  public List<Bill> roomBills(long roomId, String from, String to) throws SQLException {
+    DataRules.period(from);
+    DataRules.period(to);
+    List<Bill> result = new ArrayList<>();
+    try (Connection c = connection();
+        PreparedStatement p =
+            c.prepareStatement(
+                "SELECT"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date"
+                    + " FROM bills WHERE room_id=? AND voided_at IS NULL AND month>=? AND month<=?"
+                    + " ORDER BY month DESC,id DESC")) {
+      p.setLong(1, roomId);
+      p.setString(2, from);
+      p.setString(3, to);
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next()) result.add(bill(c, r));
+      }
+    }
+    return result;
+  }
+
   public List<Bill> outstandingBills() throws SQLException {
     List<Bill> result = new ArrayList<>();
     try (Connection c = connection();

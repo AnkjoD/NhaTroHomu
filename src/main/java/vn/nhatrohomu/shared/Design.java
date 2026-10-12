@@ -231,6 +231,44 @@ public final class Design {
         d.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         switch (kind) {
+          case "refresh" -> {
+            d.drawArc(3, 3, 14, 14, 35, 285);
+            d.drawLine(16, 2, 16, 7);
+            d.drawLine(16, 7, 11, 7);
+          }
+          case "dashboard" -> {
+            d.drawLine(2, 18, 18, 18);
+            d.drawRect(4, 10, 3, 8);
+            d.drawRect(9, 6, 3, 12);
+            d.drawRect(14, 2, 3, 16);
+          }
+          case "tenant" -> {
+            d.drawOval(7, 2, 6, 6);
+            d.drawArc(3, 10, 14, 16, 0, 180);
+          }
+          case "contract" -> {
+            d.drawRoundRect(3, 1, 14, 18, 2, 2);
+            d.drawLine(6, 5, 14, 5);
+            d.drawLine(6, 9, 11, 9);
+            d.drawLine(6, 15, 9, 13);
+            d.drawLine(9, 13, 12, 16);
+            d.drawLine(12, 16, 15, 12);
+          }
+          case "debt" -> {
+            d.drawRoundRect(2, 5, 16, 12, 2, 2);
+            d.drawLine(2, 8, 18, 8);
+            d.drawOval(11, 10, 4, 4);
+            d.drawLine(4, 3, 14, 3);
+          }
+          case "report" -> {
+            d.drawLine(2, 18, 18, 18);
+            d.drawLine(2, 18, 2, 2);
+            d.drawLine(4, 14, 8, 10);
+            d.drawLine(8, 10, 12, 12);
+            d.drawLine(12, 12, 17, 4);
+            d.drawLine(13, 4, 17, 4);
+            d.drawLine(17, 4, 17, 8);
+          }
           case "rooms" -> {
             for (int row = 0; row < 2; row++)
               for (int col = 0; col < 2; col++)

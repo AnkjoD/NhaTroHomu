@@ -153,6 +153,7 @@ public final class FeatureTest {
     for (String column : List.of("contract_id", "tenant_name", "rent", "due_date"))
       s.execute("ALTER TABLE bills DROP COLUMN " + column);
     s.execute("DROP TABLE contracts");
+    s.execute("DROP TABLE residents");
     s.execute("DROP TABLE tenants");
   }
 

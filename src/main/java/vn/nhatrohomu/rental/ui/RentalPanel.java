@@ -34,6 +34,7 @@ public final class RentalPanel extends JPanel {
   private List<Contract> contracts = List.of();
   private List<Bill> debts = List.of();
   private boolean busy;
+  private boolean refreshPending;
   private Map<Long, BigDecimal> balances = Map.of();
 
   private record PanelData(Object items, Map<Long, BigDecimal> balances) {}
@@ -49,7 +50,10 @@ public final class RentalPanel extends JPanel {
   }
 
   private void refresh() {
-    if (busy) return;
+    if (busy) {
+      refreshPending = true;
+      return;
+    }
     busy = true;
     new SwingWorker<PanelData, Void>() {
       protected PanelData doInBackground() throws Exception {
@@ -87,6 +91,10 @@ public final class RentalPanel extends JPanel {
             case DEBTS -> debts = (List<Bill>) data;
           }
           render();
+          if (refreshPending) {
+            refreshPending = false;
+            refresh();
+          }
         } catch (Exception e) {
           Ui.error(RentalPanel.this, e);
         }
@@ -119,7 +127,8 @@ public final class RentalPanel extends JPanel {
     JPanel actions = Design.clear(new FlowLayout(FlowLayout.LEFT, 8, 10));
     if (page == Page.TENANTS) {
       actions.add(Design.primary(Ui.button("+ Người thuê", () -> tenantForm(null))));
-      actions.add(Ui.button("Sửa liên hệ", () -> safe(() -> tenantForm(tenants.get(selected())))));
+      actions.add(
+          Ui.button("Hồ sơ / người ở cùng", () -> safe(() -> tenantForm(tenants.get(selected())))));
       actions.add(
           Ui.button("Lịch sử thuê", () -> safe(() -> tenantHistory(tenants.get(selected())))));
       actions.add(
@@ -137,9 +146,15 @@ public final class RentalPanel extends JPanel {
                       })));
       Object[][] rows =
           tenants.stream()
-              .map(t -> new Object[] {t.id(), t.name(), t.phone(), t.note()})
+              .map(
+                  t ->
+                      new Object[] {
+                        t.id(), t.name(), t.phone(), t.zaloContact(), t.residents().size(), t.note()
+                      })
               .toArray(Object[][]::new);
-      table = table(new String[] {"Mã", "Họ tên", "Điện thoại", "Ghi chú"}, rows);
+      table =
+          table(
+              new String[] {"Mã", "Họ tên", "Điện thoại", "Zalo", "Người ở cùng", "Ghi chú"}, rows);
     } else if (page == Page.CONTRACTS) {
       actions.add(Design.primary(Ui.button("+ Hợp đồng", () -> safe(this::contractForm))));
       actions.add(
@@ -240,7 +255,13 @@ public final class RentalPanel extends JPanel {
               },
               rows);
     }
-    actions.add(Ui.button("Làm mới", this::refresh));
+    vn.nhatrohomu.shared.RowActions.install(
+        table,
+        Arrays.stream(actions.getComponents())
+            .filter(c -> c instanceof JButton b && !b.getText().startsWith("+"))
+            .map(c -> (JButton) c)
+            .toList());
+    actions.add(Ui.refreshButton(this::refresh));
     heading.add(actions, BorderLayout.SOUTH);
     add(heading, BorderLayout.NORTH);
     JTextField search = new JTextField(22);
@@ -355,26 +376,126 @@ public final class RentalPanel extends JPanel {
   }
 
   private void tenantForm(Tenant tenant) {
-    JTextField name = new JTextField(tenant == null ? "" : tenant.name(), 25),
-        phone = new JTextField(tenant == null ? "" : tenant.phone());
-    JTextArea note = new JTextArea(tenant == null ? "" : tenant.note(), 4, 25);
+    Tenant value = tenant == null ? new Tenant(0, "", "", "", true) : tenant;
+    JTextField name = new JTextField(value.name(), 25),
+        phone = new JTextField(value.phone()),
+        zalo = new JTextField(value.zaloContact()),
+        identity = new JTextField(value.identity()),
+        birthday = new JTextField(value.birthday()),
+        address = new JTextField(value.address());
+    JCheckBox auto = new JCheckBox("Zalo dùng số điện thoại", value.zaloAuto());
+    zalo.setEditable(!auto.isSelected());
+    auto.addActionListener(
+        e -> {
+          zalo.setEditable(!auto.isSelected());
+          if (auto.isSelected()) zalo.setText(phone.getText());
+        });
+    phone
+        .getDocument()
+        .addDocumentListener(
+            new javax.swing.event.DocumentListener() {
+              public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                sync();
+              }
+
+              public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                sync();
+              }
+
+              public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                sync();
+              }
+
+              void sync() {
+                if (auto.isSelected()) zalo.setText(phone.getText());
+              }
+            });
+    JTextArea note = new JTextArea(value.note(), 3, 25);
     note.setLineWrap(true);
     note.setWrapStyleWord(true);
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Họ tên", name);
-    Ui.field(fields, 1, "Điện thoại (tùy chọn)", phone);
-    Ui.field(fields, 2, "Ghi chú", new JScrollPane(note));
+    Ui.field(fields, 1, "Điện thoại", phone);
+    Ui.field(fields, 2, "Tự điền Zalo", auto);
+    Ui.field(fields, 3, "Số Zalo (chưa xác minh tài khoản)", zalo);
+    Ui.field(fields, 4, "CCCD / giấy tờ (tùy chọn)", identity);
+    Ui.field(fields, 5, "Ngày sinh YYYY-MM-DD (tùy chọn)", birthday);
+    Ui.field(fields, 6, "Địa chỉ thường trú", address);
+    Ui.field(fields, 7, "Ghi chú", new JScrollPane(note));
+    DefaultTableModel members =
+        new DefaultTableModel(
+            new String[] {
+              "Họ tên", "Quan hệ", "Ngày sinh YYYY-MM-DD", "CCCD / giấy tờ", "Điện thoại"
+            },
+            0);
+    for (Resident r : value.residents())
+      members.addRow(
+          new Object[] {r.name(), r.relationship(), r.birthday(), r.identity(), r.phone()});
+    JTable roster = new JTable(members);
+    roster.setRowHeight(34);
+    roster.putClientProperty("terminateEditOnFocusLost", true);
+    roster.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+    for (int i = 0; i < 5; i++)
+      roster.getColumnModel().getColumn(i).setPreferredWidth(i == 2 ? 185 : 150);
+    JPanel family = new JPanel(new BorderLayout(0, 8));
+    JTextArea help =
+        new JTextArea(
+            "Gia đình / người ở cùng của hồ sơ này. Mỗi người một dòng; tên bắt buộc, các ô khác có"
+                + " thể để trống. Đây là danh sách hiện tại, chưa phải lịch sử vào/ra theo hợp"
+                + " đồng.");
+    help.setLineWrap(true);
+    help.setWrapStyleWord(true);
+    help.setEditable(false);
+    help.setOpaque(false);
+    help.setRows(3);
+    family.add(help, BorderLayout.NORTH);
+    family.add(new JScrollPane(roster));
+    JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    controls.add(
+        Ui.button("+ Người ở cùng", () -> members.addRow(new Object[] {"", "", "", "", ""})));
+    JButton removeMember =
+        Ui.button(
+            "Xóa dòng",
+            () -> {
+              if (roster.isEditing() && !roster.getCellEditor().stopCellEditing()) return;
+              if (roster.getSelectedRow() >= 0) members.removeRow(roster.getSelectedRow());
+            });
+    controls.add(removeMember);
+    vn.nhatrohomu.shared.RowActions.install(roster, List.of(removeMember), false);
+    family.add(controls, BorderLayout.SOUTH);
+    family.setPreferredSize(new Dimension(580, 280));
+    JTabbedPane tabs = new JTabbedPane();
+    tabs.addTab("Thông tin người thuê", new JScrollPane(fields));
+    tabs.addTab("Gia đình / người ở cùng", family);
+    JPanel content = new JPanel(new BorderLayout());
+    content.add(tabs);
     form(
-        tenant == null ? "Thêm người thuê" : "Sửa liên hệ",
-        fields,
-        () ->
-            rentals.saveTenant(
-                new Tenant(
-                    tenant == null ? 0 : tenant.id(),
-                    name.getText(),
-                    phone.getText(),
-                    note.getText(),
-                    true)));
+        tenant == null ? "Thêm người thuê" : "Hồ sơ · " + value.name(),
+        content,
+        () -> {
+          if (roster.isEditing() && !roster.getCellEditor().stopCellEditing())
+            throw new IllegalArgumentException("Hãy hoàn tất dòng đang sửa.");
+          List<Resident> people = new ArrayList<>();
+          for (int i = 0; i < members.getRowCount(); i++) {
+            String[] row = new String[5];
+            for (int j = 0; j < 5; j++)
+              row[j] = Objects.toString(members.getValueAt(i, j), "").trim();
+            people.add(new Resident(row[0], row[1], row[2], row[3], row[4]));
+          }
+          rentals.saveTenant(
+              new Tenant(
+                  value.id(),
+                  name.getText().trim(),
+                  phone.getText().trim(),
+                  note.getText(),
+                  true,
+                  zalo.getText().trim(),
+                  auto.isSelected(),
+                  identity.getText().trim(),
+                  birthday.getText().trim(),
+                  address.getText().trim(),
+                  people));
+        });
   }
 
   private void tenantHistory(Tenant tenant) throws Exception {

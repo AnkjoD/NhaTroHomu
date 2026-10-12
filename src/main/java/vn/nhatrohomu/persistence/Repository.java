@@ -32,6 +32,10 @@ public interface Repository {
 
   List<Bill> billsBetween(String firstMonth, String lastMonth) throws SQLException;
 
+  default List<Bill> roomBills(long roomId, String from, String to) throws SQLException {
+    return billsBetween(from, to).stream().filter(b -> b.roomId() == roomId).toList();
+  }
+
   List<Bill> outstandingBills() throws SQLException;
 
   int billCount() throws SQLException;

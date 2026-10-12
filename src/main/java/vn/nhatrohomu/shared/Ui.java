@@ -27,6 +27,33 @@ public final class Ui {
     return b;
   }
 
+  public static JButton refreshButton(Runnable action) {
+    JButton button = button("", action);
+    button.setIcon(Design.icon("refresh", Design.INK));
+    button.setToolTipText("Cập nhật dữ liệu");
+    button.getAccessibleContext().setAccessibleName("Cập nhật dữ liệu");
+    return button;
+  }
+
+  public static void contextMenu(Component component, JPopupMenu menu) {
+    component.addMouseListener(
+        new java.awt.event.MouseAdapter() {
+          private void show(java.awt.event.MouseEvent e) {
+            if (e.isPopupTrigger()) menu.show(e.getComponent(), e.getX(), e.getY());
+          }
+
+          public void mousePressed(java.awt.event.MouseEvent e) {
+            show(e);
+          }
+
+          public void mouseReleased(java.awt.event.MouseEvent e) {
+            show(e);
+          }
+        });
+    if (component instanceof Container parent)
+      for (Component child : parent.getComponents()) contextMenu(child, menu);
+  }
+
   public static JPanel column() {
     JPanel p = new JPanel();
     p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));

@@ -2,7 +2,7 @@
 
 Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR của Windows, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.6.0**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.7.1**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
 ![Báo cáo và đối soát — dữ liệu minh họa](docs/assets/reports.png)
 
@@ -10,7 +10,7 @@ Phiên bản **0.6.0**. Phạm vi hiện tại: một người quản lý, một
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.6.0-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.7.1-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
@@ -77,18 +77,32 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.6.0/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.7.1/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 
 Sổ mới dùng `%LOCALAPPDATA%\NhaTroHomu\nhatrohomu.db`; demo dùng `NhaTroHomu-demo`. Khi tìm thấy sổ Sổ Trọ cũ, ứng dụng sử dụng lại thư mục/file cũ và cùng khóa `app.lock`. Đóng bản cũ trước khi mở bản mới. Có thể chỉ định thư mục bằng `-Dnhatrohomu.data=...` khi chạy Java.
 
-Schema 4 có backup trước nâng cấp. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
+Schema 5 có backup trước nâng cấp. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
 
 DB, backup, ảnh và tài liệu xuất **chưa mã hóa**. Không có đăng nhập/phân quyền. Nhật ký/trigger bảo vệ lịch sử qua luồng SQL thông thường, không chống người có quyền sửa file hoặc thay ứng dụng trên máy. Không chia sẻ database qua ổ mạng và không đưa sổ/ảnh khách thật vào GitHub.
 
 [Kiến trúc và schema](docs/architecture.md) · [Phạm vi bảo mật](docs/security.md) · [Đóng góp](CONTRIBUTING.md) · [Thay đổi](CHANGELOG.md).
 
+## Lịch sử điện nước và hồ sơ
+
+Ở **Phòng trọ → Lịch sử điện nước**, chọn khoảng kỳ YYYY-MM hoặc **Tất cả kỳ**. Mỗi dòng có chỉ số cũ/mới, lượng điện/nước dùng, tiền điện, tiền nước, cộng điện nước, tiền phòng, phí và tổng hóa đơn. Chọn dòng để xem/xuất PDF hoặc TXT; CSV xuất đúng khoảng đã xem. CSV ở trang Hóa đơn xuất toàn bộ. Nước khoán không có chỉ số đồng hồ cũ/mới; cột đó để trống trong CSV. Chỉ các kỳ đã chốt có dữ liệu, không tự suy ra số cho tháng chưa lập hóa đơn. Đơn giá và số tiền là bản chốt của kỳ đó.
+
+**Người thuê → Hồ sơ / người ở cùng** có số điện thoại, Zalo, CCCD/giấy tờ, ngày sinh, địa chỉ và tab gia đình. Zalo tự điền theo điện thoại khi bật tùy chọn; tắt tùy chọn để sửa riêng hoặc để trống. Đây là số liên hệ nhập tay, không xác minh tài khoản Zalo hay CCCD. Danh sách gia đình là hồ sơ hiện tại, chưa quản lý ngày vào/ra hay lịch sử cư trú theo hợp đồng. Tránh nhập giấy tờ khi không cần; dữ liệu local và backup chưa mã hóa.
+
+Hợp đồng ghi thỏa thuận thuê, thời hạn, tiền phòng/phí/cọc. Hóa đơn chốt khoản phải trả của từng kỳ. Công nợ = tổng hóa đơn − tiền đã thu; không cộng cọc vào tiền thu hóa đơn. Báo cáo tổng hợp công nợ, thu/chi, kỳ chưa lập và chứng từ hủy để đối soát; dòng tiền không đồng nghĩa lợi nhuận.
+
+Các khoản điện/nước trong CSV giữ độ chính xác thập phân; tổng hóa đơn được làm tròn đến đồng một lần theo chính sách hiện có.
+
 ## Giấy phép
 
 Source MIT. Font, thư viện và runtime giữ giấy phép riêng trong [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+## Thao tác với danh sách
+
+Chọn dòng để hiện nút thao tác; chuột phải trên dòng để mở cùng menu. Nhấp đúp hoặc Enter mở hồ sơ/chi tiết/thu tiền tùy trang. Các thao tác đảo chứng từ không chạy bằng nhấp đúp. Sau khi lưu, danh sách tự tải lại; biểu tượng mũi tên vòng chỉ dùng khi muốn kiểm tra lại. Báo cáo giữ tab khi cập nhật và tự tải khi đổi phòng. Chuột phải trên thẻ phòng mở tùy chọn phòng.

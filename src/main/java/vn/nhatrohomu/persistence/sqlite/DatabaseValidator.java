@@ -54,7 +54,7 @@ public final class DatabaseValidator {
                 "Backup chứa cấu trúc không thuộc NhaTroHomu: " + name);
           if (type.equals("trigger")) {
             foundTriggers.add(name);
-            if (!normalized(sql).equals(normalized(Schema.triggers().get(name))))
+            if (!normalized(sql).equals(normalized(Schema.triggers(version).get(name))))
               throw new IllegalArgumentException("Backup chứa trigger lạ hoặc đã bị sửa: " + name);
           }
         }
@@ -274,9 +274,20 @@ public final class DatabaseValidator {
                 r.getString("tenant_name"),
                 d(r, "rent"),
                 RentalStore.charges(c, "bill_charges", "bill_id", r.getLong("id")),
-                r.getString("due_date"));
+                r.getString("due_date"),
+                r.getString("water_amount") == null ? null : d(r, "water_amount"));
         try {
-          DataRules.bill(b);
+          boolean imported;
+          try (PreparedStatement source =
+              c.prepareStatement(
+                  "SELECT 1 FROM audit_events WHERE action='IMPORT' AND entity_type='bill' AND"
+                      + " entity_id=? LIMIT 1")) {
+            source.setLong(1, b.id());
+            try (ResultSet proof = source.executeQuery()) {
+              imported = proof.next();
+            }
+          }
+          DataRules.bill(b, imported);
         } catch (IllegalArgumentException ex) {
           throw new IllegalArgumentException("Hóa đơn #" + b.id() + ": " + ex.getMessage(), ex);
         }

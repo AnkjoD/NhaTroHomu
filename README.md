@@ -2,7 +2,7 @@
 
 Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR của Windows, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.7.1**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.7.2**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
 ![Báo cáo và đối soát — dữ liệu minh họa](docs/assets/reports.png)
 
@@ -10,7 +10,7 @@ Phiên bản **0.7.1**. Phạm vi hiện tại: một người quản lý, một
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.7.1-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.7.2-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
@@ -77,13 +77,13 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.7.1/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.7.2/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 
 Sổ mới dùng `%LOCALAPPDATA%\NhaTroHomu\nhatrohomu.db`; demo dùng `NhaTroHomu-demo`. Khi tìm thấy sổ Sổ Trọ cũ, ứng dụng sử dụng lại thư mục/file cũ và cùng khóa `app.lock`. Đóng bản cũ trước khi mở bản mới. Có thể chỉ định thư mục bằng `-Dnhatrohomu.data=...` khi chạy Java.
 
-Schema 5 có backup trước nâng cấp. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
+Schema 6 có backup trước nâng cấp. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
 
 DB, backup, ảnh và tài liệu xuất **chưa mã hóa**. Không có đăng nhập/phân quyền. Nhật ký/trigger bảo vệ lịch sử qua luồng SQL thông thường, không chống người có quyền sửa file hoặc thay ứng dụng trên máy. Không chia sẻ database qua ổ mạng và không đưa sổ/ảnh khách thật vào GitHub.
 
@@ -106,3 +106,7 @@ Source MIT. Font, thư viện và runtime giữ giấy phép riêng trong [THIRD
 ## Thao tác với danh sách
 
 Chọn dòng để hiện nút thao tác; chuột phải trên dòng để mở cùng menu. Nhấp đúp hoặc Enter mở hồ sơ/chi tiết/thu tiền tùy trang. Các thao tác đảo chứng từ không chạy bằng nhấp đúp. Sau khi lưu, danh sách tự tải lại; biểu tượng mũi tên vòng chỉ dùng khi muốn kiểm tra lại. Báo cáo giữ tab khi cập nhật và tự tải khi đổi phòng. Chuột phải trên thẻ phòng mở tùy chọn phòng.
+
+## Hóa đơn lịch sử nhập từ sổ cũ
+
+Schema 6 giữ tiền phòng lịch sử mà không dựng hợp đồng/người thuê chưa được cung cấp. Thành tiền nước gốc có thể khác lượng × giá; `water_amount` lưu riêng số tiền gốc, không đổi chỉ số hay đơn giá. Chỉ chứng từ có nhật ký IMPORT được phép dùng ngoại lệ này; hóa đơn thường vẫn bắt buộc tính đúng theo hợp đồng và đơn giá. Các số liệu khác biệt được ghi chú cần đối soát. Trạng thái đã thu cần chủ sổ xác nhận; nếu thiếu ngày nhận tiền thì để trống, báo cáo không tự gán vào ngày nhập. Khoản nợ chuyển kỳ không cộng hai lần. Nguồn Excel và dữ liệu thật giữ local, không nằm trong repo/bản phát hành.

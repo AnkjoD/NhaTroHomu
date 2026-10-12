@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Atomic schema upgrades; preserve released v1/v2/v3 books. */
 final class Schema {
-  static final int VERSION = 5;
+  static final int VERSION = 6;
   static final String BILL_COLUMNS =
       "id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,e_photo,w_photo,contract_id,tenant_name,rent,due_date";
 
@@ -130,21 +130,26 @@ final class Schema {
                     "CREATE TABLE expense_reversals(id INTEGER PRIMARY KEY AUTOINCREMENT,expense_id"
                         + " INTEGER NOT NULL UNIQUE REFERENCES expenses(id),reversed_at TEXT NOT"
                         + " NULL,reason TEXT NOT NULL)");
-                for (String sql : triggers().values()) s.execute(sql);
+                for (String sql : triggers(5).values()) s.execute(sql);
               }
-              s.execute("ALTER TABLE tenants ADD COLUMN zalo TEXT NOT NULL DEFAULT ''");
-              s.execute(
-                  "ALTER TABLE tenants ADD COLUMN zalo_auto INTEGER NOT NULL DEFAULT 1"
-                      + " CHECK(zalo_auto IN(0,1))");
-              s.execute("ALTER TABLE tenants ADD COLUMN identity_no TEXT NOT NULL DEFAULT ''");
-              s.execute("ALTER TABLE tenants ADD COLUMN birthday TEXT NOT NULL DEFAULT ''");
-              s.execute("ALTER TABLE tenants ADD COLUMN address TEXT NOT NULL DEFAULT ''");
-              s.execute(
-                  "CREATE TABLE residents(id INTEGER PRIMARY KEY AUTOINCREMENT,tenant_id INTEGER"
-                      + " NOT NULL REFERENCES tenants(id),name TEXT NOT NULL,relationship TEXT NOT"
-                      + " NULL,birthday TEXT NOT NULL,identity_no TEXT NOT NULL,phone TEXT NOT"
-                      + " NULL)");
-              s.execute("CREATE INDEX residents_tenant ON residents(tenant_id,id)");
+              if (version < 5) {
+                s.execute("ALTER TABLE tenants ADD COLUMN zalo TEXT NOT NULL DEFAULT ''");
+                s.execute(
+                    "ALTER TABLE tenants ADD COLUMN zalo_auto INTEGER NOT NULL DEFAULT 1"
+                        + " CHECK(zalo_auto IN(0,1))");
+                s.execute("ALTER TABLE tenants ADD COLUMN identity_no TEXT NOT NULL DEFAULT ''");
+                s.execute("ALTER TABLE tenants ADD COLUMN birthday TEXT NOT NULL DEFAULT ''");
+                s.execute("ALTER TABLE tenants ADD COLUMN address TEXT NOT NULL DEFAULT ''");
+                s.execute(
+                    "CREATE TABLE residents(id INTEGER PRIMARY KEY AUTOINCREMENT,tenant_id INTEGER"
+                        + " NOT NULL REFERENCES tenants(id),name TEXT NOT NULL,relationship TEXT"
+                        + " NOT NULL,birthday TEXT NOT NULL,identity_no TEXT NOT NULL,phone TEXT"
+                        + " NOT NULL)");
+                s.execute("CREATE INDEX residents_tenant ON residents(tenant_id,id)");
+              }
+              s.execute("ALTER TABLE bills ADD COLUMN water_amount TEXT");
+              s.execute("DROP TRIGGER bills_no_rewrite");
+              s.execute(triggers().get("bills_no_rewrite"));
               try (ResultSet r = s.executeQuery("PRAGMA foreign_key_check")) {
                 if (r.next()) throw new SQLException("Migration có quan hệ dữ liệu không hợp lệ.");
               }
@@ -163,6 +168,10 @@ final class Schema {
   }
 
   static java.util.Map<String, String> triggers() {
+    return triggers(VERSION);
+  }
+
+  static java.util.Map<String, String> triggers(int version) {
     java.util.Map<String, String> result = new java.util.LinkedHashMap<>();
     for (String table :
         new String[] {
@@ -210,8 +219,11 @@ final class Schema {
         "bills_no_rewrite",
         "CREATE TRIGGER bills_no_rewrite BEFORE UPDATE OF "
             + BILL_COLUMNS
+            + (version >= 6 ? ",water_amount" : "")
             + ",created_at ON bills WHEN "
-            + java.util.Arrays.stream((BILL_COLUMNS + ",created_at").split(","))
+            + java.util.Arrays.stream(
+                    (BILL_COLUMNS + (version >= 6 ? ",water_amount" : "") + ",created_at")
+                        .split(","))
                 .filter(column -> !column.equals("paid"))
                 .map(column -> "NEW." + column + " IS NOT OLD." + column)
                 .collect(java.util.stream.Collectors.joining(" OR "))

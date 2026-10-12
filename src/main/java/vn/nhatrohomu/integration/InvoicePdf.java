@@ -34,7 +34,9 @@ public final class InvoicePdf {
           document.add(new Paragraph("NHATROHOMU", title));
           document.add(
               new Paragraph(
-                  bill.contractId() == null ? "HÓA ĐƠN ĐIỆN & NƯỚC" : "HÓA ĐƠN PHÒNG TRỌ",
+                  bill.contractId() == null && bill.rent().signum() == 0
+                      ? "HÓA ĐƠN ĐIỆN & NƯỚC"
+                      : "HÓA ĐƠN PHÒNG TRỌ",
                   new Font(base, 15)));
           document.add(
               new Paragraph(
@@ -77,8 +79,8 @@ public final class InvoicePdf {
                   : "Theo mức chỉ định",
               Ui.n(bill.waterUsed()) + " m³",
               Ui.money(bill.waterRate()),
-              Ui.money(bill.waterUsed().multiply(bill.waterRate())));
-          if (bill.contractId() != null) {
+              Ui.money(bill.waterCost()));
+          if (bill.contractId() != null || bill.rent().signum() > 0) {
             row(
                 table,
                 normal,
@@ -113,7 +115,7 @@ public final class InvoicePdf {
                   normal));
           document.add(
               new Paragraph(
-                  bill.contractId() == null
+                  bill.contractId() == null && bill.rent().signum() == 0
                       ? "Tổng được làm tròn đến đồng. Không bao gồm tiền thuê phòng."
                       : "Tổng được làm tròn đến đồng. Tiền cọc được quản lý riêng.",
                   normal));

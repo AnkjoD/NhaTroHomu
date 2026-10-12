@@ -171,7 +171,7 @@ public final class DashboardPanel extends JPanel {
       for (Bill b : data.bills())
         if (b.month().equals(period)) {
           e = e.add(b.electricityUsed().multiply(b.electricityRate()));
-          w = w.add(b.waterUsed().multiply(b.waterRate()));
+          w = w.add(b.waterCost());
         }
       electricity.add(e.doubleValue());
       water.add(w.doubleValue());

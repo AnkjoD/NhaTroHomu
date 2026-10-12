@@ -83,7 +83,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.7.1", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.7.2", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -370,6 +370,10 @@ public final class AppWindow extends JFrame {
   private JPanel roomCard(Room r, Contract contract) throws Exception {
     Readings previous = repository.previous(r);
     String latest = repository.latestMonth(r.id());
+    boolean historicalRental =
+        latest != null
+            && repository.roomBills(r.id(), latest, latest).stream()
+                .anyMatch(b -> b.rent().signum() > 0);
     JPanel card = Design.card(Design.SURFACE);
     card.setLayout(new BorderLayout(0, 18));
     card.setPreferredSize(new Dimension(360, 252));
@@ -382,9 +386,11 @@ public final class AppWindow extends JFrame {
         Design.label(
             contract != null
                 ? "Đang thuê · " + contract.tenantName()
-                : r.tenant().isBlank()
-                    ? "Trống · chưa có hợp đồng hiện tại"
-                    : "Chưa xác nhận · tên cũ: " + r.tenant(),
+                : historicalRental
+                    ? "Có lịch sử thuê · chưa bổ sung hợp đồng"
+                    : r.tenant().isBlank()
+                        ? "Trống · chưa có hợp đồng hiện tại"
+                        : "Chưa xác nhận · tên cũ: " + r.tenant(),
             11,
             Design.MUTED,
             false));
@@ -654,7 +660,9 @@ public final class AppWindow extends JFrame {
         + "\nKỳ: "
         + b.month()
         + (b.contractId() == null
-            ? "\nLoại: điện nước (chưa có hợp đồng)"
+            ? (b.rent().signum() > 0
+                ? "\nLoại: hóa đơn lịch sử nhập từ sổ cũ\nTiền phòng: " + Ui.money(b.rent())
+                : "\nLoại: điện nước (chưa có hợp đồng)")
             : "\nNgười thuê: "
                 + b.tenantName()
                 + "\nHợp đồng: #"
@@ -701,7 +709,7 @@ public final class AppWindow extends JFrame {
         + Ui.money(b.total().subtract(received))
         + "\nGhi chú: "
         + b.note()
-        + (b.contractId() == null
+        + (b.contractId() == null && b.rent().signum() == 0
             ? "\n\nKhông bao gồm tiền thuê phòng."
             : "\n\nTiền cọc được quản lý riêng, không nằm trong hóa đơn.");
   }

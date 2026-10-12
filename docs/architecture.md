@@ -23,7 +23,7 @@ vn.nhatrohomu
 
 Các store hiện vẫn kết hợp SQL và một số quy tắc ghi nghiệp vụ. Đây là ứng dụng desktop được chia theo chức năng, chưa phải kiến trúc backend hay hệ thống nhiều module độc lập.
 
-## Schema 5 đang chạy
+## Schema 6 đang chạy
 
 | Bảng | Trường/quan hệ chính |
 |---|---|
@@ -86,3 +86,7 @@ erDiagram
 `tenants` bổ sung `zalo`, `zalo_auto`, `identity_no`, `birthday`, `address`. Khi `zalo_auto=1`, số liên hệ được đọc từ `phone`; giá trị nhập riêng được lưu khi `zalo_auto=0`. `residents` có `id`, FK `tenant_id`, `name`, `relationship`, `birthday`, `identity_no`, `phone`: một người thuê có nhiều người ở cùng. Lưu toàn bộ hồ sơ và danh sách trong một transaction; lỗi không làm mất gia đình cũ. Danh sách được thay bằng hồ sơ hiện tại khi lưu, không phải sổ lịch sử cư trú. Các dữ liệu này không nằm trong snapshot hóa đơn. Backup chứa giấy tờ chưa mã hóa.
 
 Lịch sử phòng truy vấn theo `room_id` và khoảng kỳ, chỉ lấy hóa đơn chưa hủy, không tải ảnh BLOB. `InvoiceCsv` dùng cùng danh sách 22 cột cho toàn bộ hóa đơn và lịch sử phòng; xuất UTF-8 BOM, bảo vệ ô công thức và chỉ thay file sau khi ghi thành công.
+
+### Ngoại lệ lịch sử (v6)
+
+`bills.water_amount` nullable là thành tiền nước gốc đã chốt từ nguồn; khi NULL dùng lượng × đơn giá. `bills_no_rewrite` bảo vệ trường này. Validator yêu cầu nhật ký `IMPORT` trỏ tới đúng ID hóa đơn để chấp nhận số tiền gốc hoặc tiền phòng lịch sử không có hợp đồng. Các API lập hóa đơn thông thường không cho nhập ngoại lệ. Nâng cấp v5 → v6 có backup, giữ trigger phiên bản cũ để kiểm tra backup v4/v5 trước nâng cấp.

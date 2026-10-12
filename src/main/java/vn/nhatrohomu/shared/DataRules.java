@@ -100,6 +100,16 @@ public final class DataRules {
   }
 
   public static void bill(Bill b) {
+    bill(b, false);
+  }
+
+  public static void bill(Bill b, boolean historicalImport) {
+    if (b.importedWaterAmount() != null) {
+      if (!historicalImport)
+        throw new IllegalArgumentException(
+            "Chỉ nhập lịch sử có đối soát được giữ thành tiền nước gốc.");
+      money(b.importedWaterAmount(), "Tiền nước gốc");
+    }
     period(b.month());
     name(b.roomName(), "Tên phòng", 80);
     text(b.note(), "Ghi chú", 2000, false);
@@ -130,7 +140,7 @@ public final class DataRules {
     BigDecimal expected =
         b.electricityUsed()
             .multiply(b.electricityRate())
-            .add(b.waterUsed().multiply(b.waterRate()))
+            .add(b.waterCost())
             .add(b.rent())
             .add(b.feeTotal())
             .setScale(0, java.math.RoundingMode.HALF_UP);
@@ -140,7 +150,7 @@ public final class DataRules {
         || b.total().compareTo(new BigDecimal("1000000000000")) > 0)
       throw new IllegalArgumentException("Tổng hóa đơn không khớp các khoản hoặc vượt giới hạn.");
     if (b.contractId() == null
-        && (b.rent().signum() != 0
+        && ((!historicalImport && b.rent().signum() != 0)
             || !b.fees().isEmpty()
             || !b.tenantName().isBlank()
             || !b.dueDate().isBlank()))

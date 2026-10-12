@@ -409,7 +409,8 @@ public final class SqliteRepository implements Repository {
         r.getString("tenant_name"),
         decimal(r, "rent"),
         RentalStore.charges(c, "bill_charges", "bill_id", r.getLong("id")),
-        r.getString("due_date"));
+        r.getString("due_date"),
+        r.getString("water_amount") == null ? null : decimal(r, "water_amount"));
   }
 
   public List<Bill> bills(int limit, int offset) throws SQLException {
@@ -418,7 +419,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
                     + " FROM bills WHERE voided_at IS NULL ORDER BY month DESC,id DESC LIMIT ?"
                     + " OFFSET ?")) {
       p.setInt(1, limit);
@@ -436,7 +437,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
                     + " FROM bills WHERE voided_at IS NULL AND month>=? AND month<=? ORDER BY"
                     + " month,room_name")) {
       p.setString(1, firstMonth);
@@ -456,7 +457,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
                     + " FROM bills WHERE room_id=? AND voided_at IS NULL AND month>=? AND month<=?"
                     + " ORDER BY month DESC,id DESC")) {
       p.setLong(1, roomId);
@@ -476,7 +477,7 @@ public final class SqliteRepository implements Repository {
         ResultSet r =
             s.executeQuery(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
                     + " FROM bills WHERE voided_at IS NULL AND paid=0 ORDER BY month,room_name")) {
       while (r.next()) {
         Bill b = bill(c, r);

@@ -118,9 +118,55 @@ public final class Models {
       String tenantName,
       BigDecimal rent,
       java.util.List<Charge> fees,
-      String dueDate) {
+      String dueDate,
+      BigDecimal importedWaterAmount) {
     public Bill {
       fees = java.util.List.copyOf(fees);
+    }
+
+    public Bill(
+        long id,
+        long roomId,
+        String roomName,
+        String month,
+        BigDecimal electricityOld,
+        BigDecimal electricityNew,
+        BigDecimal waterOld,
+        BigDecimal waterNew,
+        String waterMode,
+        BigDecimal waterUsed,
+        BigDecimal electricityRate,
+        BigDecimal waterRate,
+        BigDecimal total,
+        boolean paid,
+        String note,
+        Long contractId,
+        String tenantName,
+        BigDecimal rent,
+        java.util.List<Charge> fees,
+        String dueDate) {
+      this(
+          id,
+          roomId,
+          roomName,
+          month,
+          electricityOld,
+          electricityNew,
+          waterOld,
+          waterNew,
+          waterMode,
+          waterUsed,
+          electricityRate,
+          waterRate,
+          total,
+          paid,
+          note,
+          contractId,
+          tenantName,
+          rent,
+          fees,
+          dueDate,
+          null);
     }
 
     /** Old utility invoices remain readable without inventing rental terms. */
@@ -172,7 +218,7 @@ public final class Models {
     }
 
     public BigDecimal waterCost() {
-      return waterUsed.multiply(waterRate);
+      return importedWaterAmount == null ? waterUsed.multiply(waterRate) : importedWaterAmount;
     }
 
     public BigDecimal utilitiesCost() {

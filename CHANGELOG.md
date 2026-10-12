@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.2
+
+- Schema 6 hỗ trợ hóa đơn lịch sử có tiền phòng khi chưa có hồ sơ hợp đồng; yêu cầu nhật ký nhập.
+- Giữ thành tiền nước gốc khác lượng × giá, có dấu vết và bảo vệ khỏi sửa; không đổi giá/số đo để ép tổng.
+- PDF, CSV, lịch sử và dashboard dùng đúng thành tiền gốc; bảng phòng phân biệt lịch sử thuê với phòng trống.
+
+
 ## 0.7.1
 
 - Thao tác theo dòng chỉ hiện khi chọn; menu chuột phải, nhấp đúp / Enter mở thao tác mặc định.

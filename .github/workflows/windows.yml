@@ -1,0 +1,30 @@
+name: Windows build and checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Business and database checks
+        shell: pwsh
+        run: ./run.ps1 -Test
+      - name: Maven regression harness
+        shell: pwsh
+        run: mvn -B test
+      - name: Swing initialization
+        shell: pwsh
+        run: ./run.ps1 -Smoke
+      - name: Portable Windows app
+        shell: pwsh
+        run: ./package.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NhaTroHomu-windows-x64
+          path: release/**/*.zip

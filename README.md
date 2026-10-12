@@ -1,0 +1,94 @@
+# NhaTroHomu
+
+Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR của Windows, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
+
+Phiên bản **0.6.0**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+
+![Báo cáo và đối soát — dữ liệu minh họa](docs/assets/reports.png)
+
+[Tổng quan](docs/assets/dashboard.png) · [Giao diện sáng](docs/assets/rooms-light.png).
+
+## Chạy thử
+
+Giải nén toàn bộ `NhaTroHomu-0.6.0-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+
+`Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
+
+## Tính năng
+
+- Quản lý phòng, người thuê, hợp đồng, giá thuê, hạn thu và phí định kỳ.
+- Lập hóa đơn tiền phòng, điện, nước và phí; lưu giá, tên, chỉ số và ảnh tại lúc chốt.
+- OCR trên máy, chọn/cắt ảnh, chọn kết quả hoặc nhập tay và xác nhận lại.
+- Nước theo đồng hồ hoặc mức m³ khoán chung/riêng. Chuyển cách tính tại ranh giới kỳ có số bàn giao.
+- Thu tiền từng phần, công nợ và tuổi nợ; phân biệt kỳ hóa đơn với ngày thu.
+- Ghi khoản đã chi theo loại, phòng, người nhận và phương thức; xem thu trừ chi theo tháng.
+- Nhận/hoàn cọc riêng với tiền hóa đơn.
+- Hủy hóa đơn cuối và đảo khoản thu/chi nhập nhầm có lịch sử; giữ chứng từ gốc.
+- Báo cáo kỳ thuê chưa lập hóa đơn, hóa đơn đã hủy, nhật ký, bảng chi tiết và xuất CSV.
+- Xuất PDF tiếng Việt, TXT; sao lưu và kiểm tra bản phục hồi trước khi thay sổ đang dùng.
+- Theme Homura tối và Madoka sáng.
+
+## Quy trình sử dụng
+
+1. Đặt đơn giá, thêm phòng và chỉ số ban đầu.
+2. Thêm người thuê, tạo hợp đồng và các khoản phí. Phí nhập mỗi dòng như `Internet=100000`.
+3. Ghi nhận tiền cọc thực nhận; mức cọc hợp đồng không tự tạo một lần nhận tiền.
+4. Lập hóa đơn từ kỳ vào ở, chốt tuần tự từng tháng; kiểm tra ảnh, chỉ số, tiền phòng và phí.
+5. Ghi từng lần thu tiền. Vào **Báo cáo** để xem công nợ mọi kỳ, thu theo ngày và các kỳ thuê còn thiếu.
+6. Ghi khoản đã chi trong **Báo cáo → Khoản đã chi**.
+7. Khi kết thúc thuê, ghi ngày kết thúc và xử lý nợ/cọc còn lại. Sao lưu ra vị trí khác định kỳ.
+
+Tiền thuê/cọc/phí/thu/chi là số nguyên đồng. Chỉ số hỗ trợ tối đa ba chữ số thập phân. Ngày dùng `YYYY-MM-DD`, kỳ dùng `YYYY-MM`.
+
+**Đảo khoản nhập nhầm không phải hoàn tiền thật.** Chỉ dùng khi bản ghi trước không phản ánh giao dịch đúng; bản hiện tại chưa có luồng hoàn tiền thuê hoặc bù trừ cọc vào nợ.
+
+## Định nghĩa báo cáo
+
+- **Tổng quan theo kỳ:** khoản đã lập hóa đơn và mọi lần thu còn hiệu lực cho hóa đơn kỳ đó, kể cả thu tháng khác.
+- **Thu theo ngày:** khoản thu ghi nhận trong tháng chọn, trừ khoản nhập nhầm được đảo trong tháng đó; cọc tách riêng.
+- **Công nợ/tuổi nợ:** số dư hiện tại của mọi kỳ. Chọn tháng quá khứ không biến bảng này thành báo cáo số dư tại ngày quá khứ.
+- **Khoản đã chi:** các khoản đã trả, trừ đảo nhập nhầm theo ngày đảo. Thu trừ chi chưa gồm nhận/hoàn cọc và không phải lợi nhuận kế toán.
+- **Kỳ thuê chưa lập:** nghĩa vụ theo tháng của hợp đồng đến kỳ chọn; phòng trống không tự tạo nợ thuê.
+- **Nhật ký:** 500 thay đổi gần nhất toàn sổ, độc lập bộ lọc phòng/tháng.
+
+## Giới hạn nghiệp vụ
+
+- Một hợp đồng/phòng/tháng; chưa đổi khách giữa tháng hoặc tách hóa đơn theo ngày bàn giao.
+- Tiền thuê/phí mặc định cả tháng. Ở chưa đủ tháng cần chỉnh tiền phòng với lý do; chưa tự chia tiền theo ngày.
+- Chưa thay/reset đồng hồ, chuyển cách tính nước giữa tháng hoặc phân chia đồng hồ tổng.
+- Đơn giá hiện hành được chụp vào hóa đơn; chưa có lịch giá tự chọn theo kỳ cũ. Kiểm tra giá trước khi lập bổ sung dữ liệu lịch sử.
+- Mỗi lần thu gắn một hóa đơn; chưa nhận trước, phân bổ một khoản thu cho nhiều hóa đơn, giảm trừ hoặc hoàn tiền thuê.
+- Cọc chưa bù trừ nợ, chưa có quy trình quyết toán trả phòng tự động.
+- Dữ liệu cũ đã bỏ tháng được báo để đối soát; chưa có luồng tự sửa chuỗi kỳ đã chốt.
+- Chưa multiuser, đồng bộ nhiều máy, sao lưu tự động, installer ký mã hay tự cập nhật.
+
+## Phát triển
+
+JDK 21+ trên PATH. Windows 10/11 x64 cho giao diện và OCR; lần build đầu cần mạng để tải thư viện cố định từ Maven Central. `run.ps1` kiểm tra SHA-256 của thư viện theo `dependencies.sha256`.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Demo
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Test
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Smoke
+powershell -NoProfile -ExecutionPolicy Bypass -File .\package.ps1
+```
+
+Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông qua `AllChecks`. Trong môi trường headless, bộ kiểm tra Swing được bỏ qua và ghi rõ `SKIP`; OCR tích hợp cần gói OCR của Windows và chạy riêng.
+
+Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
+
+Đóng gói tạo `release/v0.6.0/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+
+## Dữ liệu và an toàn
+
+Sổ mới dùng `%LOCALAPPDATA%\NhaTroHomu\nhatrohomu.db`; demo dùng `NhaTroHomu-demo`. Khi tìm thấy sổ Sổ Trọ cũ, ứng dụng sử dụng lại thư mục/file cũ và cùng khóa `app.lock`. Đóng bản cũ trước khi mở bản mới. Có thể chỉ định thư mục bằng `-Dnhatrohomu.data=...` khi chạy Java.
+
+Schema 4 có backup trước nâng cấp. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
+
+DB, backup, ảnh và tài liệu xuất **chưa mã hóa**. Không có đăng nhập/phân quyền. Nhật ký/trigger bảo vệ lịch sử qua luồng SQL thông thường, không chống người có quyền sửa file hoặc thay ứng dụng trên máy. Không chia sẻ database qua ổ mạng và không đưa sổ/ảnh khách thật vào GitHub.
+
+[Kiến trúc và schema](docs/architecture.md) · [Phạm vi bảo mật](docs/security.md) · [Đóng góp](CONTRIBUTING.md) · [Thay đổi](CHANGELOG.md).
+
+## Giấy phép
+
+Source MIT. Font, thư viện và runtime giữ giấy phép riêng trong [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

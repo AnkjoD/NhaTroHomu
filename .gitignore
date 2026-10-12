@@ -1,0 +1,51 @@
+# Generated builds and downloaded dependencies
+/build/
+/target/
+/lib/
+/release/
+/work/
+/outputs/
+*.class
+*.jar
+*.download
+*.exe
+*.msi
+*.zip
+
+# Local books, exported documents, photos and logs
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.log
+/data/
+/backups/
+/photos/
+/exports/
+app.lock
+theme.txt
+
+# Private study material is never included in the product repository
+/learning-private/
+/docs/lessons/
+/docs/demo-va-cv.md
+/notes-private/
+
+# Machine-specific configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+/credentials/
+/.idea/
+/.vscode/
+*.iml
+.DS_Store
+Thumbs.db

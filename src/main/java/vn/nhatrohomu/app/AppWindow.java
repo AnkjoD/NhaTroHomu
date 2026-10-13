@@ -550,7 +550,7 @@ public final class AppWindow extends JFrame {
       tabs.setBackground(Design.SURFACE);
       tabs.setForeground(Design.INK);
       tabs.addTab(
-          "Lượt thuê / trả phòng",
+          "Người đang thuê / lịch sử thuê",
           new RentalPanel(this, repository, RentalPanel.Page.CONTRACTS, this::billDialog));
       tabs.addTab(
           "Hồ sơ / người ở cùng",

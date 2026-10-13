@@ -185,8 +185,8 @@ public final class RentalStore implements RentalRepository {
             c.prepareStatement(
                 "UPDATE tenants SET active=0 WHERE id=? AND NOT EXISTS(SELECT 1 FROM contracts"
                     + " WHERE tenant_id=? AND cancelled_at IS NULL AND (CASE WHEN closed_date=''"
-                    + " THEN end_date ELSE closed_date END)>=? AND (closed_date='' OR"
-                    + " closed_date>?))")) {
+                    + " THEN coalesce(nullif(end_date,''),'9999-12-31') ELSE closed_date END)>=?"
+                    + " AND (closed_date='' OR closed_date>?))")) {
       p.setLong(1, id);
       p.setLong(2, id);
       p.setString(3, LocalDate.now().toString());
@@ -289,7 +289,7 @@ public final class RentalStore implements RentalRepository {
     if (!contract.closedDate().isBlank())
       throw new IllegalArgumentException("Hợp đồng mới không có ngày kết thúc thực tế.");
     LocalDate start = RentalService.date(contract.startDate()),
-        end = RentalService.date(contract.endDate());
+        end = RentalService.date(contract.plannedEndBound());
     if (end.isBefore(start))
       throw new IllegalArgumentException("Ngày hết hạn phải từ ngày vào ở trở đi.");
     RentalService.requireMoney(contract.rent(), "Tiền thuê");
@@ -463,7 +463,7 @@ public final class RentalStore implements RentalRepository {
                 .orElseThrow(() -> new IllegalArgumentException("Không có hợp đồng."));
         if (!contract.closedDate().isBlank()
             || closed.isBefore(RentalService.date(contract.startDate()))
-            || closed.isAfter(RentalService.date(contract.endDate())))
+            || closed.isAfter(RentalService.date(contract.plannedEndBound())))
           throw new IllegalArgumentException(
               "Ngày kết thúc cần nằm trong thời hạn hợp đồng chưa kết thúc.");
         try (PreparedStatement p =

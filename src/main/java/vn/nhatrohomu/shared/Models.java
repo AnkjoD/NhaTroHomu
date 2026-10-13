@@ -84,7 +84,15 @@ public final class Models {
     }
 
     public String effectiveEnd() {
-      return closedDate.isBlank() ? endDate : closedDate;
+      return closedDate.isBlank() ? plannedEndBound() : closedDate;
+    }
+
+    public String plannedEndBound() {
+      return endDate.isBlank() ? "9999-12-31" : endDate;
+    }
+
+    public String endLabel() {
+      return closedDate.isBlank() ? (endDate.isBlank() ? "Chưa xác định" : endDate) : closedDate;
     }
 
     public boolean covers(java.time.LocalDate date) {

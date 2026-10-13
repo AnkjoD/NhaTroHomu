@@ -52,6 +52,39 @@ public final class DisplayTest {
         () -> {
           System.setProperty("nhatrohomu.ui.test", "true");
           Design.setup();
+          var internet = new Models.Charge("Internet", new java.math.BigDecimal("100000"));
+          ChargeEditor feeEditor = new ChargeEditor(java.util.List.of(internet));
+          check(feeEditor.charges().isEmpty(), "Suggested fee is not automatically charged");
+          find(feeEditor, "Dùng lại").doClick();
+          check(
+              feeEditor.charges().size() == 1
+                  && feeEditor.charges().getFirst().label().equals(internet.label())
+                  && feeEditor.charges().getFirst().amount().compareTo(internet.amount()) == 0,
+              "Previously saved fee can be reused explicitly");
+          find(feeEditor, "+ Thêm khoản phí").doClick();
+          try {
+            feeEditor.charges();
+            throw new AssertionError("Blank fee row accepted");
+          } catch (IllegalArgumentException expected) {
+            checks++;
+          }
+          feeEditor.setCharges(java.util.List.of(internet, internet));
+          try {
+            feeEditor.charges();
+            throw new AssertionError("Duplicate fee accepted");
+          } catch (IllegalArgumentException expected) {
+            checks++;
+          }
+          feeEditor.setCharges(
+              java.util.List.of(new Models.Charge("Phí thử", new java.math.BigDecimal("-1"))));
+          try {
+            feeEditor.charges();
+            throw new AssertionError("Negative fee accepted");
+          } catch (IllegalArgumentException expected) {
+            checks++;
+          }
+          feeEditor.setCharges(java.util.List.of());
+          check(feeEditor.charges().isEmpty(), "Removing charges leaves no hidden amounts");
           JTextField date = new JTextField("2024-02-10");
           JPopupMenu calendar = DatePicker.calendar(date, false);
           check(

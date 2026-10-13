@@ -171,8 +171,8 @@ public final class SqliteRepository implements Repository {
             c.prepareStatement(
                 "UPDATE rooms SET active=0 WHERE id=? AND NOT EXISTS(SELECT 1 FROM contracts WHERE"
                     + " room_id=rooms.id AND cancelled_at IS NULL AND (CASE WHEN closed_date=''"
-                    + " THEN end_date ELSE closed_date END)>=? AND (closed_date='' OR"
-                    + " closed_date>?))")) {
+                    + " THEN coalesce(nullif(end_date,''),'9999-12-31') ELSE closed_date END)>=?"
+                    + " AND (closed_date='' OR closed_date>?))")) {
           p.setLong(1, id);
           p.setString(2, java.time.LocalDate.now().toString());
           p.setString(3, java.time.LocalDate.now().toString());

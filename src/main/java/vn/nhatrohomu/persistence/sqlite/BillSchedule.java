@@ -23,7 +23,8 @@ final class BillSchedule {
     String first = null;
     try (PreparedStatement p =
         c.prepareStatement(
-            "SELECT start_date,CASE WHEN closed_date='' THEN end_date ELSE closed_date END"
+            "SELECT start_date,CASE WHEN closed_date='' THEN"
+                + " coalesce(nullif(end_date,''),'9999-12-31') ELSE closed_date END"
                 + " effective_end,id FROM contracts WHERE room_id=? AND cancelled_at IS NULL")) {
       p.setLong(1, roomId);
       try (ResultSet r = p.executeQuery()) {

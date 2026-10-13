@@ -165,9 +165,10 @@ public final class ReportStore {
               s.executeQuery(
                   "SELECT k.id,k.room_id,r.name room_name,t.name"
                       + " tenant_name,r.active,k.start_date,CASE WHEN k.closed_date='' THEN"
-                      + " k.end_date ELSE k.closed_date END effective_end FROM contracts k JOIN"
-                      + " rooms r ON r.id=k.room_id JOIN tenants t ON t.id=k.tenant_id WHERE"
-                      + " k.cancelled_at IS NULL ORDER BY r.name,k.start_date")) {
+                      + " coalesce(nullif(k.end_date,''),'9999-12-31') ELSE k.closed_date END"
+                      + " effective_end FROM contracts k JOIN rooms r ON r.id=k.room_id JOIN"
+                      + " tenants t ON t.id=k.tenant_id WHERE k.cancelled_at IS NULL ORDER BY"
+                      + " r.name,k.start_date")) {
         while (r.next()) {
           if (roomFilter != null && roomFilter != r.getLong("room_id")) continue;
           YearMonth start = YearMonth.from(RentalService.date(r.getString("start_date"))),

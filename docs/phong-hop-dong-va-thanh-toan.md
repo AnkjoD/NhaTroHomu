@@ -4,7 +4,7 @@
 
 Phòng lưu tên, chỉ số đầu kỳ, cách tính nước và **giá thuê mặc định**. Khi thêm/sửa phòng, giá mặc định là bắt buộc; nhập 0 nếu miễn tiền phòng. Khi cho thuê, app dùng giá phòng và khóa ô tiền. Chỉ bật **Thỏa thuận giá riêng** nếu có thỏa thuận khác; tắt lựa chọn này sẽ lấy lại giá mặc định. Phòng từ dữ liệu cũ chưa có giá vẫn được giữ nguyên, nhưng cần vào Sửa phòng bổ sung trước khi tạo lượt thuê mới. Người thuê lưu hồ sơ con người. Lượt thuê/hợp đồng gắn người đó với phòng trong một khoảng thời gian và lưu giá đã thỏa thuận, cọc, hạn thu, phí. Sửa giá phòng không tự đổi giá thỏa thuận hoặc hóa đơn đã chốt. Giá trên hóa đơn lịch sử không bị tự đoán thành giá mặc định mới.
 
-Luồng thông thường: thêm phòng và giá mặc định → **Cho thuê phòng** → chọn/thêm người thuê trong form → kiểm tra giá, thời hạn và chỉ số nhận phòng → lưu → lập hóa đơn từng kỳ → ghi tiền thực nhận. Mục **Thuê phòng** gom hai tab **Lượt thuê / trả phòng** và **Hồ sơ / người ở cùng**; dữ liệu vẫn tách để giữ lịch sử. Nếu lưu hồ sơ rồi hủy form cho thuê, hồ sơ vẫn còn để chọn lại. Thẻ phòng hiện giá thỏa thuận khi có người đang thuê; nếu trống thì hiện giá mặc định hoặc ghi rõ tiền của kỳ lịch sử khi chưa thiết lập giá.
+Luồng thông thường: thêm phòng và giá mặc định → **Cho thuê phòng** → chọn/thêm người thuê trong form → kiểm tra giá, thời hạn và chỉ số nhận phòng → lưu → lập hóa đơn từng kỳ → ghi tiền thực nhận. Mục **Thuê phòng** gom hai tab **Người đang thuê / lịch sử thuê** và **Hồ sơ / người ở cùng**; dữ liệu vẫn tách để giữ lịch sử. Nếu lưu hồ sơ rồi hủy form cho thuê, hồ sơ vẫn còn để chọn lại. Thẻ phòng hiện giá thỏa thuận khi có người đang thuê; nếu trống thì hiện giá mặc định hoặc ghi rõ tiền của kỳ lịch sử khi chưa thiết lập giá.
 
 Để lập hóa đơn: vào **Hóa đơn → Lập hóa đơn → chọn phòng**, hoặc bấm **Lập hóa đơn** ngay trên thẻ phòng. Nhập chỉ số mới của điện/nước (không nhập số điện đã dùng), kiểm tra kỳ, tiền phòng, phí, tổng tiền và xác nhận trước khi lưu. Số cũ lấy từ kỳ trước. Có thể chọn ảnh để OCR rồi sửa số; lưu hóa đơn chưa có nghĩa đã thu tiền, cần ghi lần thu thực nhận riêng.
 
@@ -19,11 +19,11 @@ Hóa đơn là số tiền đã chốt của một tháng: tiền phòng + tiề
 | Phòng | Phòng được cho thuê. |
 | Người thuê đại diện | Người đứng tên thuê. Hồ sơ người ở cùng nằm ở Người thuê. |
 | Ngày vào ở | Ngày bắt đầu thời hạn thuê. |
-| Ngày kết thúc dự kiến | Ngày cuối của thời hạn thuê, tính cả ngày đó; khác hạn đóng tiền. Ví dụ 13/10/2026–12/10/2027 là thời hạn một năm. |
+| Thời gian ở | Mặc định chưa xác định ngày chuyển đi. Nếu đã thỏa thuận thời hạn, bỏ chọn rồi chọn ngày kết thúc. Khi chuyển đi, chốt ngày thực tế bằng Trả phòng. |
 | Tiền phòng/tháng | Giá thuê cơ bản, chưa gồm điện nước và phí. |
-| Mức cọc cần nhận | Mức cọc thỏa thuận; chưa phải khoản tiền đã thu. Ghi Nhận cọc riêng khi thực nhận. |
-| Ngày hạn thu mỗi tháng | Ngày hóa đơn đến hạn, chọn 1–28 để có ngày này trong mọi tháng. Chọn 5 thì thường đến hạn ngày 5; tháng đầu không đặt hạn trước ngày bắt đầu thuê. |
-| Phí/tháng | Phí lặp hằng tháng, mỗi dòng `Tên=số tiền`, ví dụ `Internet=100000`. Mặc định để trống; không nhập khoản chỉ thu một lần vào đây. |
+| Tiền cọc thỏa thuận | Mặc định không thu cọc. Bật Có thỏa thuận tiền cọc nếu có; số tiền thỏa thuận chưa phải tiền thực nhận. |
+| Ngày hẹn đóng tiền hằng tháng | Ngày hóa đơn đến hạn, chọn 1–28 để có ngày này trong mọi tháng. Chọn 5 thì thường đến hạn ngày 5; tháng đầu không đặt hạn trước ngày bắt đầu thuê. |
+| Khoản thu thêm hằng tháng | Bấm Thêm khoản phí rồi nhập Tên khoản phí và Số tiền, ví dụ Internet và 100000. Dùng lại chọn khoản phí từ thỏa thuận đã lưu. Để trống khi không thu phí. |
 
 Lượt thuê mới có bàn giao được gợi ý tiền phòng và phí tháng đầu/cuối bằng **giá tháng × số ngày ở / số ngày của tháng**, tính cả ngày đầu/cuối và làm tròn từng khoản về đồng. Nước khoán được gợi ý tương ứng số ngày, tối đa ba chữ số thập phân. Bạn kiểm tra và có thể chỉnh tiền phòng, các khoản kỳ cuối theo thỏa thuận; khác mức gợi ý cần ghi lý do. Hợp đồng cũ chưa có bàn giao vẫn đọc được theo cách tính cũ; không tự tính lại hóa đơn lịch sử. Hiện chưa có thao tác gia hạn một lượt thuê đã dùng.
 
@@ -63,3 +63,15 @@ Hóa đơn lịch sử có thể đã có tiền phòng nhưng chưa có hợp �
 ## Gia đình ngay trong lượt thuê
 
 Danh sách lượt thuê có trường Người ở cùng / gia đình. Chọn Hồ sơ / gia đình để mở đúng người đại diện của lượt thuê và vào thẳng tab gia đình; nút này cũng có trong menu chuột phải. Xem chi tiết lượt thuê có danh sách người ở cùng phía dưới và nút chỉnh sửa. Đây là hồ sơ hiện tại của người đại diện, không phải bản chụp danh sách gia đình tại từng thời điểm thuê. Hồ sơ đã lưu trữ được xem lại, không tự kích hoạt lại khi mở liên kết.
+
+## Form cho thuê dễ nhập (0.10.0)
+
+Người đứng tên thuê là người đại diện liên hệ và thanh toán. Nút Gia đình / người ở cùng mở hồ sơ của đúng người đang chọn, vào thẳng tab gia đình; không tạo thành hợp đồng độc lập cho từng thành viên.
+
+Khi chưa biết ngày chuyển đi, không điền ngày giả: app lưu ngày kết thúc dự kiến trống, vẫn tính hóa đơn và giữ trạng thái đang thuê đến khi chốt trả phòng. Ngày hẹn đóng tiền dùng để ghi hạn hóa đơn và phân loại nợ quá hạn; không tự thu tiền, tính phạt hoặc gửi tin nhắn.
+
+Khoản phí đã chọn được lưu riêng trong thỏa thuận và hóa đơn, không tự thay đổi giá cũ. Danh sách dùng lại lấy từ phí của các thỏa thuận đã lưu; đây chưa phải danh mục dịch vụ độc lập. Form trả phòng cũng dùng ô tên và tiền riêng. Hướng dẫn ngắn nằm ngay dưới từng ô; bỏ nút Giải thích các trường.
+
+Tham khảo cách tổ chức thông tin: [Hợp đồng Resident](https://docs.resident.vn/khach-hang/hop-dong), [Dịch vụ Resident](https://docs.resident.vn/quan-ly-van-hanh/dich-vu). Hỗ trợ chưa xác định ngày đi là lựa chọn riêng của NhaTroHomu cho luồng thuê dài hạn; không khẳng định các sản phẩm tham khảo có cùng lựa chọn.
+
+Sổ nâng lên schema 8 với sao lưu trước khi nâng cấp; giá, hợp đồng có thời hạn, hóa đơn và thu tiền cũ được giữ nguyên. Bản 0.9.x không đọc sổ schema 8, cần dùng ứng dụng 0.10.0 trở lên.

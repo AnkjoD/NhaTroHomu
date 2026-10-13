@@ -23,7 +23,7 @@ public final class CheckoutDialog extends JDialog {
       water = new JTextField(),
       rent = new JTextField(),
       note = new JTextField();
-  private final JTextArea fees = new JTextArea(3, 24);
+  private final ChargeEditor fees;
   private final JLabel opening = new JLabel(), summary = new JLabel();
   private final JCheckBox confirmed =
       new JCheckBox("Đã kiểm tra ngày trả, chỉ số và các khoản tiền. Chưa ghi nhận thu tiền.");
@@ -37,6 +37,7 @@ public final class CheckoutDialog extends JDialog {
         true);
     this.repository = repository;
     this.contract = contract;
+    fees = new ChargeEditor(contract.fees());
     rates = repository.rates();
     room =
         repository.rooms().stream()
@@ -44,8 +45,8 @@ public final class CheckoutDialog extends JDialog {
             .findFirst()
             .orElseThrow();
     LocalDate proposed = LocalDate.now();
-    if (proposed.isAfter(RentalService.date(contract.endDate())))
-      proposed = RentalService.date(contract.endDate());
+    if (proposed.isAfter(RentalService.date(contract.plannedEndBound())))
+      proposed = RentalService.date(contract.plannedEndBound());
     if (proposed.isBefore(RentalService.date(contract.startDate())))
       proposed = RentalService.date(contract.startDate());
     date.setText(proposed.toString());
@@ -63,7 +64,7 @@ public final class CheckoutDialog extends JDialog {
         room.waterMode().equals("METER") ? "Nước lúc trả phòng (m³)" : "Nước khoán kỳ cuối (m³)",
         water);
     Ui.field(form, 4, "Tiền phòng kỳ cuối (đ)", rent);
-    Ui.field(form, 5, "Phí kỳ cuối · Tên=số tiền", new JScrollPane(fees));
+    Ui.field(form, 5, "Khoản thu thêm kỳ cuối", fees);
     Ui.field(form, 6, "Ghi chú / lý do điều chỉnh", note);
     JTextArea help =
         new JTextArea(
@@ -115,7 +116,7 @@ public final class CheckoutDialog extends JDialog {
     date.getDocument().addDocumentListener(listener(this::defaults));
     for (var field : List.of(electricity, water, rent, note))
       field.getDocument().addDocumentListener(listener(this::preview));
-    fees.getDocument().addDocumentListener(listener(this::preview));
+    fees.onChange(this::preview);
     defaults();
     setSize(900, 650);
     setLocationRelativeTo(owner);
@@ -158,12 +159,10 @@ public final class CheckoutDialog extends JDialog {
               + " → "
               + last);
       rent.setText(RentalService.prorated(contract.rent(), first, last).toPlainString());
-      fees.setText(
-          String.join(
-              "\n",
-              contract.fees().stream()
-                  .map(f -> f.label() + "=" + RentalService.prorated(f.amount(), first, last))
-                  .toList()));
+      fees.setCharges(
+          contract.fees().stream()
+              .map(f -> new Charge(f.label(), RentalService.prorated(f.amount(), first, last)))
+              .toList());
       Bill existing =
           repository.roomBills(room.id(), month.toString(), month.toString()).stream()
               .filter(b -> java.util.Objects.equals(b.contractId(), contract.id()))
@@ -175,12 +174,7 @@ public final class CheckoutDialog extends JDialog {
                   : existing.periodEnd())
               .equals(last.toString())) {
         rent.setText(existing.rent().toPlainString());
-        fees.setText(
-            String.join(
-                "\n",
-                existing.fees().stream()
-                    .map(f -> f.label() + "=" + f.amount().toPlainString())
-                    .toList()));
+        fees.setCharges(existing.fees());
       }
       if (room.waterMode().equals("FIXED")) {
         BigDecimal monthly = room.fixedWater() == null ? rates.defaultWater() : room.fixedWater();
@@ -220,21 +214,11 @@ public final class CheckoutDialog extends JDialog {
             amount,
             rates,
             note.getText());
-    java.util.ArrayList<Charge> selectedFees = new java.util.ArrayList<>();
-    for (String line : fees.getText().split("\\R")) {
-      if (line.isBlank()) continue;
-      int equal = line.lastIndexOf('=');
-      if (equal < 1) throw new IllegalArgumentException("Phí cần dạng Tên=số tiền.");
-      selectedFees.add(
-          new Charge(
-              line.substring(0, equal).trim(),
-              RentalService.money(line.substring(equal + 1), "Phí")));
-    }
     return RentalService.segment(
         utility,
         contract,
         RentalService.money(rent.getText(), "Tiền phòng"),
-        selectedFees,
+        fees.charges(),
         first,
         last);
   }

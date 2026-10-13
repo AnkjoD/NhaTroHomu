@@ -2,9 +2,9 @@
 
 Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR Windows hoặc gói RapidOCR tùy chọn, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.9.2**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.10.0**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
-Hướng dẫn nghiệp vụ: [Giá phòng, lượt thuê, bàn giao, trả phòng và thanh toán](docs/phong-hop-dong-va-thanh-toan.md). Giá mặc định nằm ở Phòng, giá thỏa thuận nằm ở Lượt thuê, số tiền đã chốt nằm ở Hóa đơn. Mục Thuê phòng gom hồ sơ và lượt thuê trong cùng màn hình. Thẻ có chiều cao riêng; đổi bảng/thẻ trở về đầu danh sách.
+Hướng dẫn nghiệp vụ: [Giá phòng, lượt thuê, bàn giao, trả phòng và thanh toán](docs/phong-hop-dong-va-thanh-toan.md). Form cho thuê tách rõ người đứng tên với gia đình, hướng dẫn ngay cạnh ô nhập, hỗ trợ chưa xác định ngày chuyển đi. Giá mặc định nằm ở Phòng, giá thỏa thuận nằm ở Lượt thuê, số tiền đã chốt nằm ở Hóa đơn. Mục Thuê phòng gom hồ sơ và lượt thuê trong cùng màn hình. Thẻ có chiều cao riêng; đổi bảng/thẻ trở về đầu danh sách.
 
 Màn Hóa đơn mặc định mở tháng mới nhất, có bộ chọn tháng và nút Lập hóa đơn trực tiếp. CSV xuất theo toàn bộ phạm vi tháng được chọn, không chỉ trang đang thấy. Nút Cho thuê phòng cho phép chọn hoặc thêm người thuê ngay trong form, giữ thông tin thỏa thuận khi mở hồ sơ mới; không cần chuyển trang để tạo người thuê trước.
 
@@ -14,7 +14,7 @@ Màn Hóa đơn mặc định mở tháng mới nhất, có bộ chọn tháng v
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.9.2-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.10.0-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
@@ -37,7 +37,7 @@ Giải nén toàn bộ `NhaTroHomu-0.9.2-windows-x64.zip`, mở `NhaTroHomu.exe`
 ## Quy trình sử dụng
 
 1. Đặt đơn giá, thêm phòng, giá thuê mặc định và chỉ số ban đầu.
-2. Cho thuê phòng, chọn/thêm người thuê trong form và xác nhận chỉ số nhận phòng. Phí tùy chọn mỗi dòng như `Internet=100000`; mặc định không thêm phí hoặc cọc.
+2. Cho thuê phòng, chọn/thêm người thuê trong form và xác nhận chỉ số nhận phòng. Khoản phí nhập bằng ô tên và số tiền riêng, có Dùng lại từ thỏa thuận đã lưu; mặc định không thêm phí hoặc cọc và chưa xác định ngày chuyển đi.
 3. Ghi nhận tiền cọc thực nhận; mức cọc hợp đồng không tự tạo một lần nhận tiền.
 4. Lập hóa đơn từ kỳ vào ở, chốt tuần tự từng tháng; kiểm tra ảnh, chỉ số, tiền phòng và phí.
 5. Ghi từng lần thu tiền. Vào **Báo cáo** để xem công nợ mọi kỳ, thu theo ngày và các kỳ thuê còn thiếu.
@@ -83,7 +83,7 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.9.2/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.10.0/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 

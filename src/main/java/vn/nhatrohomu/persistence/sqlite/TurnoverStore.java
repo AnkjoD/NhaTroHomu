@@ -216,7 +216,7 @@ final class TurnoverStore {
           LocalDate end = DataRules.date(b.periodEnd());
           if (!k.closedDate().isBlank()
               || end.isBefore(DataRules.date(k.startDate()))
-              || end.isAfter(DataRules.date(k.endDate())))
+              || end.isAfter(DataRules.date(k.plannedEndBound())))
             throw new IllegalArgumentException(
                 "Ngày trả phòng ngoài thời hạn hoặc lần thuê đã kết thúc.");
           try (PreparedStatement p =

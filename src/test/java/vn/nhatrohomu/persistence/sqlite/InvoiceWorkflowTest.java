@@ -131,6 +131,9 @@ public final class InvoiceWorkflowTest {
                   try {
                     JDialog rent = dialog("Cho thuê phòng");
                     check(
+                        ((JCheckBox) named(rent, "rental-no-end")).isSelected(),
+                        "New tenancy defaults to an unspecified departure date");
+                    check(
                         ((JTextField) named(rent, "rental-rent")).getText().equals("2000000"),
                         "Room default price is prefilled in the tenancy form");
                     JTextField price = (JTextField) named(rent, "rental-rent");
@@ -148,7 +151,7 @@ public final class InvoiceWorkflowTest {
                     later(
                         () -> {
                           try {
-                            JDialog person = dialog("Thêm người thuê");
+                            JDialog person = dialog("Thêm người đứng tên");
                             ((JTextField) named(person, "tenant-name"))
                                 .setText("Người thuê thử luồng mới");
                             DisplayTest.find(person, "Lưu").doClick();
@@ -158,7 +161,7 @@ public final class InvoiceWorkflowTest {
                               if (w instanceof JDialog) w.dispose();
                           }
                         });
-                    DisplayTest.find(rent, "+ Thêm người thuê").doClick();
+                    DisplayTest.find(rent, "+ Người đứng tên").doClick();
                     JComboBox<?> people = (JComboBox<?>) named(rent, "rental-tenant");
                     check(
                         people.getSelectedItem() instanceof Tenant t
@@ -195,6 +198,11 @@ public final class InvoiceWorkflowTest {
                     == 0,
                 "Saved agreement uses the default after the override is disabled");
             Contract active = repository.rentals().contracts().getFirst();
+            check(
+                active.endDate().isEmpty()
+                    && active.deposit().signum() == 0
+                    && active.fees().isEmpty(),
+                "Default form does not invent an end date, deposit or extra charges");
             Tenant representative = repository.rentals().tenant(active.tenantId());
             repository
                 .rentals()

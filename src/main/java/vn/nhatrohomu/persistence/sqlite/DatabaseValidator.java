@@ -206,9 +206,9 @@ public final class DatabaseValidator {
                 d(r, "deposit"),
                 r.getInt("due_day"),
                 RentalStore.charges(c, "contract_charges", "contract_id", r.getLong("id")));
-        if (RentalService.date(k.endDate()).isBefore(RentalService.date(k.startDate()))
+        if (RentalService.date(k.plannedEndBound()).isBefore(RentalService.date(k.startDate()))
             || RentalService.date(k.effectiveEnd()).isBefore(RentalService.date(k.startDate()))
-            || RentalService.date(k.effectiveEnd()).isAfter(RentalService.date(k.endDate()))
+            || RentalService.date(k.effectiveEnd()).isAfter(RentalService.date(k.plannedEndBound()))
             || k.dueDay() < 1
             || k.dueDay() > 28)
           throw new IllegalArgumentException("Ngày/hạn thu hợp đồng không hợp lệ: " + k.id());
@@ -302,7 +302,9 @@ public final class DatabaseValidator {
               || b.month().compareTo(k.startDate().substring(0, 7)) < 0
               || b.month()
                       .compareTo(
-                          (r.getString("voided_at") != null ? k.endDate() : k.effectiveEnd())
+                          (r.getString("voided_at") != null
+                                  ? k.plannedEndBound()
+                                  : k.effectiveEnd())
                               .substring(0, 7))
                   > 0
               || cancelledContracts.contains(k.id()))

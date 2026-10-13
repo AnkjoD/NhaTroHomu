@@ -23,10 +23,13 @@ public final class ReadingDialog extends JDialog {
   private final Repository repository;
   private final Room room;
   private final Rates rates;
-  private final Readings old;
+  private Readings old;
   private final List<Contract> contracts;
   private final JTextField rent = new JTextField("0");
   private final JLabel rentalInfo = new JLabel(), feesInfo = new JLabel();
+  private final JLabel oldElectricity = new JLabel(), oldWater = new JLabel();
+  private final JComboBox<Contract> tenancyChoice = new JComboBox<>();
+  private boolean syncingRental;
   private final JTextField month = new JTextField(YearMonth.now().toString()),
       electricity = new JTextField(),
       water = new JTextField(),
@@ -54,17 +57,56 @@ public final class ReadingDialog extends JDialog {
           .filter(k -> k.roomId() == room.id())
           .min(java.util.Comparator.comparing(Contract::startDate))
           .ifPresent(k -> month.setText(k.startDate().substring(0, 7)));
+    YearMonth through = latest == null ? YearMonth.now() : DataRules.period(latest).plusMonths(1);
+    List<Bill> issued = repository.roomBills(room.id(), "1900-01", "9999-12");
+    String firstMissing = null;
+    for (Contract k : contracts)
+      if (k.roomId() == room.id()) {
+        YearMonth end = YearMonth.from(RentalService.date(k.effectiveEnd()));
+        if (end.isAfter(through)) end = through;
+        for (YearMonth m = YearMonth.from(RentalService.date(k.startDate()));
+            !m.isAfter(end);
+            m = m.plusMonths(1)) {
+          String value = m.toString();
+          if (issued.stream()
+              .noneMatch(
+                  b ->
+                      java.util.Objects.equals(b.contractId(), k.id())
+                          && b.month().equals(value))) {
+            if (firstMissing == null || value.compareTo(firstMissing) < 0) firstMissing = value;
+            break;
+          }
+        }
+      }
+    if (firstMissing != null) month.setText(firstMissing);
     JPanel form = Ui.form();
     Ui.field(form, 0, "Kỳ (YYYY-MM)", vn.nhatrohomu.shared.DatePicker.field(month, true));
-    Ui.field(form, 1, "Điện kỳ trước (kWh)", new JLabel(Ui.n(old.electricity())));
+    oldElectricity.setText(Ui.n(old.electricity()));
+    oldWater.setText(Ui.n(old.water()));
+    Ui.field(form, 1, "Điện đầu kỳ/lúc vào ở (kWh)", oldElectricity);
     Ui.field(form, 2, "Chỉ số điện mới", electricity);
     if (room.waterMode().equals("METER")) {
-      Ui.field(form, 3, "Nước cũ (m³)", new JLabel(Ui.n(old.water())));
+      Ui.field(form, 3, "Nước đầu kỳ/lúc vào ở (m³)", oldWater);
       Ui.field(form, 4, "Chỉ số nước mới", water);
     } else Ui.field(form, 3, "Nước cố định kỳ này (m³)", fixed);
     Ui.field(form, 5, "Đơn giá điện / kWh", new JLabel(Ui.money(rates.electricity())));
     Ui.field(form, 6, "Đơn giá nước / m³", new JLabel(Ui.money(rates.water())));
-    Ui.field(form, 7, "Hợp đồng kỳ này", rentalInfo);
+    tenancyChoice.setRenderer(
+        new DefaultListCellRenderer() {
+          public java.awt.Component getListCellRendererComponent(
+              JList<?> list, Object value, int index, boolean selected, boolean focus) {
+            return super.getListCellRendererComponent(
+                list,
+                value instanceof Contract k ? k.tenantName() + " · #" + k.id() : value,
+                index,
+                selected,
+                focus);
+          }
+        });
+    JPanel tenancy = Ui.column();
+    tenancy.add(tenancyChoice);
+    tenancy.add(rentalInfo);
+    Ui.field(form, 7, "Lần thuê / người thuê", tenancy);
     Ui.field(form, 8, "Tiền phòng kỳ này (đ)", rent);
     rent.setToolTipText(
         "Mặc định tiền tháng trong hợp đồng. Có thể điều chỉnh khi ở chưa đủ tháng; ghi lý do vào"
@@ -72,6 +114,13 @@ public final class ReadingDialog extends JDialog {
     Ui.field(form, 9, "Phí hàng tháng", feesInfo);
     Ui.field(form, 10, "Ghi chú / lý do giảm tiền", note);
     syncRental();
+    tenancyChoice.addActionListener(
+        e -> {
+          if (!syncingRental) {
+            syncDetails();
+            update();
+          }
+        });
     electricityPhoto = new PhotoBox("Ảnh điện", electricity);
     waterPhoto = new PhotoBox("Ảnh nước", water);
     JTabbedPane photos = new JTabbedPane();
@@ -110,7 +159,9 @@ public final class ReadingDialog extends JDialog {
                   throw new IllegalArgumentException("Đợi nhận diện ảnh hoàn tất trước khi lưu.");
                 Bill bill = calculate();
                 String last = repository.latestMonth(room.id());
-                if (last != null && last.compareTo(bill.month()) >= 0)
+                if (bill.periodStart().isBlank()
+                    && last != null
+                    && last.compareTo(bill.month()) >= 0)
                   throw new IllegalArgumentException(
                       "Cần chốt sau kỳ "
                           + last
@@ -221,39 +272,125 @@ public final class ReadingDialog extends JDialog {
     Contract contract = selectedContract();
     BigDecimal amount =
         contract == null ? BigDecimal.ZERO : RentalService.money(rent.getText(), "Tiền phòng");
+    if (contract != null && segmented(contract)) {
+      java.time.LocalDate first = first(contract), last = last(contract);
+      List<Charge> fees =
+          contract.fees().stream()
+              .map(f -> new Charge(f.label(), RentalService.prorated(f.amount(), first, last)))
+              .toList();
+      if (amount.compareTo(RentalService.prorated(contract.rent(), first, last)) != 0
+          && note.getText().isBlank())
+        throw new IllegalArgumentException("Ghi lý do điều chỉnh tiền phòng theo số ngày.");
+      return RentalService.segment(utility, contract, amount, fees, first, last);
+    }
     if (contract != null && amount.compareTo(contract.rent()) != 0 && note.getText().isBlank())
       throw new IllegalArgumentException("Ghi lý do khi điều chỉnh tiền phòng so với hợp đồng.");
     return RentalService.withRental(utility, contract, amount);
   }
 
   private Contract selectedContract() {
-    YearMonth selected = YearMonth.parse(month.getText().trim());
-    return contracts.stream()
-        .filter(
-            k ->
-                k.roomId() == room.id()
-                    && !RentalService.date(k.startDate()).isAfter(selected.atEndOfMonth())
-                    && !RentalService.date(k.effectiveEnd()).isBefore(selected.atDay(1)))
-        .findFirst()
-        .orElse(null);
+    return (Contract) tenancyChoice.getSelectedItem();
+  }
+
+  private java.time.LocalDate first(Contract k) {
+    var m = YearMonth.parse(month.getText().trim());
+    var start = RentalService.date(k.startDate());
+    return start.isAfter(m.atDay(1)) ? start : m.atDay(1);
+  }
+
+  private java.time.LocalDate last(Contract k) {
+    var m = YearMonth.parse(month.getText().trim());
+    var end = RentalService.date(k.effectiveEnd());
+    return end.isBefore(m.atEndOfMonth()) ? end : m.atEndOfMonth();
+  }
+
+  private boolean segmented(Contract k) {
+    try {
+      return repository.rentals().hasHandover(k.id())
+          || !k.closedDate().isBlank()
+              && !last(k).equals(YearMonth.parse(month.getText().trim()).atEndOfMonth());
+    } catch (Exception ex) {
+      throw new IllegalArgumentException("Không đọc được mốc bàn giao.", ex);
+    }
   }
 
   private void syncRental() {
+    syncingRental = true;
+    try {
+      YearMonth selected = YearMonth.parse(month.getText().trim());
+      Contract previous = selectedContract();
+      tenancyChoice.removeAllItems();
+      List<Bill> issued = repository.roomBills(room.id(), selected.toString(), selected.toString());
+      contracts.stream()
+          .filter(
+              k ->
+                  k.roomId() == room.id()
+                      && !RentalService.date(k.startDate()).isAfter(selected.atEndOfMonth())
+                      && !RentalService.date(k.effectiveEnd()).isBefore(selected.atDay(1)))
+          .filter(
+              k -> issued.stream().noneMatch(b -> java.util.Objects.equals(b.contractId(), k.id())))
+          .forEach(tenancyChoice::addItem);
+      if (previous != null)
+        for (int i = 0; i < tenancyChoice.getItemCount(); i++)
+          if (tenancyChoice.getItemAt(i).id() == previous.id()) tenancyChoice.setSelectedIndex(i);
+      syncDetails();
+    } catch (Exception ex) {
+      rentalInfo.setText("Nhập kỳ hợp lệ để chọn lần thuê");
+    } finally {
+      syncingRental = false;
+    }
+  }
+
+  private void syncDetails() {
     try {
       Contract contract = selectedContract();
+      old =
+          contract == null
+              ? repository.previous(room)
+              : repository
+                  .rentals()
+                  .opening(contract.id(), YearMonth.parse(month.getText().trim()));
+      oldElectricity.setText(Ui.n(old.electricity()));
+      oldWater.setText(Ui.n(old.water()));
+      electricity.setText(Ui.n(old.electricity()));
+      water.setText(Ui.n(old.water()));
+      if (contract != null && segmented(contract) && room.waterMode().equals("FIXED")) {
+        long days = java.time.temporal.ChronoUnit.DAYS.between(first(contract), last(contract)) + 1;
+        BigDecimal quota = room.fixedWater() == null ? rates.defaultWater() : room.fixedWater();
+        fixed.setText(
+            quota
+                .multiply(BigDecimal.valueOf(days))
+                .divide(
+                    BigDecimal.valueOf(YearMonth.parse(month.getText().trim()).lengthOfMonth()),
+                    3,
+                    java.math.RoundingMode.HALF_UP)
+                .stripTrailingZeros()
+                .toPlainString());
+      }
       rent.setEnabled(contract != null);
-      rent.setText(contract == null ? "0" : contract.rent().toPlainString());
+      rent.setText(
+          contract == null
+              ? "0"
+              : (segmented(contract)
+                      ? RentalService.prorated(contract.rent(), first(contract), last(contract))
+                      : contract.rent())
+                  .toPlainString());
       rentalInfo.setText(
           contract == null
               ? "Chỉ điện nước · chưa có hợp đồng"
-              : "#" + contract.id() + " · " + contract.tenantName());
+              : "#" + contract.id() + " · " + first(contract) + " → " + last(contract));
       feesInfo.setText(
           contract == null
               ? "Không có"
               : ""
                   + Ui.money(
                       contract.fees().stream()
-                          .map(Charge::amount)
+                          .map(
+                              f ->
+                                  segmented(contract)
+                                      ? RentalService.prorated(
+                                          f.amount(), first(contract), last(contract))
+                                      : f.amount())
                           .reduce(BigDecimal.ZERO, BigDecimal::add)));
       feesInfo.setToolTipText(contract == null ? null : contract.fees().toString());
     } catch (Exception ignored) {

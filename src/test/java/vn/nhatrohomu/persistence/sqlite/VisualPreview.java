@@ -37,6 +37,9 @@ public final class VisualPreview {
   }
 
   static Component find(Container parent, Class<?> type) {
+    if (type.isInstance(parent)) return parent;
+    if (parent instanceof JTabbedPane tabs
+        && tabs.getSelectedComponent() instanceof Container selected) return find(selected, type);
     for (Component child : parent.getComponents()) {
       if (type.isInstance(child)) return child;
       if (child instanceof Container nested) {
@@ -251,9 +254,14 @@ public final class VisualPreview {
             }
           });
     } finally {
-      try (var files = Files.list(temp)) {
-        for (Path p : files.toList()) Files.deleteIfExists(p);
-      }
+      DatabaseAccess.exclusive(
+          temp.resolve("fake.db"),
+          () -> {
+            try (var files = Files.list(temp)) {
+              for (Path p : files.toList()) Files.deleteIfExists(p);
+            }
+            return null;
+          });
       Files.deleteIfExists(temp);
     }
     System.out.println("Swing previews rendered.");

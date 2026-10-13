@@ -35,7 +35,10 @@ public final class InvoiceCsv {
           "Đã thu VND",
           "Còn thiếu VND",
           "Hạn thu",
-          "Ghi chú");
+          "Ghi chú",
+          "Từ ngày",
+          "Đến ngày",
+          "Mã lần thuê");
 
   public static List<String> cells(Bill b, BigDecimal received) {
     return List.of(
@@ -60,7 +63,10 @@ public final class InvoiceCsv {
         received.toPlainString(),
         b.total().subtract(received).toPlainString(),
         b.dueDate(),
-        b.note());
+        b.note(),
+        b.periodStart(),
+        b.periodEnd(),
+        b.contractId() == null ? "" : b.contractId().toString());
   }
 
   private static String line(List<String> cells) {

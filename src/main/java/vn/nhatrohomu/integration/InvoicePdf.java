@@ -48,6 +48,8 @@ public final class InvoicePdf {
                       + bill.id(),
                   normal));
           if (bill.contractId() != null)
+            document.add(new Paragraph("Khoảng ngày tính tiền: " + bill.periodLabel(), normal));
+          if (bill.contractId() != null)
             document.add(
                 new Paragraph(
                     "Người thuê: "

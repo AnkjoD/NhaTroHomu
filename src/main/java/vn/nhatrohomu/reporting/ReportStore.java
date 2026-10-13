@@ -114,7 +114,7 @@ public final class ReportStore {
           ResultSet r =
               s.executeQuery(
                   "SELECT"
-                      + " id,room_id,room_name,tenant_name,month,due_date,total,voided_at,void_reason"
+                      + " id,room_id,room_name,tenant_name,month,due_date,total,voided_at,void_reason,contract_id"
                       + " FROM bills ORDER BY month,room_name,id")) {
         while (r.next()) {
           if (roomFilter != null && roomFilter != r.getLong("room_id")) continue;
@@ -131,7 +131,8 @@ public final class ReportStore {
                     r.getString("void_reason")));
             continue;
           }
-          issued.add(r.getLong("room_id") + ":" + r.getString("month"));
+          if (r.getObject("contract_id") != null)
+            issued.add(r.getLong("contract_id") + ":" + r.getString("month"));
           BigDecimal paid = collected.getOrDefault(id, BigDecimal.ZERO),
               balance = total.subtract(paid);
           if (balance.signum() <= 0) continue;
@@ -173,7 +174,7 @@ public final class ReportStore {
               end = YearMonth.from(RentalService.date(r.getString("effective_end")));
           if (end.isAfter(period)) end = period;
           for (YearMonth month = start; !month.isAfter(end); month = month.plusMonths(1))
-            if (!issued.contains(r.getLong("room_id") + ":" + month))
+            if (!issued.contains(r.getLong("id") + ":" + month))
               missing.add(
                   new Missing(
                       r.getLong("id"),

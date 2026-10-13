@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import vn.nhatrohomu.billing.BillingService;
 import vn.nhatrohomu.billing.ui.PaymentDialog;
 import vn.nhatrohomu.integration.InvoicePdf;
 import vn.nhatrohomu.persistence.Repository;
@@ -64,6 +65,10 @@ public final class RentalPanel extends JPanel {
     this.rentals = repository.rentals();
     this.page = page;
     setOpaque(false);
+    refresh();
+  }
+
+  public void refreshData() {
     refresh();
   }
 
@@ -127,7 +132,7 @@ public final class RentalPanel extends JPanel {
     String title =
         switch (page) {
           case TENANTS -> "Người thuê";
-          case CONTRACTS -> "Hợp đồng & tiền cọc";
+          case CONTRACTS -> "Lượt thuê & trả phòng";
           case DEBTS -> "Công nợ";
         };
     String subtitle =
@@ -195,7 +200,8 @@ public final class RentalPanel extends JPanel {
       actions.add(
           Ui.button("Nhận / hoàn cọc", () -> safe(() -> depositDialog(contracts.get(selected())))));
       actions.add(
-          Ui.button("Kết thúc thuê", () -> safe(() -> closeForm(contracts.get(selected())))));
+          Ui.button(
+              "Trả phòng / chốt kỳ cuối", () -> safe(() -> closeForm(contracts.get(selected())))));
       actions.add(
           Ui.button(
               "Hủy chưa phát sinh",
@@ -583,7 +589,7 @@ public final class RentalPanel extends JPanel {
         String.join(
             ", ",
             tenantContracts.stream()
-                .filter(k -> k.tenantId() == tenantId && k.covers(LocalDate.now()))
+                .filter(k -> k.tenantId() == tenantId && k.occupiedOn(LocalDate.now()))
                 .map(Contract::roomName)
                 .toList());
     if (!rooms.isBlank()) return rooms;
@@ -821,14 +827,31 @@ public final class RentalPanel extends JPanel {
     String lastInvoice = repository.latestMonth(((Room) room.getSelectedItem()).id());
     if (lastInvoice != null
         && !YearMonth.parse(lastInvoice).isBefore(YearMonth.from(proposedStart)))
-      proposedStart = YearMonth.parse(lastInvoice).plusMonths(1).atDay(1);
+      proposedStart =
+          repository
+              .roomBills(((Room) room.getSelectedItem()).id(), lastInvoice, lastInvoice)
+              .stream()
+              .map(
+                  b ->
+                      b.periodEnd().isBlank()
+                          ? YearMonth.parse(b.month()).atEndOfMonth()
+                          : RentalService.date(b.periodEnd()))
+              .max(java.util.Comparator.naturalOrder())
+              .orElse(YearMonth.parse(lastInvoice).atEndOfMonth())
+              .plusDays(1);
+    if (proposedStart.isBefore(LocalDate.now())) proposedStart = LocalDate.now();
     JTextField start = new JTextField(proposedStart.toString()),
         end = new JTextField(proposedStart.plusYears(1).minusDays(1).toString()),
-        rent = new JTextField("2000000"),
-        deposit = new JTextField("2000000");
+        rent =
+            new JTextField(
+                ((Room) room.getSelectedItem()).defaultRent() == null
+                    ? ""
+                    : ((Room) room.getSelectedItem()).defaultRent().toPlainString()),
+        deposit = new JTextField("0");
+    rent.setName("rental-rent");
     JSpinner due = new JSpinner(new SpinnerNumberModel(5, 1, 28, 1));
     start.setToolTipText(
-        "Ngày bắt đầu ở theo hợp đồng; tháng đầu không tự chia tiền theo số ngày.");
+        "Ngày bắt đầu ở. Kiểm tra chỉ số nhận phòng; tiền tháng đầu được gợi ý theo ngày.");
     end.setToolTipText(
         "Ngày cuối dự kiến của thời hạn thuê, tính cả ngày này. Không phải hạn đóng tiền và không"
             + " tự xóa nợ.");
@@ -837,7 +860,27 @@ public final class RentalPanel extends JPanel {
         "Mức cọc thỏa thuận. Sau khi tạo hợp đồng, ghi Nhận cọc riêng khi thực nhận tiền.");
     due.setToolTipText(
         "Hạn thanh toán hóa đơn hàng tháng (1–28). Tháng đầu không sớm hơn ngày vào ở.");
-    JTextArea fees = new JTextArea("Internet=100000\nVệ sinh=30000", 4, 28);
+    JTextArea fees = new JTextArea("", 4, 28);
+    fees.setToolTipText("Mỗi dòng Tên=số tiền, ví dụ Internet=100000. Để trống khi không thu phí.");
+    Readings initial = repository.previous((Room) room.getSelectedItem());
+    JTextField handoverE = new JTextField(initial.electricity().toPlainString()),
+        handoverW = new JTextField(initial.water().toPlainString());
+    JCheckBox handoverConfirmed = new JCheckBox("Đã kiểm tra chỉ số lúc người này nhận phòng.");
+    handoverConfirmed.setName("handover-confirmed");
+    room.addActionListener(
+        e -> {
+          handoverConfirmed.setSelected(false);
+          try {
+            Readings r = repository.previous((Room) room.getSelectedItem());
+            handoverE.setText(r.electricity().toPlainString());
+            handoverW.setText(r.water().toPlainString());
+            Room selected = (Room) room.getSelectedItem();
+            rent.setText(
+                selected.defaultRent() == null ? "" : selected.defaultRent().toPlainString());
+          } catch (Exception ex) {
+            Ui.error(owner, ex);
+          }
+        });
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Phòng", room);
     Ui.field(fields, 1, "Người thuê đại diện", tenantChoice);
@@ -856,7 +899,7 @@ public final class RentalPanel extends JPanel {
         fields,
         8,
         "Lưu ý",
-        new JLabel("Một hợp đồng/phòng/tháng. Không tự chia tiền theo số ngày."));
+        new JLabel("Ngày thuê không được trùng. Tiền kỳ đầu/cuối được gợi ý theo ngày."));
     Ui.field(
         fields,
         9,
@@ -871,7 +914,7 @@ public final class RentalPanel extends JPanel {
                     Người thuê đại diện: người đứng tên; người ở cùng được khai ở hồ sơ Người thuê.
                     Ngày vào ở: ngày bắt đầu thời hạn thuê.
                     Ngày kết thúc dự kiến: ngày cuối của thời hạn thuê, gồm cả ngày đó. Ví dụ 13/10/2026 đến 12/10/2027 là thời hạn một năm. Đây không phải hạn đóng tiền; hết hạn không xóa hóa đơn hoặc công nợ.
-                    Tiền phòng/tháng: giá thuê cơ bản, chưa gồm điện, nước và phí. Khi lập hóa đơn, có thể điều chỉnh tiền phòng kỳ đầu/cuối theo thỏa thuận và ghi lý do; app không tự tính theo ngày.
+                    Tiền phòng/tháng: tự điền giá mặc định của phòng, có thể sửa theo thỏa thuận. Lượt thuê có bàn giao được gợi ý tiền phòng và phí kỳ đầu/cuối theo số ngày trong tháng; bạn kiểm tra trước khi lưu.
                     Mức cọc cần nhận: mức đã thỏa thuận; tạo hợp đồng chưa có nghĩa đã nhận cọc. Ghi Nhận cọc riêng khi tiền thực sự được nhận.
                     Ngày hạn thu mỗi tháng: ngày đến hạn thanh toán hóa đơn, từ 1 đến 28. Chọn 5 nghĩa là hạn ngày 5 hằng tháng; tháng đầu không lấy hạn trước ngày vào ở.
                     Phí/tháng: phí lặp mỗi tháng, ví dụ Internet=100000 và Vệ sinh=30000. Không dùng mục này cho khoản phát sinh chỉ một lần.
@@ -879,12 +922,18 @@ public final class RentalPanel extends JPanel {
                     Người thuê là hồ sơ con người. Hợp đồng gắn người với phòng và giá thuê trong một khoảng thời gian. Hóa đơn chốt số tiền từng kỳ. Công nợ là phần hóa đơn chưa được thanh toán.
                     Tiền trả trước cho tháng sau khác tiền cọc. Bản này chưa có sổ trả trước hoặc khoản nợ phát sinh độc lập; không ghi phần thừa thành tiền đã thu của hóa đơn hiện tại.
                     """)));
+    Ui.field(fields, 10, "Điện lúc nhận phòng (kWh)", handoverE);
+    Ui.field(fields, 11, "Nước lúc nhận phòng (m³)", handoverW);
+    Ui.field(fields, 12, "Xác nhận bàn giao", handoverConfirmed);
     form(
         "Cho thuê phòng · thông tin thỏa thuận",
         fields,
         () -> {
           Room selected = (Room) room.getSelectedItem();
           Tenant person = (Tenant) tenant.getSelectedItem();
+          if (!handoverConfirmed.isSelected())
+            throw new IllegalArgumentException(
+                "Kiểm tra và xác nhận chỉ số bàn giao trước khi lưu lần thuê.");
           if (person == null)
             throw new IllegalArgumentException(
                 "Chọn hoặc thêm người thuê đại diện ngay trong màn hình này.");
@@ -901,7 +950,10 @@ public final class RentalPanel extends JPanel {
                   RentalService.money(rent.getText(), "Tiền thuê"),
                   RentalService.money(deposit.getText(), "Tiền cọc"),
                   (Integer) due.getValue(),
-                  parseFees(fees.getText())));
+                  parseFees(fees.getText())),
+              new Readings(
+                  BillingService.number(handoverE.getText(), "Điện bàn giao"),
+                  BillingService.number(handoverW.getText(), "Nước bàn giao")));
         });
   }
 
@@ -953,24 +1005,16 @@ public final class RentalPanel extends JPanel {
   }
 
   private void closeForm(Contract contract) {
-    JTextField date = new JTextField(LocalDate.now().toString(), 20);
-    JPanel fields = Ui.form();
-    Ui.field(fields, 0, "Ngày kết thúc thuê", vn.nhatrohomu.shared.DatePicker.field(date, false));
-    Ui.field(
-        fields,
-        1,
-        "Cọc và công nợ",
-        new JLabel("Vẫn được giữ để thu/hoàn riêng. Người mới bắt đầu từ tháng sau."));
-    form(
-        "Kết thúc · " + contract.roomName(),
-        fields,
-        () -> {
-          if (!Ui.confirm(
-              owner,
-              "Ghi nhận kết thúc hợp đồng #" + contract.id() + " vào " + date.getText() + "?"))
-            throw new IllegalArgumentException("Chưa xác nhận kết thúc.");
-          rentals.closeContract(contract.id(), date.getText().trim());
-        });
+    if (!contract.closedDate().isBlank()) {
+      Ui.error(
+          owner,
+          new IllegalArgumentException("Lần thuê đã kết thúc. Hóa đơn, nợ và cọc vẫn ở hồ sơ cũ."));
+      return;
+    }
+    safe(
+        () ->
+            new vn.nhatrohomu.billing.ui.CheckoutDialog(owner, repository, contract, this::refresh)
+                .setVisible(true));
   }
 
   private void depositDialog(Contract contract) throws Exception {

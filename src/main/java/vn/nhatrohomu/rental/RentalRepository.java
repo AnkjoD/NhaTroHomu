@@ -18,6 +18,22 @@ public interface RentalRepository {
 
   void createContract(Contract contract) throws SQLException;
 
+  default void createContract(Contract contract, Readings opening) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  default Readings opening(long contractId, YearMonth month) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  default boolean hasHandover(long contractId) throws SQLException {
+    return false;
+  }
+
+  default void checkout(Bill finalBill) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
   void closeContract(long id, String date) throws SQLException;
 
   void cancelUnusedContract(long id) throws SQLException;

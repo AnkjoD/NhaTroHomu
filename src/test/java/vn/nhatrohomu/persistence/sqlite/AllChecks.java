@@ -13,6 +13,7 @@ public final class AllChecks {
     ProfileHistoryTest.main(new String[0]);
     HistoricalInvoiceTest.main(new String[0]);
     DebtFlowTest.main(new String[0]);
+    TurnoverTest.main(new String[0]);
     if (java.awt.GraphicsEnvironment.isHeadless())
       System.out.println("SKIP: Swing checks require a desktop session.");
     else {

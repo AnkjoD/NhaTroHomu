@@ -153,7 +153,7 @@ public final class DashboardPanel extends JPanel {
             .filter(
                 r ->
                     data.contracts().stream()
-                        .anyMatch(k -> k.roomId() == r.id() && k.covers(java.time.LocalDate.now())))
+                        .anyMatch(k -> k.roomId() == r.id() && k.occupiedOn(java.time.LocalDate.now())))
             .count();
     JPanel occupation = Design.clear(new GridLayout(1, 3, 12, 0));
     occupation.add(stat("Đang thuê hôm nay", Long.toString(occupied)));
@@ -276,7 +276,7 @@ public final class DashboardPanel extends JPanel {
             .append(": hóa đơn quá hạn ")
             .append(bill.dueDate());
     for (Contract contract : data.contracts())
-      if (contract.covers(java.time.LocalDate.now())
+      if (contract.occupiedOn(java.time.LocalDate.now())
           && !RentalService.date(contract.effectiveEnd())
               .isAfter(java.time.LocalDate.now().plusDays(30)))
         text.append("\n")

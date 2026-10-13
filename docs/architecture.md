@@ -23,17 +23,19 @@ vn.nhatrohomu
 
 Các store hiện vẫn kết hợp SQL và một số quy tắc ghi nghiệp vụ. Đây là ứng dụng desktop được chia theo chức năng, chưa phải kiến trúc backend hay hệ thống nhiều module độc lập.
 
-## Schema 6 đang chạy
+## Schema 7 đang chạy
 
 | Bảng | Trường/quan hệ chính |
 |---|---|
-| rooms | name unique, chỉ số ban đầu, mode/mức khoán, active |
+| rooms | name unique, chỉ số ban đầu, mode/mức khoán, active, default_rent nullable (chưa thiết lập) |
 | rates | singleton đơn giá hiện hành và mức nước mặc định |
 | tenants | tên, liên hệ, ghi chú, active |
+| residents | FK người thuê, hồ sơ người ở cùng |
 | contracts | FK phòng/người, ngày, tiền thuê/cọc, hạn thu, closed_date, cancelled_at/reason |
 | contract_charges | FK hợp đồng, tên và tiền phí |
 | deposits | FK hợp đồng, loại RECEIVE/REFUND, tiền, ngày và ghi chú |
-| bills | FK phòng/hợp đồng; kỳ, tên/giá/chỉ số/phí snapshot, ảnh, tổng, paid cache, created_at, voided_at/reason |
+| bills | FK phòng/hợp đồng; kỳ, period_start/end, tên/giá/chỉ số/phí snapshot, ảnh, tổng, water_amount nhập lịch sử, paid cache, created_at, voided_at/reason |
+| handover_events | FK lượt thuê; IN/OUT unique theo lượt/loại, ngày, e_reading/w_reading, water_mode, created_at; không sửa/xóa |
 | bill_charges | FK hóa đơn, phí snapshot |
 | payments | FK hóa đơn, tiền/ngày/note, created_at, request_key unique |
 | payment_reversals | FK lần thu unique, thời điểm đảo, lý do |
@@ -42,14 +44,16 @@ Các store hiện vẫn kết hợp SQL và một số quy tắc ghi nghiệp v�
 | expenses | FK phòng nullable, tên phòng snapshot, loại/người nhận, tiền nguyên INTEGER, ngày, phương thức, note, request_key |
 | expense_reversals | FK khoản chi unique, thời điểm đảo, lý do |
 
-**15 bảng**: danh sách này là schema thực tế, không phải danh sách bảng cho các tính năng tương lai. Phần lớn tiền/chỉ số cũ lưu TEXT để đọc bằng BigDecimal; khoản chi mới dùng INTEGER đồng.
+**16 bảng**: danh sách này là schema thực tế. Giá phòng mặc định khác giá thỏa thuận trong contracts và khác tiền đã chốt trong bills. Tiền/chỉ số dùng TEXT đọc bằng BigDecimal; khoản chi dùng INTEGER đồng.
 
 ```mermaid
 erDiagram
     rooms ||--o{ contracts : thue
     tenants ||--o{ contracts : dai_dien
+    tenants ||--o{ residents : nguoi_o_cung
     contracts ||--o{ contract_charges : phi
     contracts ||--o{ deposits : coc
+    contracts ||--o{ handover_events : ban_giao
     rooms ||--o{ bills : hoa_don
     contracts o|--o{ bills : hop_dong
     bills ||--o{ bill_charges : phi_snapshot
@@ -65,6 +69,8 @@ erDiagram
 ## Bất biến quan trọng
 
 - Chốt tuần tự, kiểm tra nghĩa vụ kỳ đầu và các kỳ thuê thiếu. Số cũ phải khớp số hiện có trong DB ngay trong transaction.
+- `TurnoverStore`: chốt hóa đơn cuối, ngày kết thúc và OUT trong một transaction. Hai lượt cùng tháng phải không trùng ngày; chỉ số IN của người mới không gồm lượng dùng lúc phòng trống. Unique hóa đơn theo phòng/tháng/lượt thuê, đồng thời kiểm tra khoảng ngày không chồng nhau. Hóa đơn legacy chưa có khoảng ngày được giữ theo cả tháng.
+- Bàn giao phải tăng đúng thứ tự kể cả mốc dự kiến phía sau; validator kiểm tra cả khi phục hồi. Trả phòng dùng lại hóa đơn cuối khớp hoàn toàn thay vì lập trùng; không hủy hóa đơn đã gắn OUT.
 - Lượng dùng/tổng phải khớp chỉ số và giá ở mọi nhánh, kể cả hóa đơn không có hợp đồng.
 - Thu không vượt dư nợ. Khóa ghi trước khi đọc số dư; request key tránh ghi hai lần khi retry cùng thao tác.
 - Hủy hóa đơn giữ bản gốc/ảnh, không tái sử dụng ID; chỉ hủy kỳ cuối không còn khoản thu hiệu lực và không đi ngược mốc chuyển nước.

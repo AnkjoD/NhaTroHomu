@@ -20,6 +20,10 @@ public final class RoomDialog extends JDialog {
     mode.setSelectedIndex(room != null && room.waterMode().equals("FIXED") ? 1 : 0);
     JTextField fixed =
         new JTextField(room == null || room.fixedWater() == null ? "" : Ui.n(room.fixedWater()));
+    JTextField defaultRent =
+        new JTextField(
+            room == null || room.defaultRent() == null ? "" : room.defaultRent().toPlainString());
+    defaultRent.setName("room-default-rent");
     boolean hasBills = room != null && repository.hasRoomHistory(room.id());
     electricity.setEditable(!hasBills);
     water.setEditable(!hasBills);
@@ -45,11 +49,15 @@ public final class RoomDialog extends JDialog {
     rentalHelp.setLineWrap(true);
     rentalHelp.setWrapStyleWord(true);
     rentalHelp.setOpaque(false);
-    Ui.field(form, 6, "Tiền phòng", rentalHelp);
+    Ui.field(form, 6, "Giá thuê mặc định / tháng (đ)", defaultRent);
+    rentalHelp.setText(
+        "Giá mặc định tự điền khi cho thuê. Có thể thỏa thuận giá khác; giá hợp đồng đang có và hóa"
+            + " đơn cũ không tự đổi khi sửa giá phòng.");
+    Ui.field(form, 7, "Tiền phòng", rentalHelp);
     JLabel hint =
         new JLabel(
             hasBills
-                ? "Đã có hóa đơn: số ban đầu được khóa để giữ lịch sử."
+                ? "Đã có hóa đơn/bàn giao: số ban đầu được khóa để giữ lịch sử."
                 : "Nhập chỉ số đầu kỳ trước khi bắt đầu chốt tháng đầu tiên.");
     hint.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
     JButton save =
@@ -70,7 +78,11 @@ public final class RoomDialog extends JDialog {
                         fixed.getText().isBlank() || mode.getSelectedIndex() == 0
                             ? null
                             : BillingService.number(fixed.getText(), "Nước riêng"),
-                        true);
+                        true,
+                        defaultRent.getText().isBlank()
+                            ? null
+                            : vn.nhatrohomu.rental.RentalService.money(
+                                defaultRent.getText(), "Giá thuê mặc định"));
                 repository.saveRoom(value);
                 dispose();
                 saved.run();

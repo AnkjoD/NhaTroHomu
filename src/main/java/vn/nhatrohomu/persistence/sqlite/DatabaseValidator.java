@@ -29,7 +29,8 @@ public final class DatabaseValidator {
           "water_transitions",
           "expenses",
           "expense_reversals",
-          "residents");
+          "residents",
+          "handover_events");
 
   public static void checkSafeSchema(Path file) throws SQLException {
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + file);
@@ -59,7 +60,7 @@ public final class DatabaseValidator {
           }
         }
       }
-      if (version >= 4 && !foundTriggers.equals(Schema.triggers().keySet()))
+      if (version >= 4 && !foundTriggers.equals(Schema.triggers(version).keySet()))
         throw new IllegalArgumentException("Backup thiếu cơ chế giữ lịch sử chứng từ.");
     }
   }
@@ -143,7 +144,8 @@ public final class DatabaseValidator {
                 d(r, "w_start"),
                 r.getString("water_mode"),
                 r.getString("fixed_water") == null ? null : d(r, "fixed_water"),
-                r.getBoolean("active"));
+                r.getBoolean("active"),
+                r.getString("default_rent") == null ? null : d(r, "default_rent"));
         DataRules.room(room);
         rooms.put(room.id(), room);
       }
@@ -229,8 +231,8 @@ public final class DatabaseValidator {
         for (Contract old : contracts.values()) {
           if (cancelled || cancelledContracts.contains(old.id())) continue;
           if (old.roomId() == k.roomId()
-              && k.startDate().substring(0, 7).compareTo(old.effectiveEnd().substring(0, 7)) <= 0
-              && old.startDate().substring(0, 7).compareTo(k.effectiveEnd().substring(0, 7)) <= 0)
+              && k.startDate().compareTo(old.effectiveEnd()) <= 0
+              && old.startDate().compareTo(k.effectiveEnd()) <= 0)
             throw new IllegalArgumentException(
                 "Hợp đồng trùng phòng/kỳ: " + old.id() + " và " + k.id());
           if (old.tenantId() == k.tenantId()
@@ -275,7 +277,9 @@ public final class DatabaseValidator {
                 d(r, "rent"),
                 RentalStore.charges(c, "bill_charges", "bill_id", r.getLong("id")),
                 r.getString("due_date"),
-                r.getString("water_amount") == null ? null : d(r, "water_amount"));
+                r.getString("water_amount") == null ? null : d(r, "water_amount"),
+                r.getString("period_start"),
+                r.getString("period_end"));
         try {
           boolean imported;
           try (PreparedStatement source =
@@ -310,11 +314,104 @@ public final class DatabaseValidator {
           java.time.Instant.parse(r.getString("voided_at"));
           DataRules.text(r.getString("void_reason"), "Lý do hủy", 2000, true);
           voided.add(b.id());
-        } else if (!periods.add(b.roomId() + ":" + b.month()))
-          throw new IllegalArgumentException("Hóa đơn trùng phòng/kỳ.");
+        } else {
+          if (!periods.add(b.roomId() + ":" + b.month() + ":" + b.contractId()))
+            throw new IllegalArgumentException("Hóa đơn trùng lần thuê/kỳ.");
+          for (Bill previous : bills.values())
+            if (!voided.contains(previous.id())
+                && previous.roomId() == b.roomId()
+                && previous.month().equals(b.month())) {
+              String first = b.periodStart().isBlank() ? b.month() + "-01" : b.periodStart(),
+                  last =
+                      b.periodEnd().isBlank()
+                          ? DataRules.period(b.month()).atEndOfMonth().toString()
+                          : b.periodEnd();
+              String
+                  previousFirst =
+                      previous.periodStart().isBlank()
+                          ? previous.month() + "-01"
+                          : previous.periodStart(),
+                  previousLast =
+                      previous.periodEnd().isBlank()
+                          ? DataRules.period(previous.month()).atEndOfMonth().toString()
+                          : previous.periodEnd();
+              if (first.compareTo(previousLast) <= 0 && previousFirst.compareTo(last) <= 0)
+                throw new IllegalArgumentException("Hóa đơn trùng khoảng ngày trong phòng.");
+            }
+          if (!b.periodStart().isBlank()) {
+            Contract k = contracts.get(b.contractId());
+            if (b.periodStart().compareTo(k.startDate()) < 0
+                || b.periodEnd().compareTo(k.effectiveEnd()) > 0)
+              throw new IllegalArgumentException("Ngày hóa đơn ngoài thời gian thuê.");
+            Readings opening = TurnoverStore.opening(c, k, DataRules.period(b.month()));
+            if (opening.electricity().compareTo(b.electricityOld()) != 0
+                || opening.water().compareTo(b.waterOld()) != 0)
+              throw new IllegalArgumentException("Hóa đơn không khớp chỉ số bàn giao/đầu kỳ.");
+          }
+        }
         if (r.getLong("e_size") > 12_000_000 || r.getLong("w_size") > 12_000_000)
           throw new IllegalArgumentException("Ảnh vượt giới hạn.");
         bills.put(b.id(), b);
+      }
+    }
+    Set<String> boundaries = new HashSet<>();
+    record Boundary(BigDecimal electricity, BigDecimal water, String mode, String date) {}
+    Map<Long, Boundary> lastBoundary = new HashMap<>();
+    try (Statement s = c.createStatement();
+        ResultSet r = s.executeQuery("SELECT * FROM handover_events ORDER BY event_date,id")) {
+      while (r.next()) {
+        Contract k = contracts.get(r.getLong("contract_id"));
+        String kind = r.getString("kind"), date = r.getString("event_date");
+        if (k == null
+            || !Set.of("IN", "OUT").contains(kind)
+            || !boundaries.add(k.id() + ":" + kind))
+          throw new IllegalArgumentException("Mốc bàn giao mất/trùng lần thuê.");
+        DataRules.date(date);
+        DataRules.quantity(d(r, "e_reading"), "Điện bàn giao");
+        DataRules.quantity(d(r, "w_reading"), "Nước bàn giao");
+        DataRules.mode(r.getString("water_mode"));
+        java.time.Instant.parse(r.getString("created_at"));
+        if (!date.equals(kind.equals("IN") ? k.startDate() : k.closedDate()))
+          throw new IllegalArgumentException("Ngày bàn giao không khớp lần thuê.");
+        BigDecimal endElectricity = d(r, "e_reading"), endWater = d(r, "w_reading");
+        if (!cancelledContracts.contains(k.id())) {
+          Boundary previous = lastBoundary.get(k.roomId());
+          boolean reset = false;
+          if (previous != null) {
+            try (PreparedStatement policy =
+                c.prepareStatement(
+                    "SELECT 1 FROM water_transitions WHERE room_id=? AND effective_month>? AND"
+                        + " effective_month<=? LIMIT 1")) {
+              policy.setLong(1, k.roomId());
+              policy.setString(2, previous.date().substring(0, 7));
+              policy.setString(3, date.substring(0, 7));
+              try (ResultSet changed = policy.executeQuery()) {
+                reset = changed.next();
+              }
+            }
+            if (endElectricity.compareTo(previous.electricity()) < 0
+                || (!reset
+                    && previous.mode().equals("METER")
+                    && r.getString("water_mode").equals("METER")
+                    && endWater.compareTo(previous.water()) < 0))
+              throw new IllegalArgumentException("Chỉ số bàn giao đi ngược thời gian.");
+          }
+          lastBoundary.put(
+              k.roomId(), new Boundary(endElectricity, endWater, r.getString("water_mode"), date));
+        }
+        if (kind.equals("OUT")
+            && bills.values().stream()
+                .noneMatch(
+                    b ->
+                        !voided.contains(b.id())
+                            && java.util.Objects.equals(b.contractId(), k.id())
+                            && (b.periodEnd().isBlank()
+                                    ? DataRules.period(b.month()).atEndOfMonth().toString()
+                                    : b.periodEnd())
+                                .equals(date)
+                            && b.electricityNew().compareTo(endElectricity) == 0
+                            && b.waterNew().compareTo(endWater) == 0))
+          throw new IllegalArgumentException("Trả phòng thiếu hóa đơn/chỉ số cuối.");
       }
     }
     Map<Long, Payment> payments = new HashMap<>();

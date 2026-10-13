@@ -163,10 +163,12 @@ public final class RentalStore implements RentalRepository {
             c.prepareStatement(
                 "UPDATE tenants SET active=0 WHERE id=? AND NOT EXISTS(SELECT 1 FROM contracts"
                     + " WHERE tenant_id=? AND cancelled_at IS NULL AND (CASE WHEN closed_date=''"
-                    + " THEN end_date ELSE closed_date END)>=?)")) {
+                    + " THEN end_date ELSE closed_date END)>=? AND (closed_date='' OR"
+                    + " closed_date>?))")) {
       p.setLong(1, id);
       p.setLong(2, id);
       p.setString(3, LocalDate.now().toString());
+      p.setString(4, LocalDate.now().toString());
       if (p.executeUpdate() != 1)
         throw new IllegalArgumentException(
             "Cần kết thúc hợp đồng hiện tại/sắp tới trước khi lưu trữ người thuê.");
@@ -209,7 +211,7 @@ public final class RentalStore implements RentalRepository {
     }
   }
 
-  private List<Contract> contracts(Connection c) throws SQLException {
+  static List<Contract> contracts(Connection c) throws SQLException {
     List<Contract> result = new ArrayList<>();
     try (Statement s = c.createStatement();
         ResultSet r =
@@ -243,17 +245,25 @@ public final class RentalStore implements RentalRepository {
   }
 
   Contract forMonth(Connection c, long roomId, YearMonth month) throws SQLException {
-    return contracts(c).stream()
-        .filter(
-            k ->
-                k.roomId() == roomId
-                    && !RentalService.date(k.startDate()).isAfter(month.atEndOfMonth())
-                    && !RentalService.date(k.effectiveEnd()).isBefore(month.atDay(1)))
-        .findFirst()
-        .orElse(null);
+    List<Contract> matches =
+        contracts(c).stream()
+            .filter(
+                k ->
+                    k.roomId() == roomId
+                        && !RentalService.date(k.startDate()).isAfter(month.atEndOfMonth())
+                        && !RentalService.date(k.effectiveEnd()).isBefore(month.atDay(1)))
+            .toList();
+    if (matches.size() > 1)
+      throw new IllegalArgumentException(
+          "Tháng này có nhiều người thuê. Chọn đúng lần thuê để lập hóa đơn.");
+    return matches.isEmpty() ? null : matches.getFirst();
   }
 
   public void createContract(Contract contract) throws SQLException {
+    createContract(contract, null);
+  }
+
+  public void createContract(Contract contract, Readings opening) throws SQLException {
     if (!contract.closedDate().isBlank())
       throw new IllegalArgumentException("Hợp đồng mới không có ngày kết thúc thực tế.");
     LocalDate start = RentalService.date(contract.startDate()),
@@ -293,13 +303,25 @@ public final class RentalStore implements RentalRepository {
         }
         for (Contract existing : contracts(c)) {
           if (existing.roomId() == contract.roomId()
-              && !YearMonth.from(end)
-                  .isBefore(YearMonth.parse(existing.startDate().substring(0, 7)))
-              && !YearMonth.from(start)
-                  .isAfter(YearMonth.parse(existing.effectiveEnd().substring(0, 7))))
+              && !end.isBefore(RentalService.date(existing.startDate()))
+              && !start.isAfter(RentalService.date(existing.effectiveEnd())))
             throw new IllegalArgumentException(
-                "Phòng đã có hợp đồng trong các kỳ này. Bản này hỗ trợ một hợp đồng/phòng/tháng;"
-                    + " người mới bắt đầu từ tháng kế tiếp.");
+                "Phòng đã có người thuê trong khoảng ngày này. Ngày trả phòng tính cả ngày đó.");
+          if (existing.roomId() == contract.roomId()
+              && start.isAfter(RentalService.date(existing.effectiveEnd()))
+              && YearMonth.from(start)
+                  .equals(YearMonth.from(RentalService.date(existing.effectiveEnd())))) {
+            try (PreparedStatement p =
+                c.prepareStatement(
+                    "SELECT 1 FROM handover_events WHERE contract_id=? AND kind='OUT'")) {
+              p.setLong(1, existing.id());
+              try (ResultSet r = p.executeQuery()) {
+                if (opening == null || !r.next())
+                  throw new IllegalArgumentException(
+                      "Đổi người cùng tháng cần chốt Trả phòng và chỉ số bàn giao trước.");
+              }
+            }
+          }
           if (existing.tenantId() == contract.tenantId()
               && !end.isBefore(RentalService.date(existing.startDate()))
               && !start.isAfter(RentalService.date(existing.effectiveEnd())))
@@ -309,10 +331,13 @@ public final class RentalStore implements RentalRepository {
         try (PreparedStatement p =
             c.prepareStatement(
                 "SELECT 1 FROM bills WHERE room_id=? AND voided_at IS NULL AND month>=? AND"
-                    + " month<=? LIMIT 1")) {
+                    + " month<=? AND (period_start='' OR NOT(period_end<? OR period_start>?)) LIMIT"
+                    + " 1")) {
           p.setLong(1, contract.roomId());
           p.setString(2, YearMonth.from(start).toString());
           p.setString(3, YearMonth.from(end).toString());
+          p.setString(4, start.toString());
+          p.setString(5, end.toString());
           try (ResultSet r = p.executeQuery()) {
             if (r.next())
               throw new IllegalArgumentException(
@@ -334,7 +359,20 @@ public final class RentalStore implements RentalRepository {
           p.executeUpdate();
           try (ResultSet keys = p.getGeneratedKeys()) {
             keys.next();
-            saveCharges(c, "contract_charges", "contract_id", keys.getLong(1), contract.fees());
+            long newId = keys.getLong(1);
+            saveCharges(c, "contract_charges", "contract_id", newId, contract.fees());
+            if (opening != null) {
+              DataRules.quantity(opening.electricity(), "Điện bàn giao");
+              DataRules.quantity(opening.water(), "Nước bàn giao");
+              Readings baseline =
+                  TurnoverStore.opening(c, TurnoverStore.contract(c, newId), YearMonth.from(start));
+              if (opening.electricity().compareTo(baseline.electricity()) < 0
+                  || opening.water().compareTo(baseline.water()) < 0)
+                throw new IllegalArgumentException(
+                    "Chỉ số nhận phòng thấp hơn số đầu/đã chốt trước đó.");
+              TurnoverStore.event(
+                  c, TurnoverStore.contract(c, newId), "IN", contract.startDate(), opening);
+            }
             AuditLog.record(
                 c,
                 "CREATE",
@@ -362,7 +400,31 @@ public final class RentalStore implements RentalRepository {
     }
   }
 
+  public boolean hasHandover(long id) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement p =
+            c.prepareStatement("SELECT 1 FROM handover_events WHERE contract_id=? AND kind='IN'")) {
+      p.setLong(1, id);
+      try (ResultSet r = p.executeQuery()) {
+        return r.next();
+      }
+    }
+  }
+
+  public Readings opening(long id, YearMonth month) throws SQLException {
+    try (Connection c = connection()) {
+      return TurnoverStore.opening(c, TurnoverStore.contract(c, id), month);
+    }
+  }
+
+  public void checkout(Bill bill) throws SQLException {
+    new TurnoverStore(database).checkout(bill);
+  }
+
   public void closeContract(long id, String date) throws SQLException {
+    if (hasHandover(id))
+      throw new IllegalArgumentException(
+          "Lần thuê có bàn giao: dùng Trả phòng và chốt kỳ cuối để lưu cùng hóa đơn/chỉ số.");
     LocalDate closed = RentalService.date(date);
     try (Connection c = connection()) {
       c.setAutoCommit(false);

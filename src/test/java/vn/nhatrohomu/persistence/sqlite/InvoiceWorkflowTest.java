@@ -75,7 +75,16 @@ public final class InvoiceWorkflowTest {
           null);
     }
     repository.saveRoom(
-        new Room(0, "P02", "", BigDecimal.ZERO, BigDecimal.ZERO, "METER", null, true));
+        new Room(
+            0,
+            "P02",
+            "",
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            "METER",
+            null,
+            true,
+            new BigDecimal("2000000")));
     Room vacant =
         repository.rooms().stream().filter(r -> r.name().equals("P02")).findFirst().orElseThrow();
     Throwable[] error = {null};
@@ -121,6 +130,9 @@ public final class InvoiceWorkflowTest {
                 () -> {
                   try {
                     JDialog rent = dialog("Cho thuê phòng");
+                    check(
+                        ((JTextField) named(rent, "rental-rent")).getText().equals("2000000"),
+                        "Room default price is prefilled in the tenancy form");
                     later(
                         () -> {
                           try {
@@ -140,7 +152,11 @@ public final class InvoiceWorkflowTest {
                         people.getSelectedItem() instanceof Tenant t
                             && t.name().equals("Người thuê thử luồng mới"),
                         "New tenant is selected without changing screens");
-                    later(() -> DisplayTest.find(rent, "Lưu").doClick());
+                    later(
+                        () -> {
+                          ((JCheckBox) named(rent, "handover-confirmed")).setSelected(true);
+                          DisplayTest.find(rent, "Lưu").doClick();
+                        });
                   } catch (Throwable ex) {
                     error[0] = ex;
                     for (Window w : Window.getWindows()) if (w instanceof JDialog) w.dispose();
@@ -157,6 +173,35 @@ public final class InvoiceWorkflowTest {
             check(
                 callbacks[0] == 1 && repository.billCount() == 3,
                 "Refresh fires once and existing invoices remain intact");
+            watchdog.restart();
+            later(
+                () -> {
+                  try {
+                    JDialog checkout = dialog("Trả phòng và chốt kỳ cuối");
+                    ((JTextField) named(checkout, "checkout-electricity")).setText("10");
+                    ((JTextField) named(checkout, "checkout-water")).setText("1");
+                    ((JCheckBox) named(checkout, "checkout-confirmed")).setSelected(true);
+                    DisplayTest.find(checkout, "Chốt hóa đơn và trả phòng").doClick();
+                  } catch (Throwable ex) {
+                    error[0] = ex;
+                    for (Window window : Window.getWindows())
+                      if (window instanceof JDialog) window.dispose();
+                  }
+                });
+            Contract active = repository.rentals().contracts().getFirst();
+            new vn.nhatrohomu.billing.ui.CheckoutDialog(
+                    app, repository, active, () -> callbacks[0]++)
+                .setVisible(true);
+            watchdog.stop();
+            if (error[0] != null) throw new AssertionError(error[0]);
+            Contract ended = repository.rentals().contracts().getFirst();
+            check(
+                !ended.occupiedOn(java.time.LocalDate.now())
+                    && ended.closedDate().equals(java.time.LocalDate.now().toString()),
+                "Checkout immediately releases room occupancy");
+            check(
+                repository.billCount() == 4 && callbacks[0] == 2,
+                "Checkout form creates exactly one final invoice and refreshes once");
           } catch (Exception ex) {
             throw new RuntimeException(ex);
           } finally {

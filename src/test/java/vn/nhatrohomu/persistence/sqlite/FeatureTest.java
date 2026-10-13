@@ -158,6 +158,7 @@ public final class FeatureTest {
   }
 
   static void removeHardeningSchema(Statement s) throws Exception {
+    s.execute("ALTER TABLE rooms DROP COLUMN default_rent");
     for (String name : Schema.triggers().keySet()) s.execute("DROP TRIGGER IF EXISTS " + name);
     for (String name :
         List.of(
@@ -165,7 +166,8 @@ public final class FeatureTest {
             "water_transitions",
             "audit_events",
             "expense_reversals",
-            "expenses")) s.execute("DROP TABLE IF EXISTS " + name);
+            "expenses",
+            "handover_events")) s.execute("DROP TABLE IF EXISTS " + name);
     s.execute("DROP INDEX IF EXISTS payments_request");
     try (ResultSet r =
         s.executeQuery("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='payments'")) {

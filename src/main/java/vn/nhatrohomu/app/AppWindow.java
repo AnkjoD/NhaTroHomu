@@ -32,6 +32,7 @@ public final class AppWindow extends JFrame {
   private final JPanel body = new JPanel(new BorderLayout());
   private int historyPage;
   private String invoiceMonth;
+  private int rentalTab;
   private JLabel breadcrumb;
   private String currentPage = "Tổng quan";
 
@@ -71,8 +72,7 @@ public final class AppWindow extends JFrame {
     menu.setOpaque(false);
     menu.add(nav("dashboard", "Tổng quan", this::showDashboard));
     menu.add(nav("rooms", "Phòng trọ", this::showRooms));
-    menu.add(nav("tenant", "Người thuê", this::showTenants));
-    menu.add(nav("contract", "Hợp đồng", this::showContracts));
+    menu.add(nav("contract", "Thuê phòng", this::showContracts));
     menu.add(nav("bill", "Hóa đơn", this::showHistory));
     menu.add(nav("debt", "Công nợ", this::showDebts));
     menu.add(nav("report", "Báo cáo", this::showReports));
@@ -85,7 +85,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.8.4", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.9.0", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -119,9 +119,10 @@ public final class AppWindow extends JFrame {
     javax.swing.SwingUtilities.updateComponentTreeUI(this);
     if (currentPage.equals("Hóa đơn")) showHistory();
     else if (currentPage.equals("Cài đặt")) showSettings();
-    else if (currentPage.equals("Người thuê")) showTenants();
-    else if (currentPage.equals("Hợp đồng")) showContracts();
-    else if (currentPage.equals("Công nợ")) showDebts();
+    else if (currentPage.equals("Thuê phòng")) {
+      if (rentalTab == 1) showTenants();
+      else showContracts();
+    } else if (currentPage.equals("Công nợ")) showDebts();
     else if (currentPage.equals("Báo cáo")) showReports();
     else if (currentPage.equals("Tổng quan")) showDashboard();
     else showRooms();
@@ -217,7 +218,8 @@ public final class AppWindow extends JFrame {
       List<Contract> contracts = repository.rentals().contracts();
       java.util.Map<Long, Contract> occupied = new java.util.HashMap<>();
       for (Contract contract : contracts)
-        if (contract.covers(java.time.LocalDate.now())) occupied.put(contract.roomId(), contract);
+        if (contract.occupiedOn(java.time.LocalDate.now()))
+          occupied.put(contract.roomId(), contract);
       JPanel top = Design.clear(new BorderLayout(0, 12));
       JPanel heading =
           header("Phòng trọ", "Trạng thái thuê, chỉ số và hóa đơn của từng phòng.", null);
@@ -373,6 +375,11 @@ public final class AppWindow extends JFrame {
             ? null
             : repository.roomBills(r.id(), latest, latest).stream().findFirst().orElse(null);
     boolean historicalRental = latestBill != null && latestBill.rent().signum() > 0;
+    if (contract != null
+        && repository.rentals().hasHandover(contract.id())
+        && (latestBill == null
+            || !java.util.Objects.equals(latestBill.contractId(), contract.id())))
+      previous = repository.rentals().opening(contract.id(), java.time.YearMonth.now());
     JPanel card = Design.card(Design.SURFACE);
     card.setLayout(new BorderLayout(0, 18));
     card.setPreferredSize(new Dimension(360, 300));
@@ -440,14 +447,19 @@ public final class AppWindow extends JFrame {
             "contract",
             contract != null
                 ? "Giá thuê / tháng"
-                : historicalRental ? "Tiền phòng kỳ " + latest : "Giá thuê / tháng",
+                : r.defaultRent() != null
+                    ? "Giá mặc định / tháng"
+                    : historicalRental ? "Tiền phòng kỳ " + latest : "Giá mặc định / tháng",
             contract != null
                 ? Ui.money(contract.rent())
-                : historicalRental ? Ui.money(latestBill.rent()) : "Chưa có hợp đồng");
+                : r.defaultRent() != null
+                    ? Ui.money(r.defaultRent())
+                    : historicalRental ? Ui.money(latestBill.rent()) : "Chưa thiết lập");
     rentInfo.setToolTipText(
         contract != null
             ? "Giá trong hợp đồng hiện tại; tiền từng kỳ nằm trong hóa đơn."
-            : "Giá trên hóa đơn cũ không tự thành giá thuê mới. Thiết lập giá ở Hợp đồng.");
+            : "Thiết lập giá mặc định ở Sửa phòng; giá thỏa thuận lưu riêng trong lượt thuê. Giá"
+                + " trên hóa đơn cũ không tự thành giá mới.");
     info.add(rentInfo);
     info.add(metric("bolt", "Chỉ số điện gần nhất", Ui.n(previous.electricity()) + " kWh"));
     info.add(
@@ -528,9 +540,30 @@ public final class AppWindow extends JFrame {
   }
 
   private void showRental(String title, RentalPanel.Page page) {
-    selectNav(title);
+    selectNav(page == RentalPanel.Page.DEBTS ? title : "Thuê phòng");
     body.removeAll();
-    body.add(new RentalPanel(this, repository, page, this::billDialog));
+    if (page == RentalPanel.Page.DEBTS)
+      body.add(new RentalPanel(this, repository, page, this::billDialog));
+    else {
+      JTabbedPane tabs = new JTabbedPane();
+      tabs.setOpaque(false);
+      tabs.setBackground(Design.SURFACE);
+      tabs.setForeground(Design.INK);
+      tabs.addTab(
+          "Lượt thuê / trả phòng",
+          new RentalPanel(this, repository, RentalPanel.Page.CONTRACTS, this::billDialog));
+      tabs.addTab(
+          "Hồ sơ / người ở cùng",
+          new RentalPanel(this, repository, RentalPanel.Page.TENANTS, this::billDialog));
+      rentalTab = page == RentalPanel.Page.TENANTS ? 1 : 0;
+      tabs.setSelectedIndex(rentalTab);
+      tabs.addChangeListener(
+          e -> {
+            rentalTab = tabs.getSelectedIndex();
+            if (tabs.getSelectedComponent() instanceof RentalPanel panel) panel.refreshData();
+          });
+      body.add(tabs);
+    }
     body.revalidate();
     body.repaint();
   }
@@ -569,7 +602,7 @@ public final class AppWindow extends JFrame {
       int count = filtered.size();
       if (historyPage * 50 >= count) historyPage = Math.max(0, (count - 1) / 50);
       List<Bill> bills = filtered.stream().skip(historyPage * 50L).limit(50).toList();
-      Object[][] rows = new Object[bills.size()][7];
+      Object[][] rows = new Object[bills.size()][9];
       BigDecimal sum = filtered.stream().map(Bill::total).reduce(BigDecimal.ZERO, BigDecimal::add);
       for (int i = 0; i < bills.size(); i++) {
         Bill b = bills.get(i);
@@ -577,6 +610,8 @@ public final class AppWindow extends JFrame {
             new Object[] {
               b.month(),
               b.roomName(),
+              b.tenantName(),
+              b.periodLabel(),
               Ui.money(b.rent()),
               Ui.money(b.feeTotal()),
               Ui.money(b.total()),
@@ -588,7 +623,17 @@ public final class AppWindow extends JFrame {
       }
       JTable table =
           table(
-              new String[] {"Kỳ", "Phòng", "Tiền phòng", "Phí", "Tổng", "Thanh toán", "Ghi chú"},
+              new String[] {
+                "Kỳ",
+                "Phòng",
+                "Người thuê",
+                "Khoảng ngày",
+                "Tiền phòng",
+                "Phí",
+                "Tổng",
+                "Thanh toán",
+                "Ghi chú"
+              },
               rows);
       JPanel a = actions();
       JPanel filterBar = actions();
@@ -766,6 +811,8 @@ public final class AppWindow extends JFrame {
         + b.roomName()
         + "\nKỳ: "
         + b.month()
+        + "\nKhoảng ngày tính tiền: "
+        + b.periodLabel()
         + (b.contractId() == null
             ? (b.rent().signum() > 0
                 ? "\nLoại: hóa đơn lịch sử nhập từ sổ cũ\nTiền phòng: " + Ui.money(b.rent())

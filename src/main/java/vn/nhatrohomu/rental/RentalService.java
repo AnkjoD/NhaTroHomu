@@ -66,4 +66,51 @@ public final class RentalService {
         contract.fees(),
         due);
   }
+
+  public static BigDecimal prorated(BigDecimal monthly, LocalDate first, LocalDate last) {
+    if (last.isBefore(first) || !YearMonth.from(first).equals(YearMonth.from(last)))
+      throw new IllegalArgumentException("Khoảng ngày cần nằm trong cùng tháng.");
+    return monthly
+        .multiply(BigDecimal.valueOf(java.time.temporal.ChronoUnit.DAYS.between(first, last) + 1))
+        .divide(BigDecimal.valueOf(YearMonth.from(first).lengthOfMonth()), 0, RoundingMode.HALF_UP);
+  }
+
+  public static Bill segment(
+      Bill utility,
+      Contract contract,
+      BigDecimal rent,
+      java.util.List<Charge> fees,
+      LocalDate first,
+      LocalDate last) {
+    Bill base = withRental(utility, contract, rent);
+    BigDecimal total =
+        utility
+            .utilitiesCost()
+            .add(rent)
+            .add(fees.stream().map(Charge::amount).reduce(BigDecimal.ZERO, BigDecimal::add));
+    return new Bill(
+        base.id(),
+        base.roomId(),
+        base.roomName(),
+        base.month(),
+        base.electricityOld(),
+        base.electricityNew(),
+        base.waterOld(),
+        base.waterNew(),
+        base.waterMode(),
+        base.waterUsed(),
+        base.electricityRate(),
+        base.waterRate(),
+        total.setScale(0, RoundingMode.HALF_UP),
+        base.paid(),
+        base.note(),
+        base.contractId(),
+        base.tenantName(),
+        rent,
+        fees,
+        base.dueDate(),
+        null,
+        first.toString(),
+        last.toString());
+  }
 }

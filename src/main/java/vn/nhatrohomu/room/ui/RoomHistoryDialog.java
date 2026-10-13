@@ -112,7 +112,10 @@ public final class RoomHistoryDialog extends JDialog {
               "Điện + nước",
               "Tiền phòng",
               "Phí",
-              "Tổng hóa đơn"
+              "Tổng hóa đơn",
+              "Người thuê",
+              "Từ ngày",
+              "Đến ngày"
             };
             Object[][] values = new Object[rows.size()][];
             BigDecimal sum = BigDecimal.ZERO;
@@ -134,7 +137,10 @@ public final class RoomHistoryDialog extends JDialog {
                     b.utilitiesCost(),
                     b.rent(),
                     b.feeTotal(),
-                    b.total()
+                    b.total(),
+                    b.tenantName(),
+                    b.periodStart(),
+                    b.periodEnd()
                   };
             }
             table.setModel(
@@ -144,7 +150,7 @@ public final class RoomHistoryDialog extends JDialog {
                   }
 
                   public Class<?> getColumnClass(int c) {
-                    return c == 0 || c == 5 || c == 6 ? Object.class : BigDecimal.class;
+                    return c == 0 || c == 5 || c == 6 || c >= 13 ? Object.class : BigDecimal.class;
                   }
                 });
             for (int i = 0; i < headings.length; i++)

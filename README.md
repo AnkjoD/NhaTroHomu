@@ -2,9 +2,9 @@
 
 Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR Windows hoặc gói RapidOCR tùy chọn, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.8.4**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.9.0**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
-Hướng dẫn nghiệp vụ: [Phòng, hợp đồng, các trường ngày/cọc/phí và giới hạn sửa hóa đơn, trả trước](docs/phong-hop-dong-va-thanh-toan.md). Giá thuê đặt ở Hợp đồng; thẻ phòng ghi rõ giá hiện tại hoặc tiền của kỳ lịch sử. Thẻ có chiều cao riêng, bấm Xem đầy đủ / Thu gọn để mở và đóng nội dung; đổi bảng/thẻ trở về đầu danh sách.
+Hướng dẫn nghiệp vụ: [Giá phòng, lượt thuê, bàn giao, trả phòng và thanh toán](docs/phong-hop-dong-va-thanh-toan.md). Giá mặc định nằm ở Phòng, giá thỏa thuận nằm ở Lượt thuê, số tiền đã chốt nằm ở Hóa đơn. Mục Thuê phòng gom hồ sơ và lượt thuê trong cùng màn hình. Thẻ có chiều cao riêng; đổi bảng/thẻ trở về đầu danh sách.
 
 Màn Hóa đơn mặc định mở tháng mới nhất, có bộ chọn tháng và nút Lập hóa đơn trực tiếp. CSV xuất theo toàn bộ phạm vi tháng được chọn, không chỉ trang đang thấy. Nút Cho thuê phòng cho phép chọn hoặc thêm người thuê ngay trong form, giữ thông tin thỏa thuận khi mở hồ sơ mới; không cần chuyển trang để tạo người thuê trước.
 
@@ -14,13 +14,15 @@ Màn Hóa đơn mặc định mở tháng mới nhất, có bộ chọn tháng v
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.8.4-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.9.0-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
 ## Tính năng
 
 - Quản lý phòng, người thuê, hợp đồng, giá thuê, hạn thu và phí định kỳ.
+- Đổi người thuê cùng tháng bằng khoảng ngày không trùng nhau và chỉ số bàn giao IN/OUT; chốt trả phòng cùng hóa đơn cuối trong một giao dịch, giữ nợ/cọc của người cũ.
+- Gợi ý tiền phòng/phí theo ngày thực tế của tháng, bao gồm năm nhuận; nước khoán kỳ ngắn không làm tăng chỉ số đồng hồ.
 - Lập hóa đơn tiền phòng, điện, nước và phí; lưu giá, tên, chỉ số và ảnh tại lúc chốt.
 - OCR trên máy, chọn/cắt ảnh, chọn kết quả hoặc nhập tay và xác nhận lại.
 - Nước theo đồng hồ hoặc mức m³ khoán chung/riêng. Chuyển cách tính tại ranh giới kỳ có số bàn giao.
@@ -34,8 +36,8 @@ Giải nén toàn bộ `NhaTroHomu-0.8.4-windows-x64.zip`, mở `NhaTroHomu.exe`
 
 ## Quy trình sử dụng
 
-1. Đặt đơn giá, thêm phòng và chỉ số ban đầu.
-2. Thêm người thuê, tạo hợp đồng và các khoản phí. Phí nhập mỗi dòng như `Internet=100000`.
+1. Đặt đơn giá, thêm phòng, giá thuê mặc định và chỉ số ban đầu.
+2. Cho thuê phòng, chọn/thêm người thuê trong form và xác nhận chỉ số nhận phòng. Phí tùy chọn mỗi dòng như `Internet=100000`; mặc định không thêm phí hoặc cọc.
 3. Ghi nhận tiền cọc thực nhận; mức cọc hợp đồng không tự tạo một lần nhận tiền.
 4. Lập hóa đơn từ kỳ vào ở, chốt tuần tự từng tháng; kiểm tra ảnh, chỉ số, tiền phòng và phí.
 5. Ghi từng lần thu tiền. Vào **Báo cáo** để xem công nợ mọi kỳ, thu theo ngày và các kỳ thuê còn thiếu.
@@ -57,8 +59,8 @@ Tiền thuê/cọc/phí/thu/chi là số nguyên đồng. Chỉ số hỗ trợ 
 
 ## Giới hạn nghiệp vụ
 
-- Một hợp đồng/phòng/tháng; chưa đổi khách giữa tháng hoặc tách hóa đơn theo ngày bàn giao.
-- Tiền thuê/phí mặc định cả tháng. Ở chưa đủ tháng cần chỉnh tiền phòng với lý do; chưa tự chia tiền theo ngày.
+- Nhiều lượt thuê cùng tháng được hỗ trợ theo ngày không trùng và có bàn giao; chưa đổi người theo giờ trong cùng ngày. Mỗi lượt thuê có tối đa một hóa đơn đang hiệu lực mỗi tháng.
+- Lượt thuê mới có bàn giao dùng gợi ý tiền phòng/phí theo số ngày; hợp đồng và chứng từ cũ không tự tính lại. Trả sớm sau khi đã chốt tiền cho ngày sau cần đối soát/chứng từ điều chỉnh, chưa sửa đè hoặc tự hoàn tiền.
 - Chưa thay/reset đồng hồ, chuyển cách tính nước giữa tháng hoặc phân chia đồng hồ tổng.
 - Đơn giá hiện hành được chụp vào hóa đơn; chưa có lịch giá tự chọn theo kỳ cũ. Kiểm tra giá trước khi lập bổ sung dữ liệu lịch sử.
 - Mỗi lần thu gắn một hóa đơn; chưa nhận trước, phân bổ một khoản thu cho nhiều hóa đơn, giảm trừ hoặc hoàn tiền thuê.
@@ -81,13 +83,13 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.8.4/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.9.0/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 
 Sổ mới dùng `%LOCALAPPDATA%\NhaTroHomu\nhatrohomu.db`; demo dùng `NhaTroHomu-demo`. Khi tìm thấy sổ Sổ Trọ cũ, ứng dụng sử dụng lại thư mục/file cũ và cùng khóa `app.lock`. Đóng bản cũ trước khi mở bản mới. Có thể chỉ định thư mục bằng `-Dnhatrohomu.data=...` khi chạy Java.
 
-Schema 6 có backup trước nâng cấp. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
+Schema 7 thêm giá phòng mặc định, khoảng ngày hóa đơn và bàn giao; giữ backup trước nâng cấp. Đóng app cũ trước khi mở bản mới. Bản cũ không mở được schema mới. Phục hồi kiểm tra cấu trúc, tham chiếu và số liệu trên bản ứng viên, giữ bản cứu hộ rồi mới thay dữ liệu; chờ các connection đang dùng đóng.
 
 DB, backup, ảnh và tài liệu xuất **chưa mã hóa**. Không có đăng nhập/phân quyền. Nhật ký/trigger bảo vệ lịch sử qua luồng SQL thông thường, không chống người có quyền sửa file hoặc thay ứng dụng trên máy. Không chia sẻ database qua ổ mạng và không đưa sổ/ảnh khách thật vào GitHub.
 
@@ -95,9 +97,9 @@ DB, backup, ảnh và tài liệu xuất **chưa mã hóa**. Không có đăng n
 
 ## Lịch sử điện nước và hồ sơ
 
-Ở **Phòng trọ → Lịch sử điện nước**, chọn khoảng kỳ YYYY-MM hoặc **Tất cả kỳ**. Mỗi dòng có chỉ số cũ/mới, lượng điện/nước dùng, tiền điện, tiền nước, cộng điện nước, tiền phòng, phí và tổng hóa đơn. Chọn dòng để xem/xuất PDF hoặc TXT; CSV xuất đúng khoảng đã xem. CSV ở trang Hóa đơn xuất toàn bộ. Nước khoán không có chỉ số đồng hồ cũ/mới; cột đó để trống trong CSV. Chỉ các kỳ đã chốt có dữ liệu, không tự suy ra số cho tháng chưa lập hóa đơn. Đơn giá và số tiền là bản chốt của kỳ đó.
+Ở **Phòng trọ → Lịch sử điện nước**, chọn khoảng kỳ YYYY-MM hoặc **Tất cả kỳ**. Mỗi dòng có chỉ số cũ/mới, lượng điện/nước dùng, tiền điện, tiền nước, cộng điện nước, tiền phòng, phí và tổng hóa đơn. Chọn dòng để xem/xuất PDF hoặc TXT; CSV xuất đúng khoảng đã xem. CSV ở trang Hóa đơn xuất theo tháng đang chọn hoặc toàn bộ ở chế độ Tất cả tháng. Nước khoán không có chỉ số đồng hồ cũ/mới; cột đó để trống trong CSV. Chỉ các kỳ đã chốt có dữ liệu, không tự suy ra số cho tháng chưa lập hóa đơn. Đơn giá và số tiền là bản chốt của kỳ đó.
 
-**Người thuê → Hồ sơ / người ở cùng** có số điện thoại, Zalo, CCCD/giấy tờ, ngày sinh, địa chỉ và tab gia đình. Zalo tự điền theo điện thoại khi bật tùy chọn; tắt tùy chọn để sửa riêng hoặc để trống. Đây là số liên hệ nhập tay, không xác minh tài khoản Zalo hay CCCD. Danh sách gia đình là hồ sơ hiện tại, chưa quản lý ngày vào/ra hay lịch sử cư trú theo hợp đồng. Tránh nhập giấy tờ khi không cần; dữ liệu local và backup chưa mã hóa.
+**Thuê phòng → Hồ sơ / người ở cùng** có số điện thoại, Zalo, CCCD/giấy tờ, ngày sinh, địa chỉ và tab gia đình. Zalo tự điền theo điện thoại khi bật tùy chọn; tắt tùy chọn để sửa riêng hoặc để trống. Đây là số liên hệ nhập tay, không xác minh tài khoản Zalo hay CCCD. Danh sách gia đình là hồ sơ hiện tại, chưa quản lý ngày vào/ra hay lịch sử cư trú theo hợp đồng. Tránh nhập giấy tờ khi không cần; dữ liệu local và backup chưa mã hóa.
 
 Hợp đồng ghi thỏa thuận thuê, thời hạn, tiền phòng/phí/cọc. Hóa đơn chốt khoản phải trả của từng kỳ. Công nợ = tổng hóa đơn − tiền đã thu; không cộng cọc vào tiền thu hóa đơn. Báo cáo tổng hợp công nợ, thu/chi, kỳ chưa lập và chứng từ hủy để đối soát; dòng tiền không đồng nghĩa lợi nhuận.
 

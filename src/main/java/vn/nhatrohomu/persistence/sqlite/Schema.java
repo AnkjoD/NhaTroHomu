@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Atomic schema upgrades; preserve released v1/v2/v3 books. */
 final class Schema {
-  static final int VERSION = 6;
+  static final int VERSION = 7;
   static final String BILL_COLUMNS =
       "id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,e_photo,w_photo,contract_id,tenant_name,rent,due_date";
 
@@ -147,7 +147,22 @@ final class Schema {
                         + " NOT NULL)");
                 s.execute("CREATE INDEX residents_tenant ON residents(tenant_id,id)");
               }
-              s.execute("ALTER TABLE bills ADD COLUMN water_amount TEXT");
+              if (version < 6) s.execute("ALTER TABLE bills ADD COLUMN water_amount TEXT");
+              s.execute("ALTER TABLE bills ADD COLUMN period_start TEXT NOT NULL DEFAULT ''");
+              s.execute("ALTER TABLE rooms ADD COLUMN default_rent TEXT");
+              s.execute("ALTER TABLE bills ADD COLUMN period_end TEXT NOT NULL DEFAULT ''");
+              s.execute("DROP INDEX bills_active_period");
+              s.execute(
+                  "CREATE UNIQUE INDEX bills_active_period ON"
+                      + " bills(room_id,month,ifnull(contract_id,0)) WHERE voided_at IS NULL");
+              s.execute(
+                  "CREATE TABLE handover_events(id INTEGER PRIMARY KEY AUTOINCREMENT,contract_id"
+                      + " INTEGER NOT NULL REFERENCES contracts(id),kind TEXT NOT NULL CHECK(kind"
+                      + " IN('IN','OUT')),event_date TEXT NOT NULL,e_reading TEXT NOT"
+                      + " NULL,w_reading TEXT NOT NULL,water_mode TEXT NOT NULL CHECK(water_mode"
+                      + " IN('METER','FIXED')),created_at TEXT NOT NULL,UNIQUE(contract_id,kind))");
+              for (String op : new String[] {"update", "delete"})
+                s.execute(triggers().get("handover_events_no_" + op));
               s.execute("DROP TRIGGER bills_no_rewrite");
               s.execute(triggers().get("bills_no_rewrite"));
               try (ResultSet r = s.executeQuery("PRAGMA foreign_key_check")) {
@@ -173,6 +188,17 @@ final class Schema {
 
   static java.util.Map<String, String> triggers(int version) {
     java.util.Map<String, String> result = new java.util.LinkedHashMap<>();
+    if (version >= 7)
+      for (String op : new String[] {"UPDATE", "DELETE"}) {
+        String name = "handover_events_no_" + op.toLowerCase();
+        result.put(
+            name,
+            "CREATE TRIGGER "
+                + name
+                + " BEFORE "
+                + op
+                + " ON handover_events BEGIN SELECT RAISE(ABORT,'History is immutable'); END");
+      }
     for (String table :
         new String[] {
           "audit_events", "payment_reversals", "water_transitions", "expenses", "expense_reversals"
@@ -220,9 +246,13 @@ final class Schema {
         "CREATE TRIGGER bills_no_rewrite BEFORE UPDATE OF "
             + BILL_COLUMNS
             + (version >= 6 ? ",water_amount" : "")
+            + (version >= 7 ? ",period_start,period_end" : "")
             + ",created_at ON bills WHEN "
             + java.util.Arrays.stream(
-                    (BILL_COLUMNS + (version >= 6 ? ",water_amount" : "") + ",created_at")
+                    (BILL_COLUMNS
+                            + (version >= 6 ? ",water_amount" : "")
+                            + (version >= 7 ? ",period_start,period_end" : "")
+                            + ",created_at")
                         .split(","))
                 .filter(column -> !column.equals("paid"))
                 .map(column -> "NEW." + column + " IS NOT OLD." + column)

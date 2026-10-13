@@ -51,7 +51,8 @@ public final class SqliteRepository implements Repository {
                 decimal(r, "w_start"),
                 r.getString("water_mode"),
                 r.getString("fixed_water") == null ? null : decimal(r, "fixed_water"),
-                true));
+                true,
+                r.getString("default_rent") == null ? null : decimal(r, "default_rent")));
     }
     return list;
   }
@@ -81,16 +82,19 @@ public final class SqliteRepository implements Repository {
                       + "; khoán: "
                       + r.getString("fixed_water");
               try (PreparedStatement history =
-                  c.prepareStatement("SELECT 1 FROM bills WHERE room_id=? LIMIT 1")) {
+                  c.prepareStatement(
+                      "SELECT 1 FROM bills WHERE room_id=? UNION ALL SELECT 1 FROM handover_events"
+                          + " h JOIN contracts k ON k.id=h.contract_id WHERE k.room_id=? LIMIT"
+                          + " 1")) {
                 history.setLong(1, room.id());
+                history.setLong(2, room.id());
                 try (ResultSet exists = history.executeQuery()) {
                   if (exists.next()) {
                     if (decimal(r, "e_start").compareTo(room.electricityStart()) != 0
                         || decimal(r, "w_start").compareTo(room.waterStart()) != 0)
                       throw new IllegalArgumentException(
                           "Phòng đã có chứng từ: không sửa số đầu kỳ ban đầu.");
-                    if (!r.getString("water_mode").equals(room.waterMode())
-                        && latestActivePeriod(c, room.id()) != null)
+                    if (!r.getString("water_mode").equals(room.waterMode()))
                       throw new IllegalArgumentException(
                           "Dùng Đổi cách tính nước để ghi số chốt chuyển đổi và kỳ hiệu lực.");
                   }
@@ -102,11 +106,12 @@ public final class SqliteRepository implements Repository {
         try (PreparedStatement stmt =
             c.prepareStatement(
                 room.id() == 0
-                    ? "INSERT INTO rooms(name,tenant,e_start,w_start,water_mode,fixed_water)"
-                        + " VALUES(?,?,?,?,?,?)"
+                    ? "INSERT INTO"
+                        + " rooms(name,tenant,e_start,w_start,water_mode,fixed_water,default_rent)"
+                        + " VALUES(?,?,?,?,?,?,?)"
                     : "UPDATE rooms SET"
-                        + " name=?,tenant=?,e_start=?,w_start=?,water_mode=?,fixed_water=? WHERE"
-                        + " id=?",
+                          + " name=?,tenant=?,e_start=?,w_start=?,water_mode=?,fixed_water=?,default_rent=?"
+                          + " WHERE id=?",
                 Statement.RETURN_GENERATED_KEYS)) {
           stmt.setString(1, room.name().trim());
           stmt.setString(2, room.tenant().trim());
@@ -114,7 +119,8 @@ public final class SqliteRepository implements Repository {
           stmt.setString(4, room.waterStart().toPlainString());
           stmt.setString(5, room.waterMode());
           stmt.setString(6, room.fixedWater() == null ? null : room.fixedWater().toPlainString());
-          if (room.id() != 0) stmt.setLong(7, room.id());
+          stmt.setString(7, room.defaultRent() == null ? null : room.defaultRent().toPlainString());
+          if (room.id() != 0) stmt.setLong(8, room.id());
           stmt.executeUpdate();
           long id = room.id();
           if (id == 0)
@@ -133,7 +139,9 @@ public final class SqliteRepository implements Repository {
                   + "; nước: "
                   + room.waterMode()
                   + "; khoán: "
-                  + room.fixedWater());
+                  + room.fixedWater()
+                  + "; giá mặc định "
+                  + room.defaultRent());
         }
         c.commit();
       } catch (Exception ex) {
@@ -163,9 +171,11 @@ public final class SqliteRepository implements Repository {
             c.prepareStatement(
                 "UPDATE rooms SET active=0 WHERE id=? AND NOT EXISTS(SELECT 1 FROM contracts WHERE"
                     + " room_id=rooms.id AND cancelled_at IS NULL AND (CASE WHEN closed_date=''"
-                    + " THEN end_date ELSE closed_date END)>=?)")) {
+                    + " THEN end_date ELSE closed_date END)>=? AND (closed_date='' OR"
+                    + " closed_date>?))")) {
           p.setLong(1, id);
           p.setString(2, java.time.LocalDate.now().toString());
+          p.setString(3, java.time.LocalDate.now().toString());
           if (p.executeUpdate() != 1)
             throw new IllegalArgumentException(
                 "Cần hết thời hạn thuê hiện tại/sắp tới trước khi lưu trữ phòng.");
@@ -242,8 +252,12 @@ public final class SqliteRepository implements Repository {
 
   public boolean hasRoomHistory(long id) throws SQLException {
     try (Connection c = connection();
-        PreparedStatement p = c.prepareStatement("SELECT 1 FROM bills WHERE room_id=? LIMIT 1")) {
+        PreparedStatement p =
+            c.prepareStatement(
+                "SELECT 1 FROM bills WHERE room_id=? UNION ALL SELECT 1 FROM handover_events h JOIN"
+                    + " contracts k ON k.id=h.contract_id WHERE k.room_id=? LIMIT 1")) {
       p.setLong(1, id);
+      p.setLong(2, id);
       try (ResultSet r = p.executeQuery()) {
         return r.next();
       }
@@ -268,7 +282,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT e_new,w_new FROM bills WHERE room_id=? AND voided_at IS NULL ORDER BY month"
-                    + " DESC LIMIT 1")) {
+                    + " DESC,id DESC LIMIT 1")) {
       p.setLong(1, room.id());
       try (ResultSet r = p.executeQuery()) {
         Readings previous =
@@ -410,7 +424,9 @@ public final class SqliteRepository implements Repository {
         decimal(r, "rent"),
         RentalStore.charges(c, "bill_charges", "bill_id", r.getLong("id")),
         r.getString("due_date"),
-        r.getString("water_amount") == null ? null : decimal(r, "water_amount"));
+        r.getString("water_amount") == null ? null : decimal(r, "water_amount"),
+        r.getString("period_start"),
+        r.getString("period_end"));
   }
 
   public List<Bill> bills(int limit, int offset) throws SQLException {
@@ -419,7 +435,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount,period_start,period_end"
                     + " FROM bills WHERE voided_at IS NULL ORDER BY month DESC,id DESC LIMIT ?"
                     + " OFFSET ?")) {
       p.setInt(1, limit);
@@ -437,7 +453,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount,period_start,period_end"
                     + " FROM bills WHERE voided_at IS NULL AND month>=? AND month<=? ORDER BY"
                     + " month,room_name")) {
       p.setString(1, firstMonth);
@@ -457,7 +473,7 @@ public final class SqliteRepository implements Repository {
         PreparedStatement p =
             c.prepareStatement(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount,period_start,period_end"
                     + " FROM bills WHERE room_id=? AND voided_at IS NULL AND month>=? AND month<=?"
                     + " ORDER BY month DESC,id DESC")) {
       p.setLong(1, roomId);
@@ -477,7 +493,7 @@ public final class SqliteRepository implements Repository {
         ResultSet r =
             s.executeQuery(
                 "SELECT"
-                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount"
+                    + " id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,contract_id,tenant_name,rent,due_date,water_amount,period_start,period_end"
                     + " FROM bills WHERE voided_at IS NULL AND paid=0 ORDER BY month,room_name")) {
       while (r.next()) {
         Bill b = bill(c, r);
@@ -496,6 +512,10 @@ public final class SqliteRepository implements Repository {
   }
 
   public void saveBill(Bill b, byte[] ep, byte[] wp) throws SQLException {
+    if (!b.periodStart().isBlank()) {
+      new TurnoverStore(database).issue(b, ep, wp);
+      return;
+    }
     DataRules.bill(b);
     if ((ep != null && ep.length > 12_000_000) || (wp != null && wp.length > 12_000_000))
       throw new IllegalArgumentException("Ảnh quá lớn, tối đa 12 MB mỗi ảnh.");
@@ -867,7 +887,14 @@ public final class SqliteRepository implements Repository {
                     + " AND NOT EXISTS(SELECT 1 FROM payment_reversals r WHERE r.payment_id=p.id))"
                     + " AND month=(SELECT MAX(month) FROM bills WHERE room_id=? AND voided_at IS"
                     + " NULL) AND NOT EXISTS(SELECT 1 FROM water_transitions t WHERE"
-                    + " t.room_id=bills.room_id AND t.effective_month>bills.month)")) {
+                    + " t.room_id=bills.room_id AND t.effective_month>bills.month) AND NOT"
+                    + " EXISTS(SELECT 1 FROM handover_events h WHERE"
+                    + " h.contract_id=bills.contract_id AND h.kind='OUT' AND h.event_date=CASE WHEN"
+                    + " bills.period_end='' THEN date(bills.month||'-01','+1 month','-1 day') ELSE"
+                    + " bills.period_end END) AND NOT EXISTS(SELECT 1 FROM bills newer WHERE"
+                    + " newer.room_id=bills.room_id AND newer.voided_at IS NULL AND"
+                    + " (newer.month>bills.month OR (newer.month=bills.month AND"
+                    + " newer.id>bills.id)))")) {
           p.setString(1, java.time.Instant.now().toString());
           p.setString(2, "Hủy kỳ cuối để lập lại");
           p.setLong(3, bill.id());

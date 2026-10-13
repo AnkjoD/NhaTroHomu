@@ -134,6 +134,14 @@ public final class ProfileHistoryTest {
         for (String col : List.of("zalo", "zalo_auto", "identity_no", "birthday", "address"))
           s.execute("ALTER TABLE tenants DROP COLUMN " + col);
         s.execute("DROP TRIGGER bills_no_rewrite");
+        s.execute("DROP TABLE handover_events");
+        s.execute("ALTER TABLE rooms DROP COLUMN default_rent");
+        s.execute("DROP INDEX bills_active_period");
+        s.execute(
+            "CREATE UNIQUE INDEX bills_active_period ON bills(room_id,month) WHERE voided_at IS"
+                + " NULL");
+        s.execute("ALTER TABLE bills DROP COLUMN period_start");
+        s.execute("ALTER TABLE bills DROP COLUMN period_end");
         s.execute("ALTER TABLE bills DROP COLUMN water_amount");
         s.execute(Schema.triggers(4).get("bills_no_rewrite"));
         s.execute("PRAGMA user_version=4");

@@ -137,7 +137,7 @@ public final class SelectionView extends JPanel {
     if (h.equals("kỳ")) return 2;
     if (h.contains("thiếu")) return 3;
     if (h.contains("tổng")) return 4;
-    if (h.contains("người thuê") || h.contains("họ tên")) return 5;
+    if (h.contains("người thuê") || h.contains("họ tên")) return 2;
     if (h.contains("điện thoại")) return 6;
     if (h.contains("zalo")) return 7;
     if (h.contains("tiền") || h.contains("cọc")) return 8;

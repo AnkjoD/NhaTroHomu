@@ -12,17 +12,19 @@ final class BillSchedule {
   static String firstMissing(Connection c, long roomId, YearMonth through) throws SQLException {
     Set<String> issued = new HashSet<>();
     try (PreparedStatement p =
-        c.prepareStatement("SELECT month FROM bills WHERE room_id=? AND voided_at IS NULL")) {
+        c.prepareStatement(
+            "SELECT month,contract_id FROM bills WHERE room_id=? AND voided_at IS NULL")) {
       p.setLong(1, roomId);
       try (ResultSet r = p.executeQuery()) {
-        while (r.next()) issued.add(r.getString(1));
+        while (r.next())
+          if (r.getObject(2) != null) issued.add(r.getLong(2) + ":" + r.getString(1));
       }
     }
     String first = null;
     try (PreparedStatement p =
         c.prepareStatement(
             "SELECT start_date,CASE WHEN closed_date='' THEN end_date ELSE closed_date END"
-                + " effective_end FROM contracts WHERE room_id=? AND cancelled_at IS NULL")) {
+                + " effective_end,id FROM contracts WHERE room_id=? AND cancelled_at IS NULL")) {
       p.setLong(1, roomId);
       try (ResultSet r = p.executeQuery()) {
         while (r.next()) {
@@ -30,7 +32,7 @@ final class BillSchedule {
               end = YearMonth.from(RentalService.date(r.getString(2)));
           if (end.isAfter(through)) end = through;
           for (YearMonth period = start; !period.isAfter(end); period = period.plusMonths(1))
-            if (!issued.contains(period.toString())) {
+            if (!issued.contains(r.getLong(3) + ":" + period)) {
               if (first == null || period.toString().compareTo(first) < 0)
                 first = period.toString();
               break;

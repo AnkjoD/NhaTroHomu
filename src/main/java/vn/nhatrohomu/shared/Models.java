@@ -14,7 +14,20 @@ public final class Models {
       BigDecimal waterStart,
       String waterMode,
       BigDecimal fixedWater,
-      boolean active) {}
+      boolean active,
+      BigDecimal defaultRent) {
+    public Room(
+        long id,
+        String name,
+        String tenant,
+        BigDecimal electricityStart,
+        BigDecimal waterStart,
+        String waterMode,
+        BigDecimal fixedWater,
+        boolean active) {
+      this(id, name, tenant, electricityStart, waterStart, waterMode, fixedWater, active, null);
+    }
+  }
 
   public record Payment(long id, long billId, BigDecimal amount, String date, String note) {}
 
@@ -79,9 +92,14 @@ public final class Models {
           && !date.isAfter(java.time.LocalDate.parse(effectiveEnd()));
     }
 
+    public boolean occupiedOn(java.time.LocalDate date) {
+      return covers(date)
+          && (closedDate.isBlank() || date.isBefore(java.time.LocalDate.parse(closedDate)));
+    }
+
     public String status() {
       if (!closedDate.isBlank()
-          && java.time.LocalDate.now().isAfter(java.time.LocalDate.parse(closedDate)))
+          && !java.time.LocalDate.now().isBefore(java.time.LocalDate.parse(closedDate)))
         return "Đã kết thúc";
       if (!closedDate.isBlank() && covers(java.time.LocalDate.now()))
         return "Kết thúc " + closedDate;
@@ -119,9 +137,63 @@ public final class Models {
       BigDecimal rent,
       java.util.List<Charge> fees,
       String dueDate,
-      BigDecimal importedWaterAmount) {
+      BigDecimal importedWaterAmount,
+      String periodStart,
+      String periodEnd) {
     public Bill {
       fees = java.util.List.copyOf(fees);
+    }
+
+    public Bill(
+        long id,
+        long roomId,
+        String roomName,
+        String month,
+        BigDecimal electricityOld,
+        BigDecimal electricityNew,
+        BigDecimal waterOld,
+        BigDecimal waterNew,
+        String waterMode,
+        BigDecimal waterUsed,
+        BigDecimal electricityRate,
+        BigDecimal waterRate,
+        BigDecimal total,
+        boolean paid,
+        String note,
+        Long contractId,
+        String tenantName,
+        BigDecimal rent,
+        java.util.List<Charge> fees,
+        String dueDate,
+        BigDecimal importedWaterAmount) {
+      this(
+          id,
+          roomId,
+          roomName,
+          month,
+          electricityOld,
+          electricityNew,
+          waterOld,
+          waterNew,
+          waterMode,
+          waterUsed,
+          electricityRate,
+          waterRate,
+          total,
+          paid,
+          note,
+          contractId,
+          tenantName,
+          rent,
+          fees,
+          dueDate,
+          importedWaterAmount,
+          "",
+          "");
+    }
+
+    public String periodLabel() {
+      return periodStart.isBlank() ? month : periodStart + " → " + periodEnd;
     }
 
     public Bill(

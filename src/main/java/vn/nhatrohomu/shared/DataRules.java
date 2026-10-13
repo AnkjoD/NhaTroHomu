@@ -88,6 +88,7 @@ public final class DataRules {
     quantity(room.electricityStart(), "Điện đầu kỳ");
     quantity(room.waterStart(), "Nước đầu kỳ");
     mode(room.waterMode());
+    if (room.defaultRent() != null) money(room.defaultRent(), "Giá thuê mặc định");
     if (room.fixedWater() != null) quantity(room.fixedWater(), "Nước khoán");
     if (room.waterMode().equals("METER") && room.fixedWater() != null)
       throw new IllegalArgumentException("Phòng dùng đồng hồ không có mức khoán riêng.");
@@ -111,6 +112,14 @@ public final class DataRules {
       money(b.importedWaterAmount(), "Tiền nước gốc");
     }
     period(b.month());
+    if (!b.periodStart().isBlank() || !b.periodEnd().isBlank()) {
+      java.time.LocalDate first = date(b.periodStart()), last = date(b.periodEnd());
+      if (b.contractId() == null
+          || last.isBefore(first)
+          || !java.time.YearMonth.from(first).equals(period(b.month()))
+          || !java.time.YearMonth.from(last).equals(period(b.month())))
+        throw new IllegalArgumentException("Khoảng ngày hóa đơn không khớp kỳ/lần thuê.");
+    }
     name(b.roomName(), "Tên phòng", 80);
     text(b.note(), "Ghi chú", 2000, false);
     quantity(b.electricityOld(), "Điện cũ");

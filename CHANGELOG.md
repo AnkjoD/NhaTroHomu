@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.0
+
+- Mục Thuê phòng gom hồ sơ và lượt thuê; thêm người trong form, giá mặc định lấy từ phòng nhưng thỏa thuận và hóa đơn giữ giá riêng.
+- Schema 7 giữ khoảng ngày hóa đơn và mốc bàn giao IN/OUT; cho phép đổi người trong cùng tháng nếu ngày không trùng.
+- Trả phòng chốt hóa đơn cuối và trạng thái thuê trong một transaction; dùng lại hóa đơn cuối khớp, giữ các lần thu/nợ/cọc của người cũ.
+- Gợi ý tiền phòng/phí và nước khoán theo ngày; không tính điện/nước lúc trống vào người mới. PDF/CSV/lịch sử hiện người và khoảng ngày.
+- Nâng cấp có backup; không tự suy ra giá phòng hay tính lại chứng từ cũ. Chưa hỗ trợ trả sớm sau hóa đơn đã chốt quá ngày trả bằng chứng từ điều chỉnh/hoàn tiền.
+
+## 0.8.4
+
+- Hóa đơn xem theo tháng, lập hóa đơn trực tiếp, xuất CSV theo phạm vi đã chọn. Cho thuê phòng thêm người thuê trong cùng form.
+
+## 0.8.3
+
+- Sửa mở/thu gọn thẻ, chiều cao độc lập và cuộn về đầu khi đổi bảng/thẻ; giải thích các trường thuê và hiện tiền phòng.
+
+## 0.8.2
+
+- Gói RapidOCR tùy chọn chạy offline trong worker Java riêng, cùng lựa chọn Windows OCR; xác nhận số trước khi chốt.
+
 ## 0.8.1
 
 - Màn hình thu tiền nhấn mạnh tiền thực nhận, thu một phần và nợ còn lại; không tự điền coi như thu đủ.

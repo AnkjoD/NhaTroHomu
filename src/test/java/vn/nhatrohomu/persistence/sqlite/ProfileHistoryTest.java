@@ -47,6 +47,12 @@ public final class ProfileHistoryTest {
               && t.address().equals("Địa chỉ giả"),
           "profile and household persisted");
       Tenant saved = t;
+      check(
+          repo.rentals().tenant(t.id()).equals(saved),
+          "Lookup by tenant ID includes the correct household");
+      check(
+          repo.rentals().tenant(Long.MAX_VALUE) == null,
+          "Missing tenant must not resolve to another household");
       try {
         repo.rentals()
             .saveTenant(
@@ -157,6 +163,11 @@ public final class ProfileHistoryTest {
             files.anyMatch(x -> x.getFileName().toString().startsWith("before-upgrade-")),
             "migration rescue backup");
       }
+      repo.rentals().archiveTenant(saved.id());
+      Tenant archived = repo.rentals().tenant(saved.id());
+      check(
+          archived != null && !archived.active() && archived.residents().equals(saved.residents()),
+          "Archived tenant retains household for historical tenancy lookup");
       System.out.println(
           "PASS: "
               + checks

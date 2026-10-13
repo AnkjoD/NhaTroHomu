@@ -39,8 +39,13 @@ public final class RentalPanel extends JPanel {
   private boolean busy;
   private boolean refreshPending;
   private Map<Long, BigDecimal> balances = Map.of();
+  private Map<Long, Tenant> contractPeople = Map.of();
 
-  private record PanelData(Object items, Map<Long, BigDecimal> balances, List<Contract> links) {}
+  private record PanelData(
+      Object items,
+      Map<Long, BigDecimal> balances,
+      List<Contract> links,
+      Map<Long, Tenant> people) {}
 
   public RentalPanel(JFrame owner, Repository repository, Page page) {
     this(
@@ -87,10 +92,15 @@ public final class RentalPanel extends JPanel {
               case DEBTS -> repository.outstandingBills();
             };
         Map<Long, BigDecimal> amounts = new HashMap<>();
+        Map<Long, Tenant> people = new HashMap<>();
         if (page == Page.CONTRACTS)
           for (Object value : (List<?>) items) {
             Contract contract = (Contract) value;
             amounts.put(contract.id(), rentals.heldDeposit(contract.id()));
+            if (!people.containsKey(contract.tenantId())) {
+              Tenant person = rentals.tenant(contract.tenantId());
+              if (person != null) people.put(person.id(), person);
+            }
           }
         if (page == Page.DEBTS)
           for (Object value : (List<?>) items) {
@@ -98,7 +108,7 @@ public final class RentalPanel extends JPanel {
             amounts.put(bill.id(), repository.received(bill.id()));
           }
         return new PanelData(
-            items, amounts, page == Page.TENANTS ? rentals.contracts() : List.of());
+            items, amounts, page == Page.TENANTS ? rentals.contracts() : List.of(), people);
       }
 
       @SuppressWarnings("unchecked")
@@ -109,6 +119,7 @@ public final class RentalPanel extends JPanel {
           PanelData loaded = get();
           Object data = loaded.items();
           balances = loaded.balances();
+          contractPeople = loaded.people();
           tenantContracts = loaded.links();
           switch (page) {
             case TENANTS -> tenants = (List<Tenant>) data;
@@ -198,6 +209,9 @@ public final class RentalPanel extends JPanel {
       actions.add(
           Ui.button("Xem chi tiết", () -> safe(() -> contractDetails(contracts.get(selected())))));
       actions.add(
+          Ui.button(
+              "Hồ sơ / gia đình", () -> safe(() -> openContractPerson(contracts.get(selected())))));
+      actions.add(
           Ui.button("Nhận / hoàn cọc", () -> safe(() -> depositDialog(contracts.get(selected())))));
       actions.add(
           Ui.button(
@@ -230,7 +244,8 @@ public final class RentalPanel extends JPanel {
               k.effectiveEnd(),
               Ui.money(k.rent()),
               Ui.money(balances.get(k.id())),
-              k.status()
+              k.status(),
+              familySummary(contractPeople.get(k.tenantId()))
             };
       }
       table =
@@ -243,7 +258,8 @@ public final class RentalPanel extends JPanel {
                 "Đến",
                 "Tiền/tháng",
                 "Cọc đang giữ",
-                "Trạng thái"
+                "Trạng thái",
+                "Người ở cùng / gia đình"
               },
               rows);
     } else {
@@ -455,6 +471,10 @@ public final class RentalPanel extends JPanel {
   }
 
   private void tenantForm(Tenant tenant) {
+    tenantForm(tenant, false);
+  }
+
+  private void tenantForm(Tenant tenant, boolean showFamily) {
     Tenant value = tenant == null ? new Tenant(0, "", "", "", true) : tenant;
     JTextField name = new JTextField(value.name(), 25),
         phone = new JTextField(value.phone()),
@@ -553,6 +573,7 @@ public final class RentalPanel extends JPanel {
     JTabbedPane tabs = new JTabbedPane();
     tabs.addTab("Thông tin người thuê", new JScrollPane(fields));
     tabs.addTab("Gia đình / người ở cùng", family);
+    if (showFamily) tabs.setSelectedIndex(1);
     JPanel content = new JPanel(new BorderLayout());
     content.add(tabs);
     form(
@@ -1040,7 +1061,87 @@ public final class RentalPanel extends JPanel {
           .append(": ")
           .append(Ui.money(fee.amount()))
           .append("\n");
-    textDialog("Chi tiết hợp đồng", text.toString());
+    String agreement = text.toString();
+    JTextArea area = new JTextArea(22, 52);
+    area.setName("rental-family-details");
+    area.setEditable(false);
+    area.setLineWrap(true);
+    area.setWrapStyleWord(true);
+    Runnable update =
+        () ->
+            safe(
+                () -> {
+                  Tenant person = rentals.tenant(contract.tenantId());
+                  area.setText(
+                      agreement
+                          + "\nHỒ SƠ HIỆN TẠI · NGƯỜI Ở CÙNG / GIA ĐÌNH\n"
+                          + familyDetails(person));
+                  area.setCaretPosition(0);
+                });
+    update.run();
+    JDialog dialog = new JDialog(owner, "Chi tiết lượt thuê · " + contract.roomName(), true);
+    JPanel root = new JPanel(new BorderLayout(0, 12));
+    root.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    root.add(new JScrollPane(area));
+    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    buttons.add(
+        Ui.button(
+            "Hồ sơ / chỉnh người ở cùng",
+            () ->
+                safe(
+                    () -> {
+                      openContractPerson(contract);
+                      update.run();
+                    })));
+    buttons.add(Ui.button("Đóng", dialog::dispose));
+    root.add(buttons, BorderLayout.SOUTH);
+    dialog.setContentPane(root);
+    dialog.pack();
+    dialog.setLocationRelativeTo(owner);
+    dialog.setVisible(true);
+  }
+
+  static String familySummary(Tenant person) {
+    if (person == null) return "Không tìm thấy hồ sơ";
+    if (person.residents().isEmpty()) return "Chưa khai người ở cùng";
+    return person.residents().stream()
+        .map(r -> r.name() + (r.relationship().isBlank() ? "" : " (" + r.relationship() + ")"))
+        .collect(java.util.stream.Collectors.joining(", "));
+  }
+
+  static String familyDetails(Tenant person) {
+    if (person == null) return "Không tìm thấy hồ sơ người thuê.\n";
+    StringBuilder text =
+        new StringBuilder(
+            "Người đại diện: "
+                + person.name()
+                + "\nĐiện thoại: "
+                + person.phone()
+                + "\nZalo: "
+                + person.zaloContact()
+                + "\n");
+    if (!person.active()) text.append("Hồ sơ đã lưu trữ; chỉ xem.\n");
+    if (person.residents().isEmpty()) text.append("Chưa khai người ở cùng.\n");
+    for (Resident resident : person.residents()) {
+      text.append("• ").append(resident.name());
+      if (!resident.relationship().isBlank()) text.append(" · ").append(resident.relationship());
+      if (!resident.birthday().isBlank()) text.append(" · Ngày sinh: ").append(resident.birthday());
+      if (!resident.phone().isBlank()) text.append(" · Điện thoại: ").append(resident.phone());
+      text.append("\n");
+    }
+    return text.toString();
+  }
+
+  private void openContractPerson(Contract contract) throws Exception {
+    Tenant person = rentals.tenant(contract.tenantId());
+    if (person == null)
+      throw new IllegalArgumentException("Không tìm thấy hồ sơ người thuê của lượt thuê này.");
+    if (!person.active()) {
+      textDialog("Hồ sơ đã lưu trữ", familyDetails(person));
+      return;
+    }
+    tenantForm(person, true);
+    refresh();
   }
 
   private void closeForm(Contract contract) {

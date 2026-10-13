@@ -10,6 +10,10 @@ import vn.nhatrohomu.shared.Models.*;
 public interface RentalRepository {
   List<Tenant> tenants() throws SQLException;
 
+  default Tenant tenant(long id) throws SQLException {
+    return tenants().stream().filter(person -> person.id() == id).findFirst().orElse(null);
+  }
+
   void saveTenant(Tenant tenant) throws SQLException;
 
   void archiveTenant(long id) throws SQLException;

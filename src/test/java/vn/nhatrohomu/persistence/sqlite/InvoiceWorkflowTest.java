@@ -194,6 +194,61 @@ public final class InvoiceWorkflowTest {
                         .compareTo(new BigDecimal("2000000"))
                     == 0,
                 "Saved agreement uses the default after the override is disabled");
+            Contract active = repository.rentals().contracts().getFirst();
+            Tenant representative = repository.rentals().tenant(active.tenantId());
+            repository
+                .rentals()
+                .saveTenant(
+                    new Tenant(
+                        representative.id(),
+                        representative.name(),
+                        representative.phone(),
+                        representative.note(),
+                        true,
+                        representative.zalo(),
+                        representative.zaloAuto(),
+                        representative.identity(),
+                        representative.birthday(),
+                        representative.address(),
+                        java.util.List.of(new Resident("Thành viên thử", "Em", "", "", ""))));
+            RentalPanel linkedPanel = new RentalPanel(app, repository, RentalPanel.Page.CONTRACTS);
+            var detailsMethod =
+                RentalPanel.class.getDeclaredMethod("contractDetails", Contract.class);
+            detailsMethod.setAccessible(true);
+            later(
+                () -> {
+                  try {
+                    JDialog details = dialog("Chi tiết lượt thuê");
+                    check(
+                        ((JTextArea) named(details, "rental-family-details"))
+                            .getText()
+                            .contains("Thành viên thử · Em"),
+                        "Tenancy details show the linked household");
+                    later(
+                        () -> {
+                          try {
+                            JDialog profile = dialog("Hồ sơ ·");
+                            JTabbedPane tabs = findTabs(profile);
+                            check(
+                                tabs.getTitleAt(tabs.getSelectedIndex())
+                                    .equals("Gia đình / người ở cùng"),
+                                "Tenancy shortcut opens the household tab directly");
+                            DisplayTest.find(profile, "Hủy").doClick();
+                          } catch (Throwable ex) {
+                            error[0] = ex;
+                            for (Window w : Window.getWindows())
+                              if (w instanceof JDialog) w.dispose();
+                          }
+                        });
+                    DisplayTest.find(details, "Hồ sơ / chỉnh người ở cùng").doClick();
+                    DisplayTest.find(details, "Đóng").doClick();
+                  } catch (Throwable ex) {
+                    error[0] = ex;
+                    for (Window w : Window.getWindows()) if (w instanceof JDialog) w.dispose();
+                  }
+                });
+            detailsMethod.invoke(linkedPanel, active);
+            if (error[0] != null) throw new AssertionError(error[0]);
             watchdog.restart();
             later(
                 () -> {
@@ -209,7 +264,6 @@ public final class InvoiceWorkflowTest {
                       if (window instanceof JDialog) window.dispose();
                   }
                 });
-            Contract active = repository.rentals().contracts().getFirst();
             new vn.nhatrohomu.billing.ui.CheckoutDialog(
                     app, repository, active, () -> callbacks[0]++)
                 .setVisible(true);
@@ -230,5 +284,16 @@ public final class InvoiceWorkflowTest {
           }
         });
     System.out.println("PASS: " + checks + " invoice month and inline rental workflow checks.");
+  }
+
+  static JTabbedPane findTabs(Container parent) {
+    for (Component child : parent.getComponents()) {
+      if (child instanceof JTabbedPane tabs) return tabs;
+      if (child instanceof Container nested) {
+        JTabbedPane tabs = findTabs(nested);
+        if (tabs != null) return tabs;
+      }
+    }
+    return null;
   }
 }

@@ -59,3 +59,7 @@ Các khả năng chưa hỗ trợ ở trên cần một sổ giao dịch có l�
 ## Dữ liệu nhập từ Excel
 
 Hóa đơn lịch sử có thể đã có tiền phòng nhưng chưa có hợp đồng vì nguồn thiếu người đại diện hoặc thời hạn thuê. Không tự đoán hợp đồng hoặc giá mặc định, không gắn một người mới vào chứng từ đã chốt. App chặn lượt thuê mới trùng khoảng ngày đã tính tiền; hóa đơn cũ chưa có khoảng ngày được giữ theo cả tháng. Muốn đối chiếu liên kết lịch sử cần thông tin xác nhận và một luồng cập nhật riêng.
+
+## Gia đình ngay trong lượt thuê
+
+Danh sách lượt thuê có trường Người ở cùng / gia đình. Chọn Hồ sơ / gia đình để mở đúng người đại diện của lượt thuê và vào thẳng tab gia đình; nút này cũng có trong menu chuột phải. Xem chi tiết lượt thuê có danh sách người ở cùng phía dưới và nút chỉnh sửa. Đây là hồ sơ hiện tại của người đại diện, không phải bản chụp danh sách gia đình tại từng thời điểm thuê. Hồ sơ đã lưu trữ được xem lại, không tự kích hoạt lại khi mở liên kết.

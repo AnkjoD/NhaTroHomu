@@ -98,6 +98,28 @@ public final class RentalStore implements RentalRepository {
     return result;
   }
 
+  public Tenant tenant(long id) throws SQLException {
+    try (Connection c = connection();
+        PreparedStatement p = c.prepareStatement("SELECT * FROM tenants WHERE id=?")) {
+      p.setLong(1, id);
+      try (ResultSet r = p.executeQuery()) {
+        if (!r.next()) return null;
+        return new Tenant(
+            r.getLong("id"),
+            r.getString("name"),
+            r.getString("phone"),
+            r.getString("note"),
+            r.getBoolean("active"),
+            r.getString("zalo"),
+            r.getBoolean("zalo_auto"),
+            r.getString("identity_no"),
+            r.getString("birthday"),
+            r.getString("address"),
+            residents(c, id));
+      }
+    }
+  }
+
   public void saveTenant(Tenant tenant) throws SQLException {
     vn.nhatrohomu.shared.TenantRules.tenant(tenant);
     String sql =

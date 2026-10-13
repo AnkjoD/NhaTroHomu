@@ -13,6 +13,11 @@ public final class MonthlyInvoiceExport {
   public record Result(Path directory, int count) {}
 
   public static Result write(Path parent, String month, Repository repository) throws Exception {
+    return write(parent, month, repository, false);
+  }
+
+  public static Result write(Path parent, String month, Repository repository, boolean png)
+      throws Exception {
     DataRules.period(month);
     List<Bill> invoices =
         repository.billsBetween(month, month).stream()
@@ -36,8 +41,9 @@ public final class MonthlyInvoiceExport {
                 .limit(60)
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                 .toString();
-        String name = "phieu-" + room + "-" + month + "-hd-" + bill.id() + ".pdf";
-        InvoicePdf.write(temporary.resolve(name), bill, repository.payments(bill.id()));
+        String name = "phieu-" + room + "-" + month + "-hd-" + bill.id() + (png ? ".png" : ".pdf");
+        if (png) InvoiceImage.write(temporary.resolve(name), bill, repository.payments(bill.id()));
+        else InvoicePdf.write(temporary.resolve(name), bill, repository.payments(bill.id()));
       }
       Files.move(temporary, published);
       return new Result(published, invoices.size());

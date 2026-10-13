@@ -85,3 +85,11 @@ Trong Hóa đơn, chọn tháng rồi bấm Xuất phiếu các phòng, chọn t
 Phiếu ghi tiền phòng, điện/nước trước-sau, lượng dùng, đơn giá, phí, tổng phải thu, đã trả và còn thiếu. Tiền phòng kỳ ngắn ghi số ngày thay vì 1 tháng. Phiếu chưa thanh toán không phải biên lai xác nhận đã thu; xuất file không làm phát sinh khoản thu. Ngày thu từ dữ liệu cũ chưa biết vẫn ghi chưa được ghi nhận, không tự gán ngày xuất. Cọc không tự cộng hoặc trừ vào phiếu.
 
 Thư mục kết quả chỉ xuất hiện khi mọi PDF đều tạo thành công. Lỗi sẽ dọn thư mục tạm; lần xuất trước và sổ dữ liệu vẫn giữ nguyên. Thông tin trên phiếu lấy từ sổ tại lúc xuất; sau khi sửa chứng từ/thu tiền, cần xuất lại để gửi bản mới.
+
+## Phiếu gọn và ảnh để gửi khách (0.10.2)
+
+PDF gửi khách bỏ mã hóa đơn/hợp đồng, cộng điện nước, ghi chú nội bộ và lịch sử thu tiền. Những mục này vẫn giữ trong app/sổ. Không xuất giấy tờ, ghi chú nhập Excel hoặc chú thích khoản thu vào phiếu gửi khách.
+
+Xem hóa đơn → Xuất ảnh PNG để lưu file hoặc Sao chép ảnh rồi mở Zalo và Ctrl+V. Ảnh nền trắng, chữ tiếng Việt, có số cũ/mới, lượng dùng, đơn giá, thành tiền, tiền phòng/phí, tổng và trạng thái trả tiền. Trong danh sách Hóa đơn, chọn tháng → Xuất ảnh các phòng để lấy toàn bộ PNG của tháng.
+
+Sao chép chỉ thay nội dung clipboard khi bạn bấm nút; app không tự gửi tin nhắn. Phiếu/ảnh lấy số tiền đã chốt và các khoản thu còn hiệu lực; không làm phát sinh thu tiền. Có nhiều người thuê trong cùng tháng vẫn tách theo từng hóa đơn.

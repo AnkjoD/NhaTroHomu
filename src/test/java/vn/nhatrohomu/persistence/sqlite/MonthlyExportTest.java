@@ -123,6 +123,12 @@ public final class MonthlyExportTest {
     check(
         !firstText.contains("Thử đảo khoản nhập nhầm"),
         "Reversed receipt is excluded from tenant statement");
+    check(
+        !firstText.contains("LỊCH SỬ THU TIỀN")
+            && !firstText.contains("Cộng điện + nước")
+            && !firstText.contains("Mã:")
+            && !firstText.contains("Ghi chú:"),
+        "Tenant PDF excludes internal information and redundant subtotal");
     Path secondPdf =
         files.stream()
             .filter(p -> p.toString().endsWith("-hd-" + second.id() + ".pdf"))
@@ -166,6 +172,25 @@ public final class MonthlyExportTest {
     check(
         repo.billCount() == before && repo.received(first.id()).compareTo(received) == 0,
         "Export does not record receipts or alter financial data");
+    var png = vn.nhatrohomu.integration.InvoiceImage.render(first, repo.payments(first.id()));
+    check(
+        png.getWidth() == 1200 && png.getHeight() < 1000,
+        "Typical tenant image is compact and readable");
+    var transfer = vn.nhatrohomu.integration.InvoiceImage.transferable(png);
+    check(
+        transfer.isDataFlavorSupported(java.awt.datatransfer.DataFlavor.imageFlavor)
+            && transfer.getTransferData(java.awt.datatransfer.DataFlavor.imageFlavor) == png,
+        "Clipboard transfer exposes the actual image");
+    var imageFolder = MonthlyInvoiceExport.write(exports, month, repo, true);
+    try (var paths = Files.list(imageFolder.directory())) {
+      List<Path> images = paths.toList();
+      check(
+          images.size() == 61 && images.stream().allMatch(p -> p.toString().endsWith(".png")),
+          "Image export includes every monthly invoice");
+      check(
+          javax.imageio.ImageIO.read(images.getFirst().toFile()).getWidth() == 1200,
+          "Exported PNG opens at the intended resolution");
+    }
     System.out.println("PASS: " + checks + " monthly PDF export and financial statement checks.");
   }
 }

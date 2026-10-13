@@ -652,13 +652,17 @@ public final class AppWindow extends JFrame {
       filterBar.add(new JLabel("Tháng hóa đơn"));
       filterBar.add(period);
       filterBar.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
-      JButton exportMonth = Ui.button("Xuất phiếu các phòng", this::exportMonthlyInvoices);
+      JButton exportMonth = Ui.button("Xuất phiếu các phòng", () -> exportMonthlyInvoices(false));
       exportMonth.setName("export-monthly-invoices");
       exportMonth.setEnabled(
           invoiceMonth != null && !invoiceMonth.isBlank() && !filtered.isEmpty());
       exportMonth.setToolTipText(
           "Chọn một tháng để xuất mỗi hóa đơn thành một PDF riêng, gồm cả các trang danh sách.");
       filterBar.add(exportMonth);
+      JButton exportImages = Ui.button("Xuất ảnh các phòng", () -> exportMonthlyInvoices(true));
+      exportImages.setEnabled(exportMonth.isEnabled());
+      exportImages.setToolTipText("Mỗi hóa đơn của tháng đang chọn là một ảnh PNG để gửi khách.");
+      filterBar.add(exportImages);
       a.add(
           Ui.button(
               "Xem hóa đơn",
@@ -827,7 +831,7 @@ public final class AppWindow extends JFrame {
     }
   }
 
-  private void exportMonthlyInvoices() {
+  private void exportMonthlyInvoices(boolean png) {
     String month = invoiceMonth;
     if (month == null || month.isBlank()) return;
     JFileChooser chooser = new JFileChooser();
@@ -837,7 +841,7 @@ public final class AppWindow extends JFrame {
     Path parent = chooser.getSelectedFile().toPath();
     Ui.background(
         this,
-        () -> vn.nhatrohomu.integration.MonthlyInvoiceExport.write(parent, month, repository),
+        () -> vn.nhatrohomu.integration.MonthlyInvoiceExport.write(parent, month, repository, png),
         result ->
             JOptionPane.showMessageDialog(
                 this,
@@ -847,7 +851,10 @@ public final class AppWindow extends JFrame {
                     + month
                     + " vào:\n"
                     + result.directory()
-                    + "\nMỗi hóa đơn là một PDF riêng. Phòng chưa lập hóa đơn chưa có phiếu."));
+                    + (png
+                        ? "\nMỗi hóa đơn là một ảnh PNG riêng."
+                        : "\nMỗi hóa đơn là một PDF riêng.")
+                    + " Phòng chưa lập hóa đơn chưa có phiếu."));
   }
 
   private String billText(Bill b) {
@@ -928,6 +935,7 @@ public final class AppWindow extends JFrame {
     dialog.add(new JScrollPane(text));
     JPanel buttons = actions();
     buttons.add(Ui.button("Ảnh điện", () -> showPhoto(dialog, b.id(), true)));
+    buttons.setLayout(new GridLayout(0, 4, 8, 8));
     buttons.add(Ui.button("Ảnh nước", () -> showPhoto(dialog, b.id(), false)));
     buttons.add(
         Ui.button(
@@ -956,6 +964,38 @@ public final class AppWindow extends JFrame {
                     },
                     result -> JOptionPane.showMessageDialog(dialog, "Đã xuất PDF: " + result));
             }));
+    buttons.add(
+        Ui.button(
+            "Xuất ảnh PNG",
+            () -> {
+              Path path = saveFile("phieu-phong-" + b.month() + "-hd-" + b.id() + ".png");
+              if (path == null) return;
+              Ui.background(
+                  dialog,
+                  () -> {
+                    vn.nhatrohomu.integration.InvoiceImage.write(
+                        path, b, repository.payments(b.id()));
+                    return path;
+                  },
+                  result -> JOptionPane.showMessageDialog(dialog, "Đã lưu ảnh: " + result));
+            }));
+    buttons.add(
+        Ui.button(
+            "Sao chép ảnh",
+            () ->
+                Ui.background(
+                    dialog,
+                    () ->
+                        vn.nhatrohomu.integration.InvoiceImage.render(
+                            b, repository.payments(b.id())),
+                    picture -> {
+                      Toolkit.getDefaultToolkit()
+                          .getSystemClipboard()
+                          .setContents(
+                              vn.nhatrohomu.integration.InvoiceImage.transferable(picture), null);
+                      JOptionPane.showMessageDialog(
+                          dialog, "Đã sao chép ảnh. Mở Zalo và nhấn Ctrl+V để dán.");
+                    })));
     buttons.add(Ui.button("Đóng", dialog::dispose));
     dialog.add(buttons, BorderLayout.SOUTH);
     dialog.pack();

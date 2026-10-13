@@ -39,26 +39,14 @@ public final class InvoicePdf {
                       : "PHIẾU TIỀN PHÒNG",
                   new Font(base, 15)));
           document.add(
-              new Paragraph(
-                  "Phòng: "
-                      + bill.roomName()
-                      + "   •   Kỳ: "
-                      + bill.month()
-                      + "   •   Mã: "
-                      + bill.id(),
-                  normal));
+              new Paragraph("Phòng: " + bill.roomName() + "   •   Kỳ: " + bill.month(), normal));
           if (bill.contractId() != null)
             document.add(new Paragraph("Khoảng ngày tính tiền: " + bill.periodLabel(), normal));
           if (bill.contractId() != null)
             document.add(
                 new Paragraph(
-                    "Người thuê: "
-                        + bill.tenantName()
-                        + "   •   Hợp đồng #"
-                        + bill.contractId()
-                        + "\nHạn thu: "
-                        + bill.dueDate(),
-                    normal));
+                    "Người thuê: " + bill.tenantName() + "\nHạn thu: " + bill.dueDate(), normal));
+
           document.add(new Paragraph(" ", normal));
           PdfPTable table = new PdfPTable(new float[] {2.1f, 2.4f, 1.5f, 1.7f, 2f});
           table.setWidthPercentage(100);
@@ -116,8 +104,6 @@ public final class InvoicePdf {
                   Ui.money(fee.amount()));
           }
           document.add(table);
-          document.add(
-              new Paragraph("Cộng điện + nước: " + Ui.money(bill.utilitiesCost()), normal));
           BigDecimal received =
               payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
           document.add(
@@ -137,26 +123,6 @@ public final class InvoicePdf {
           if (remaining.signum() > 0)
             document.add(
                 new Paragraph("SỐ TIỀN CÒN CẦN TRẢ: " + Ui.money(remaining), new Font(base, 15)));
-          document.add(
-              new Paragraph(
-                  bill.contractId() == null && bill.rent().signum() == 0
-                      ? "Tổng được làm tròn đến đồng. Không bao gồm tiền thuê phòng."
-                      : "Tổng được làm tròn đến đồng. Tiền cọc được quản lý riêng.",
-                  normal));
-          if (!bill.note().isBlank())
-            document.add(new Paragraph("Ghi chú: " + bill.note(), normal));
-          if (!payments.isEmpty()) {
-            document.add(new Paragraph("\nLỊCH SỬ THU TIỀN", new Font(base, 13)));
-            for (Payment p : payments)
-              document.add(
-                  new Paragraph(
-                      (p.date().isBlank() ? "Ngày chưa được ghi nhận" : p.date())
-                          + "  |  "
-                          + Ui.money(p.amount())
-                          + "  |  "
-                          + p.note(),
-                      normal));
-          }
         } finally {
           document.close();
         }

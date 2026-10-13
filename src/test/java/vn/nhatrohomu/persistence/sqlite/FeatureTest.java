@@ -100,7 +100,8 @@ public final class FeatureTest {
         check(
             text.contains("Phòng Nguyễn Ánh")
                 && text.contains("Còn thiếu")
-                && text.contains("Chuyển khoản"),
+                && !text.contains("LỊCH SỬ THU TIỀN")
+                && !text.contains("Chuyển khoản"),
             "PDF embedded Vietnamese font/text");
       }
       repo.backup(temp.resolve("backup.db"));

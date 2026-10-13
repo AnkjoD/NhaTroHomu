@@ -109,20 +109,12 @@ public final class InvoicePdf {
           document.add(
               new Paragraph("Tổng phải thu: " + Ui.money(bill.total()), new Font(base, 15)));
           BigDecimal remaining = bill.total().subtract(received);
-          document.add(
-              new Paragraph(
-                  "Thanh toán: "
-                      + (remaining.signum() == 0
-                          ? "Đã thanh toán đủ"
-                          : received.signum() > 0 ? "Đã trả một phần" : "Chưa thanh toán"),
-                  normal));
-          document.add(
-              new Paragraph(
-                  "Đã thu: " + Ui.money(received) + "   •   Còn thiếu: " + Ui.money(remaining),
-                  normal));
-          if (remaining.signum() > 0)
+          if (remaining.signum() > 0) {
+            if (received.signum() > 0)
+              document.add(new Paragraph("Đã trả kỳ này: " + Ui.money(received), normal));
             document.add(
-                new Paragraph("SỐ TIỀN CÒN CẦN TRẢ: " + Ui.money(remaining), new Font(base, 15)));
+                new Paragraph("CÒN NỢ KỲ NÀY: " + Ui.money(remaining), new Font(base, 15)));
+          }
         } finally {
           document.close();
         }

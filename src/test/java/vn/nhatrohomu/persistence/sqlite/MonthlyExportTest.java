@@ -118,7 +118,9 @@ public final class MonthlyExportTest {
             .orElseThrow();
     String firstText = pdf(firstPdf);
     check(
-        firstText.contains("Đã trả một phần") && firstText.contains(Ui.money(received)),
+        firstText.contains("Đã trả kỳ này")
+            && firstText.contains("CÒN NỢ KỲ NÀY")
+            && firstText.contains(Ui.money(received)),
         "Partial receipts show actual received amount and remaining payment");
     check(
         !firstText.contains("Thử đảo khoản nhập nhầm"),
@@ -134,7 +136,9 @@ public final class MonthlyExportTest {
             .filter(p -> p.toString().endsWith("-hd-" + second.id() + ".pdf"))
             .findFirst()
             .orElseThrow();
-    check(pdf(secondPdf).contains("Đã thanh toán đủ"), "Settled invoice is clearly marked paid");
+    check(
+        !pdf(secondPdf).contains("CÒN NỢ KỲ NÀY") && !pdf(secondPdf).contains("Đã thanh toán đủ"),
+        "Settled invoice omits the payment footer");
     Path partialPdf =
         files.stream()
             .filter(p -> p.getFileName().toString().contains("Phòng-trống"))

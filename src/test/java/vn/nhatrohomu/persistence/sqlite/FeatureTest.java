@@ -99,7 +99,7 @@ public final class FeatureTest {
         String text = new PdfTextExtractor(reader).getTextFromPage(1);
         check(
             text.contains("Phòng Nguyễn Ánh")
-                && text.contains("Còn thiếu")
+                && text.contains("Tổng phải thu")
                 && !text.contains("LỊCH SỬ THU TIỀN")
                 && !text.contains("Chuyển khoản"),
             "PDF embedded Vietnamese font/text");

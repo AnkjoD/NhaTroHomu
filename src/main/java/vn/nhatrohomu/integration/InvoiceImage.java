@@ -53,8 +53,8 @@ public final class InvoiceImage {
     result.add(
         new String[] {
           meter ? "Nước" : "Nước khoán",
-          meter ? Ui.n(bill.waterOld()) : "—",
-          meter ? Ui.n(bill.waterNew()) : "—",
+          meter ? Ui.n(bill.waterOld()) : "",
+          meter ? Ui.n(bill.waterNew()) : "",
           Ui.n(bill.waterUsed()) + " m³",
           Ui.money(bill.waterRate()),
           Ui.money(bill.waterCost())
@@ -68,10 +68,10 @@ public final class InvoiceImage {
             || last.getDayOfMonth() != YearMonth.from(last).lengthOfMonth())
           period = (java.time.temporal.ChronoUnit.DAYS.between(first, last) + 1) + " ngày";
       }
-      result.add(new String[] {"Tiền phòng", "—", "—", period, "—", Ui.money(bill.rent())});
+      result.add(new String[] {"Tiền phòng", "", "", period, "", Ui.money(bill.rent())});
     }
     for (Charge fee : bill.fees())
-      result.add(new String[] {fee.label(), "—", "—", "1 kỳ", "—", Ui.money(fee.amount())});
+      result.add(new String[] {fee.label(), "", "", "1 kỳ", "", Ui.money(fee.amount())});
     return result;
   }
 
@@ -99,7 +99,14 @@ public final class InvoiceImage {
       heights[r] = lines * 30 + 24;
     }
     sizing.dispose();
-    int height = headerHeight + 58 + java.util.Arrays.stream(heights).sum() + 156;
+    BigDecimal received =
+        payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal remaining = bill.total().subtract(received);
+    int height =
+        headerHeight
+            + 58
+            + java.util.Arrays.stream(heights).sum()
+            + (remaining.signum() > 0 ? received.signum() > 0 ? 182 : 142 : 98);
     BufferedImage image = new BufferedImage(WIDTH, height, BufferedImage.TYPE_INT_RGB);
     Graphics2D g = image.createGraphics();
     try {
@@ -135,18 +142,18 @@ public final class InvoiceImage {
       g.setColor(new Color(68, 45, 107));
       g.setFont(title);
       g.drawString("TỔNG TIỀN: " + Ui.money(bill.total()), MARGIN, top + 54);
-      BigDecimal received =
-          payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
-      BigDecimal remaining = bill.total().subtract(received);
       g.setColor(new Color(45, 45, 45));
       g.setFont(normal);
-      if (remaining.signum() == 0) g.drawString("Đã trả đủ · Còn trả: 0 đ", MARGIN, top + 100);
-      else if (received.signum() > 0)
-        g.drawString(
-            "Đã trả: " + Ui.money(received) + "  ·  Còn trả: " + Ui.money(remaining),
-            MARGIN,
-            top + 100);
-      else g.drawString("Cần thanh toán: " + Ui.money(remaining), MARGIN, top + 100);
+      if (remaining.signum() > 0) {
+        int debtY = top + 102;
+        if (received.signum() > 0) {
+          g.drawString("Đã trả kỳ này: " + Ui.money(received), MARGIN, debtY);
+          debtY += 38;
+        }
+        g.setFont(bold);
+        g.setColor(new Color(155, 55, 40));
+        g.drawString("CÒN NỢ KỲ NÀY: " + Ui.money(remaining), MARGIN, debtY);
+      }
     } finally {
       g.dispose();
     }

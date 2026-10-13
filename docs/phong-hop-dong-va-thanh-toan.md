@@ -93,3 +93,9 @@ PDF gửi khách bỏ mã hóa đơn/hợp đồng, cộng điện nước, ghi 
 Xem hóa đơn → Xuất ảnh PNG để lưu file hoặc Sao chép ảnh rồi mở Zalo và Ctrl+V. Ảnh nền trắng, chữ tiếng Việt, có số cũ/mới, lượng dùng, đơn giá, thành tiền, tiền phòng/phí, tổng và trạng thái trả tiền. Trong danh sách Hóa đơn, chọn tháng → Xuất ảnh các phòng để lấy toàn bộ PNG của tháng.
 
 Sao chép chỉ thay nội dung clipboard khi bạn bấm nút; app không tự gửi tin nhắn. Phiếu/ảnh lấy số tiền đã chốt và các khoản thu còn hiệu lực; không làm phát sinh thu tiền. Có nhiều người thuê trong cùng tháng vẫn tách theo từng hóa đơn.
+
+## Chỉ hiện công nợ khi còn thiếu (0.10.3)
+
+Phiếu đã thu đủ kết thúc ở tổng tiền, không hiện Đã trả đủ/Còn trả 0. Ô không áp dụng để trống thay vì dấu gạch. Nếu còn thiếu thì hiện Đã trả kỳ này (khi đã trả một phần) và Còn nợ kỳ này. Xuất phiếu không đổi số dư hay trạng thái đã thu.
+
+Nợ kỳ trước vẫn là hóa đơn riêng trong Công nợ, chưa tự gộp vào ảnh/PDF của kỳ mới. Không cộng nợ theo tên phòng rồi gán sang người mới; khi đổi người thuê phải theo đúng lượt thuê/người có nghĩa vụ.

@@ -849,6 +849,42 @@ public final class RentalPanel extends JPanel {
                     : ((Room) room.getSelectedItem()).defaultRent().toPlainString()),
         deposit = new JTextField("0");
     rent.setName("rental-rent");
+    rent.setEditable(false);
+    JCheckBox customRent = new JCheckBox("Thỏa thuận giá riêng");
+    customRent.setName("rental-custom-rent");
+    customRent.setToolTipText("Chỉ bật khi giá thuê của người này khác giá mặc định của phòng.");
+    JLabel rentHint = new JLabel();
+    Runnable resetRent =
+        () -> {
+          Room selected = (Room) room.getSelectedItem();
+          customRent.setSelected(false);
+          customRent.setEnabled(selected != null && selected.defaultRent() != null);
+          rent.setEditable(false);
+          rent.setText(
+              selected == null || selected.defaultRent() == null
+                  ? ""
+                  : selected.defaultRent().toPlainString());
+          rentHint.setText(
+              selected == null || selected.defaultRent() == null
+                  ? "Phòng chưa có giá mặc định. Vào Sửa phòng để bổ sung trước khi cho thuê."
+                  : "Đang dùng giá mặc định của phòng.");
+        };
+    resetRent.run();
+    customRent.addActionListener(
+        e -> {
+          rent.setEditable(customRent.isSelected());
+          if (!customRent.isSelected()) resetRent.run();
+          else {
+            rentHint.setText("Giá riêng chỉ áp dụng cho lượt thuê này.");
+            rent.requestFocusInWindow();
+            rent.selectAll();
+          }
+        });
+    JPanel rentChoice = new JPanel(new BorderLayout(0, 6));
+    rentChoice.setOpaque(false);
+    rentChoice.add(rent, BorderLayout.NORTH);
+    rentChoice.add(customRent, BorderLayout.CENTER);
+    rentChoice.add(rentHint, BorderLayout.SOUTH);
     JSpinner due = new JSpinner(new SpinnerNumberModel(5, 1, 28, 1));
     start.setToolTipText(
         "Ngày bắt đầu ở. Kiểm tra chỉ số nhận phòng; tiền tháng đầu được gợi ý theo ngày.");
@@ -874,12 +910,10 @@ public final class RentalPanel extends JPanel {
             Readings r = repository.previous((Room) room.getSelectedItem());
             handoverE.setText(r.electricity().toPlainString());
             handoverW.setText(r.water().toPlainString());
-            Room selected = (Room) room.getSelectedItem();
-            rent.setText(
-                selected.defaultRent() == null ? "" : selected.defaultRent().toPlainString());
           } catch (Exception ex) {
             Ui.error(owner, ex);
           }
+          resetRent.run();
         });
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Phòng", room);
@@ -891,7 +925,7 @@ public final class RentalPanel extends JPanel {
         3,
         "Ngày kết thúc dự kiến (gồm ngày này)",
         vn.nhatrohomu.shared.DatePicker.field(end, false));
-    Ui.field(fields, 4, "Tiền phòng / tháng (đ)", rent);
+    Ui.field(fields, 4, "Tiền phòng / tháng (đ)", rentChoice);
     Ui.field(fields, 5, "Mức cọc cần nhận (đ)", deposit);
     Ui.field(fields, 6, "Ngày hạn thu mỗi tháng", due);
     Ui.field(fields, 7, "Phí / tháng · mỗi dòng Tên=số tiền", new JScrollPane(fees));
@@ -914,7 +948,7 @@ public final class RentalPanel extends JPanel {
                     Người thuê đại diện: người đứng tên; người ở cùng được khai ở hồ sơ Người thuê.
                     Ngày vào ở: ngày bắt đầu thời hạn thuê.
                     Ngày kết thúc dự kiến: ngày cuối của thời hạn thuê, gồm cả ngày đó. Ví dụ 13/10/2026 đến 12/10/2027 là thời hạn một năm. Đây không phải hạn đóng tiền; hết hạn không xóa hóa đơn hoặc công nợ.
-                    Tiền phòng/tháng: tự điền giá mặc định của phòng, có thể sửa theo thỏa thuận. Lượt thuê có bàn giao được gợi ý tiền phòng và phí kỳ đầu/cuối theo số ngày trong tháng; bạn kiểm tra trước khi lưu.
+                    Tiền phòng/tháng: tự dùng giá mặc định của phòng. Chỉ bật Thỏa thuận giá riêng khi cần giá khác cho người này. Phòng chưa có giá phải bổ sung trong Sửa phòng trước. Lượt thuê có bàn giao được gợi ý tiền phòng và phí kỳ đầu/cuối theo số ngày trong tháng; bạn kiểm tra trước khi lưu.
                     Mức cọc cần nhận: mức đã thỏa thuận; tạo hợp đồng chưa có nghĩa đã nhận cọc. Ghi Nhận cọc riêng khi tiền thực sự được nhận.
                     Ngày hạn thu mỗi tháng: ngày đến hạn thanh toán hóa đơn, từ 1 đến 28. Chọn 5 nghĩa là hạn ngày 5 hằng tháng; tháng đầu không lấy hạn trước ngày vào ở.
                     Phí/tháng: phí lặp mỗi tháng, ví dụ Internet=100000 và Vệ sinh=30000. Không dùng mục này cho khoản phát sinh chỉ một lần.
@@ -931,6 +965,9 @@ public final class RentalPanel extends JPanel {
         () -> {
           Room selected = (Room) room.getSelectedItem();
           Tenant person = (Tenant) tenant.getSelectedItem();
+          if (selected.defaultRent() == null)
+            throw new IllegalArgumentException(
+                "Phòng chưa có giá thuê mặc định. Vào Sửa phòng để bổ sung trước khi cho thuê.");
           if (!handoverConfirmed.isSelected())
             throw new IllegalArgumentException(
                 "Kiểm tra và xác nhận chỉ số bàn giao trước khi lưu lần thuê.");
@@ -947,7 +984,9 @@ public final class RentalPanel extends JPanel {
                   start.getText().trim(),
                   end.getText().trim(),
                   "",
-                  RentalService.money(rent.getText(), "Tiền thuê"),
+                  customRent.isSelected()
+                      ? RentalService.money(rent.getText(), "Giá thuê riêng")
+                      : selected.defaultRent(),
                   RentalService.money(deposit.getText(), "Tiền cọc"),
                   (Integer) due.getValue(),
                   parseFees(fees.getText())),

@@ -2,7 +2,7 @@
 
 ## Giá phòng, giá thỏa thuận và hóa đơn
 
-Phòng lưu tên, chỉ số đầu kỳ, cách tính nước và **giá thuê mặc định**. Giá mặc định tự điền khi cho thuê, có thể để chưa thiết lập. Người thuê lưu hồ sơ con người. Lượt thuê/hợp đồng gắn người đó với phòng trong một khoảng thời gian và lưu giá đã thỏa thuận, cọc, hạn thu, phí. Sửa giá phòng không tự đổi giá thỏa thuận hoặc hóa đơn đã chốt. Giá trên hóa đơn lịch sử không bị tự đoán thành giá mặc định mới.
+Phòng lưu tên, chỉ số đầu kỳ, cách tính nước và **giá thuê mặc định**. Khi thêm/sửa phòng, giá mặc định là bắt buộc; nhập 0 nếu miễn tiền phòng. Khi cho thuê, app dùng giá phòng và khóa ô tiền. Chỉ bật **Thỏa thuận giá riêng** nếu có thỏa thuận khác; tắt lựa chọn này sẽ lấy lại giá mặc định. Phòng từ dữ liệu cũ chưa có giá vẫn được giữ nguyên, nhưng cần vào Sửa phòng bổ sung trước khi tạo lượt thuê mới. Người thuê lưu hồ sơ con người. Lượt thuê/hợp đồng gắn người đó với phòng trong một khoảng thời gian và lưu giá đã thỏa thuận, cọc, hạn thu, phí. Sửa giá phòng không tự đổi giá thỏa thuận hoặc hóa đơn đã chốt. Giá trên hóa đơn lịch sử không bị tự đoán thành giá mặc định mới.
 
 Luồng thông thường: thêm phòng và giá mặc định → **Cho thuê phòng** → chọn/thêm người thuê trong form → kiểm tra giá, thời hạn và chỉ số nhận phòng → lưu → lập hóa đơn từng kỳ → ghi tiền thực nhận. Mục **Thuê phòng** gom hai tab **Lượt thuê / trả phòng** và **Hồ sơ / người ở cùng**; dữ liệu vẫn tách để giữ lịch sử. Nếu lưu hồ sơ rồi hủy form cho thuê, hồ sơ vẫn còn để chọn lại. Thẻ phòng hiện giá thỏa thuận khi có người đang thuê; nếu trống thì hiện giá mặc định hoặc ghi rõ tiền của kỳ lịch sử khi chưa thiết lập giá.
 

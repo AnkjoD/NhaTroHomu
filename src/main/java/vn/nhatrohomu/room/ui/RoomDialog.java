@@ -49,10 +49,11 @@ public final class RoomDialog extends JDialog {
     rentalHelp.setLineWrap(true);
     rentalHelp.setWrapStyleWord(true);
     rentalHelp.setOpaque(false);
-    Ui.field(form, 6, "Giá thuê mặc định / tháng (đ)", defaultRent);
+    Ui.field(form, 6, "Giá thuê mặc định / tháng (đ) *", defaultRent);
     rentalHelp.setText(
-        "Giá mặc định tự điền khi cho thuê. Có thể thỏa thuận giá khác; giá hợp đồng đang có và hóa"
-            + " đơn cũ không tự đổi khi sửa giá phòng.");
+        "Bắt buộc nhập giá phòng; nhập 0 nếu miễn tiền phòng. Khi cho thuê tự dùng giá này, chỉ bật"
+            + " giá riêng khi có thỏa thuận khác. Giá hợp đồng đang có và hóa đơn cũ không tự đổi"
+            + " khi sửa giá phòng.");
     Ui.field(form, 7, "Tiền phòng", rentalHelp);
     JLabel hint =
         new JLabel(
@@ -67,6 +68,9 @@ public final class RoomDialog extends JDialog {
               try {
                 if (name.getText().trim().isEmpty() || name.getText().length() > 80)
                   throw new IllegalArgumentException("Tên phòng cần 1–80 ký tự.");
+                if (defaultRent.getText().isBlank())
+                  throw new IllegalArgumentException(
+                      "Nhập giá thuê mặc định của phòng; nhập 0 nếu miễn tiền phòng.");
                 Room value =
                     new Room(
                         room == null ? 0 : room.id(),
@@ -79,10 +83,8 @@ public final class RoomDialog extends JDialog {
                             ? null
                             : BillingService.number(fixed.getText(), "Nước riêng"),
                         true,
-                        defaultRent.getText().isBlank()
-                            ? null
-                            : vn.nhatrohomu.rental.RentalService.money(
-                                defaultRent.getText(), "Giá thuê mặc định"));
+                        vn.nhatrohomu.rental.RentalService.money(
+                            defaultRent.getText(), "Giá thuê mặc định"));
                 repository.saveRoom(value);
                 dispose();
                 saved.run();

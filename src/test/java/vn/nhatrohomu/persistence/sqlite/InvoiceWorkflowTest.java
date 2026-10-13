@@ -133,6 +133,18 @@ public final class InvoiceWorkflowTest {
                     check(
                         ((JTextField) named(rent, "rental-rent")).getText().equals("2000000"),
                         "Room default price is prefilled in the tenancy form");
+                    JTextField price = (JTextField) named(rent, "rental-rent");
+                    JCheckBox override = (JCheckBox) named(rent, "rental-custom-rent");
+                    check(
+                        !price.isEditable() && !override.isSelected(),
+                        "Default room price is locked until explicitly overridden");
+                    override.doClick();
+                    check(price.isEditable(), "Negotiated price can be edited only after opt in");
+                    price.setText("1900000");
+                    override.doClick();
+                    check(
+                        !price.isEditable() && price.getText().equals("2000000"),
+                        "Disabling negotiated price restores the room default");
                     later(
                         () -> {
                           try {
@@ -173,6 +185,15 @@ public final class InvoiceWorkflowTest {
             check(
                 callbacks[0] == 1 && repository.billCount() == 3,
                 "Refresh fires once and existing invoices remain intact");
+            check(
+                repository
+                        .rentals()
+                        .contracts()
+                        .getFirst()
+                        .rent()
+                        .compareTo(new BigDecimal("2000000"))
+                    == 0,
+                "Saved agreement uses the default after the override is disabled");
             watchdog.restart();
             later(
                 () -> {

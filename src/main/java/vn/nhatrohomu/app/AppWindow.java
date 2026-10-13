@@ -86,7 +86,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.1", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.2", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));

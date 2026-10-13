@@ -19,6 +19,10 @@ public final class BatchBillingDialog extends JDialog {
   private final JTextField month = new JTextField(YearMonth.now().toString(), 10);
   private final List<Entry> entries = new ArrayList<>();
   private final JLabel progress = new JLabel("Nhập chỉ số mới cho từng phòng.");
+  private final JLabel selectionCount = new JLabel();
+  private final JButton selectAll = Ui.button("Chọn tất cả", () -> selectRooms(true)),
+      clearSelection = Ui.button("Bỏ chọn tất cả", () -> selectRooms(false)),
+      createBills = Design.primary(Ui.button("Kiểm tra và lập các phòng đã chọn", this::commit));
 
   private record Prepared(Room room, BillingDraft draft, String error) {}
 
@@ -57,6 +61,13 @@ public final class BatchBillingDialog extends JDialog {
     photoActions.add(Ui.button("Chọn nhiều ảnh điện", () -> assignPhotos(true)));
     photoActions.add(Ui.button("Chọn nhiều ảnh nước", () -> assignPhotos(false)));
     toolbars.add(photoActions);
+    JPanel selection = Design.clear(new BorderLayout(12, 0));
+    JPanel selectionActions = Design.clear(new FlowLayout(FlowLayout.LEFT));
+    selectionActions.add(selectAll);
+    selectionActions.add(clearSelection);
+    selection.add(selectionActions, BorderLayout.WEST);
+    selection.add(selectionCount, BorderLayout.EAST);
+    toolbars.add(selection);
     root.add(toolbars, BorderLayout.NORTH);
     JScrollPane scroll = new JScrollPane(cards);
     scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -66,7 +77,7 @@ public final class BatchBillingDialog extends JDialog {
     bottom.add(progress);
     JPanel buttons = Design.clear(new FlowLayout(FlowLayout.RIGHT));
     buttons.add(Ui.button("Đóng", this::dispose));
-    buttons.add(Design.primary(Ui.button("Kiểm tra và lập các phòng đã chọn", this::commit)));
+    buttons.add(createBills);
     bottom.add(buttons, BorderLayout.SOUTH);
     root.add(bottom, BorderLayout.SOUTH);
     setContentPane(root);
@@ -120,6 +131,7 @@ public final class BatchBillingDialog extends JDialog {
           }
           cards.revalidate();
           cards.repaint();
+          refreshSelection();
           progress.setText(
               "Tháng " + selected + " · Chọn phòng, nhập số mới rồi kiểm tra trước khi lưu.");
         });
@@ -147,13 +159,23 @@ public final class BatchBillingDialog extends JDialog {
         bills.stream()
             .map(Bill::total)
             .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+    String utilityRooms =
+        selected.stream()
+            .filter(e -> e.plan.draft().contract() == null)
+            .map(e -> e.plan.room().name())
+            .collect(java.util.stream.Collectors.joining(", "));
     if (!Ui.confirm(
         this,
         "Lập "
             + bills.size()
             + " hóa đơn · Tổng "
             + Ui.money(sum)
-            + "?\nKiểm tra chỉ số mới của từng phòng. Chưa ghi nhận thu tiền.")) return;
+            + "?\nKiểm tra chỉ số mới của từng phòng. Chưa ghi nhận thu tiền."
+            + (utilityRooms.isBlank()
+                ? ""
+                : "\nChỉ điện nước, chưa có tiền phòng: "
+                    + utilityRooms
+                    + ". Nếu cần thu tiền phòng, thiết lập thuê trước."))) return;
     Ui.background(
         this,
         () -> {
@@ -205,6 +227,7 @@ public final class BatchBillingDialog extends JDialog {
                   + "/"
                   + results.size()
                   + " phòng. Phòng lỗi giữ dữ liệu để sửa và thử lại.");
+          refreshSelection();
           if (done > 0) saved.run();
         });
   }
@@ -216,11 +239,14 @@ public final class BatchBillingDialog extends JDialog {
                 e ->
                     e.plan.draft() != null
                         && !e.stored
+                        && e.include.isSelected()
                         && (electric || e.plan.room().waterMode().equals("METER")))
             .toList();
     if (targets.isEmpty()) {
       Ui.error(
-          this, new IllegalArgumentException("Không có phòng chưa lập phù hợp trong tháng này."));
+          this,
+          new IllegalArgumentException(
+              "Chọn phòng cần gán ảnh trước. Phòng đã lập hoặc không phù hợp được bỏ qua."));
       return;
     }
     JFileChooser picker = new JFileChooser();
@@ -350,7 +376,7 @@ public final class BatchBillingDialog extends JDialog {
 
   private final class Entry {
     final Prepared plan;
-    final JPanel card = Design.card(Design.SURFACE);
+    final SelectionCard card = new SelectionCard();
     final JCheckBox include = new JCheckBox("Lập phòng này");
     final JTextField electricity = new JTextField(),
         water = new JTextField(),
@@ -369,15 +395,34 @@ public final class BatchBillingDialog extends JDialog {
       JPanel heading = Design.clear(new BorderLayout());
       heading.add(Design.label(plan.room().name(), 20, Design.INK, true));
       heading.add(include, BorderLayout.EAST);
+      include.setOpaque(false);
+      include.addItemListener(
+          e -> {
+            card.choose(include.isSelected());
+            include.setText(stored ? "Đã lưu" : include.isSelected() ? "Đã chọn" : "Chọn phòng");
+            refreshSelection();
+          });
+      java.awt.event.MouseAdapter toggle =
+          new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+              if (SwingUtilities.isLeftMouseButton(e) && include.isEnabled()) include.doClick();
+            }
+          };
+      heading.addMouseListener(toggle);
+      heading.getComponent(0).addMouseListener(toggle);
+      card.addMouseListener(toggle);
       card.add(heading, BorderLayout.NORTH);
       if (plan.draft() == null) {
         include.setEnabled(false);
+        include.setText("Không thể lập");
         status.setText(plan.error());
         card.add(status);
         return;
       }
       BillingDraft draft = plan.draft();
       include.setSelected(draft.contract() != null);
+      if (!include.isSelected()) include.setText("Chọn phòng");
+      showPhotos.setOpaque(false);
       JPanel fields = Ui.form();
       Ui.field(
           fields,
@@ -466,6 +511,80 @@ public final class BatchBillingDialog extends JDialog {
         status.setText("Nhập chỉ số mới để tính tiền.");
         status.setForeground(Design.MUTED);
       }
+    }
+  }
+
+  private void selectRooms(boolean selected) {
+    for (Entry entry : entries)
+      if (entry.include.isEnabled() && !entry.stored) entry.include.setSelected(selected);
+    refreshSelection();
+  }
+
+  private void refreshSelection() {
+    long eligible = entries.stream().filter(e -> e.include.isEnabled() && !e.stored).count();
+    long selected =
+        entries.stream()
+            .filter(e -> e.include.isEnabled() && !e.stored && e.include.isSelected())
+            .count();
+    selectionCount.setText("Đã chọn " + selected + " / " + eligible + " phòng");
+    selectAll.setEnabled(selected < eligible);
+    clearSelection.setEnabled(selected > 0);
+    createBills.setEnabled(selected > 0);
+  }
+
+  private static final class SelectionCard extends JPanel {
+    private double amount, target;
+    private final javax.swing.Timer animation =
+        new javax.swing.Timer(
+            16,
+            e -> {
+              amount += (target - amount) * .3;
+              if (Math.abs(target - amount) < .01) {
+                amount = target;
+                ((javax.swing.Timer) e.getSource()).stop();
+              }
+              repaint();
+            });
+
+    SelectionCard() {
+      setOpaque(false);
+      setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    }
+
+    void choose(boolean selected) {
+      target = selected ? 1 : 0;
+      if (isShowing()) animation.start();
+      else {
+        amount = target;
+        repaint();
+      }
+    }
+
+    @Override
+    public void removeNotify() {
+      animation.stop();
+      amount = target;
+      super.removeNotify();
+    }
+
+    private Color blend(Color a, Color b) {
+      return new Color(
+          (int) (a.getRed() + (b.getRed() - a.getRed()) * amount),
+          (int) (a.getGreen() + (b.getGreen() - a.getGreen()) * amount),
+          (int) (a.getBlue() + (b.getBlue() - a.getBlue()) * amount));
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+      Graphics2D draw = (Graphics2D) g.create();
+      draw.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      draw.setColor(blend(Design.SURFACE, Design.MINT));
+      draw.fillRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 20, 20);
+      draw.setColor(blend(Design.LINE, Ui.GREEN));
+      draw.setStroke(new BasicStroke((float) (1 + amount)));
+      draw.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 20, 20);
+      draw.dispose();
+      super.paintComponent(g);
     }
   }
 }

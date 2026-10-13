@@ -32,6 +32,8 @@ Trong **Phòng trọ → Lập nhiều phòng** hoặc **Hóa đơn → Lập nh
 
 Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu được khóa lại; phòng lỗi giữ phần nhập để sửa và thử lại, tránh lập trùng.
 
+**Chọn tất cả / Bỏ chọn tất cả** áp dụng cho phòng còn có thể lập trong tháng đang xem; phòng đã lập hoặc bị khóa được bỏ qua. Phòng được chọn có nền và viền nổi bật, nhãn **Đã chọn**, kèm bộ đếm. Có thể bấm tên phòng hoặc ô chọn để bật/tắt; bỏ chọn không xóa chỉ số/ảnh đang nhập. Chọn nhiều ảnh chỉ gán cho các phòng đã chọn.
+
 ### Dán ảnh và chọn nhiều ảnh đồng hồ
 
 - Mở phần **Ảnh đồng hồ** của phòng, chọn tab Điện/Nước rồi **Dán ảnh**. Có thể bấm vào vùng ảnh và Ctrl+V. Khi con trỏ ở ô nhập số, Ctrl+V vẫn dán chữ như bình thường. Hỗ trợ ảnh đã sao chép và một file ảnh sao chép từ Explorer.

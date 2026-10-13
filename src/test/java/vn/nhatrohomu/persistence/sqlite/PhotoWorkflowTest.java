@@ -148,6 +148,39 @@ public final class PhotoWorkflowTest {
             try {
               var entries = (java.util.List<?>) field(dialog[0], "entries");
               check(entries.size() == 2, "Batch did not load");
+              ((JButton) field(dialog[0], "clearSelection")).doClick();
+              check(
+                  entries.stream()
+                      .noneMatch(
+                          e -> {
+                            try {
+                              return ((JCheckBox) field(e, "include")).isSelected();
+                            } catch (Exception ex) {
+                              throw new RuntimeException(ex);
+                            }
+                          }),
+                  "Clear all did not clear rooms");
+              check(
+                  !((JButton) field(dialog[0], "createBills")).isEnabled(),
+                  "Save enabled without rooms");
+              ((JCheckBox) field(entries.getFirst(), "include")).doClick();
+              check(
+                  ((JLabel) field(dialog[0], "selectionCount"))
+                      .getText()
+                      .equals("Đã chọn 1 / 2 phòng"),
+                  "Selection counter stale");
+              ((JButton) field(dialog[0], "selectAll")).doClick();
+              check(
+                  entries.stream()
+                      .allMatch(
+                          e -> {
+                            try {
+                              return ((JCheckBox) field(e, "include")).isSelected();
+                            } catch (Exception ex) {
+                              throw new RuntimeException(ex);
+                            }
+                          }),
+                  "Select all missed room");
               check(
                   ((JPanel) field(entries.getFirst(), "card")).getComponentCount() > 0,
                   "Room card missing");

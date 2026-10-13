@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.2
+
+- Chọn tất cả/bỏ chọn tất cả phòng có thể lập, bộ đếm lựa chọn và khóa lưu khi chưa chọn phòng.
+- Thẻ được chọn đổi nền/viền với chuyển màu nhẹ; bấm tên phòng để chọn, giữ dữ liệu khi bỏ chọn.
+- Gán nhiều ảnh theo danh sách phòng đã chọn; bỏ qua phòng đã lập hoặc bị khóa.
+
 ## 0.11.1
 
 - Đưa nút Lập nhiều phòng vào màn Phòng trọ.

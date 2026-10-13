@@ -169,6 +169,33 @@ public final class ProfileHistoryTest {
       check(
           archived != null && !archived.active() && archived.residents().equals(saved.residents()),
           "Archived tenant retains household for historical tenancy lookup");
+      check(
+          repo.rentals().archivedTenants().stream().anyMatch(person -> person.id() == saved.id()),
+          "Archived people can be found for restoration");
+      repo.rentals().restoreTenant(saved.id());
+      Tenant restored = repo.rentals().tenant(saved.id());
+      check(
+          restored.active()
+              && restored.residents().equals(archived.residents())
+              && restored.identity().equals(archived.identity()),
+          "Restore keeps identity and household");
+      repo.rentals()
+          .saveTenant(
+              new Tenant(
+                  restored.id(),
+                  restored.name() + " corrected",
+                  restored.phone(),
+                  restored.note(),
+                  true,
+                  restored.zalo(),
+                  restored.zaloAuto(),
+                  restored.identity(),
+                  restored.birthday(),
+                  restored.address(),
+                  restored.residents()));
+      check(
+          repo.rentals().tenant(restored.id()).name().endsWith(" corrected"),
+          "Restored person can be edited without creating a duplicate");
       System.out.println(
           "PASS: "
               + checks

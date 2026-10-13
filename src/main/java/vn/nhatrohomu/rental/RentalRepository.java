@@ -18,6 +18,14 @@ public interface RentalRepository {
 
   void archiveTenant(long id) throws SQLException;
 
+  default List<Tenant> archivedTenants() throws SQLException {
+    return List.of();
+  }
+
+  default void restoreTenant(long id) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
   List<Contract> contracts() throws SQLException;
 
   void createContract(Contract contract) throws SQLException;

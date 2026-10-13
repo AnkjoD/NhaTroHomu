@@ -38,9 +38,20 @@ public final class GuiSmokeTest {
               new BigDecimal("20"),
               "METER",
               null,
-              true));
+              true,
+              new BigDecimal("1600000")));
       Room meter = repo.rooms().getFirst();
-      repo.saveRoom(new Room(0, "P02", "", BigDecimal.ZERO, BigDecimal.ZERO, "FIXED", null, true));
+      repo.saveRoom(
+          new Room(
+              0,
+              "P02",
+              "",
+              BigDecimal.ZERO,
+              BigDecimal.ZERO,
+              "FIXED",
+              null,
+              true,
+              new BigDecimal("1300000")));
       Room fixed =
           repo.rooms().stream().filter(r -> r.name().equals("P02")).findFirst().orElseThrow();
       repo.rentals().saveTenant(new Tenant(0, "Người thuê thử", "", "", true));
@@ -195,7 +206,20 @@ public final class GuiSmokeTest {
                       app, paymentBill, repo.payments(paymentBill.id()))
                   .dispose();
 
-              new ReadingDialog(app, repo, fixed, () -> {}).dispose();
+              ReadingDialog roomDefaults = new ReadingDialog(app, repo, fixed, () -> {});
+              var rentField = ReadingDialog.class.getDeclaredField("rent");
+              rentField.setAccessible(true);
+              if (!((JTextField) rentField.get(roomDefaults)).getText().equals("1300000"))
+                throw new AssertionError("Missing room rent suggestion without tenancy");
+              var utilityField = ReadingDialog.class.getDeclaredField("utilitiesOnly");
+              utilityField.setAccessible(true);
+              ((JCheckBox) utilityField.get(roomDefaults)).doClick();
+              if (!((JTextField) rentField.get(roomDefaults)).getText().equals("0"))
+                throw new AssertionError("Utility-only form still displays rent");
+              ((JCheckBox) utilityField.get(roomDefaults)).doClick();
+              if (!((JTextField) rentField.get(roomDefaults)).getText().equals("1300000"))
+                throw new AssertionError("Default rent not restored after switching mode");
+              roomDefaults.dispose();
               ReportPanel report = new ReportPanel(repo);
               var snapshotField = ReportPanel.class.getDeclaredField("snapshot");
               snapshotField.setAccessible(true);

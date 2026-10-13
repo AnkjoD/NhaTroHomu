@@ -57,10 +57,20 @@ public final class RentalStore implements RentalRepository {
   }
 
   public List<Tenant> tenants() throws SQLException {
+    return tenants(true);
+  }
+
+  public List<Tenant> archivedTenants() throws SQLException {
+    return tenants(false);
+  }
+
+  private List<Tenant> tenants(boolean active) throws SQLException {
     List<Tenant> result = new ArrayList<>();
     try (Connection c = connection();
         Statement s = c.createStatement();
-        ResultSet r = s.executeQuery("SELECT * FROM tenants WHERE active=1 ORDER BY name,id")) {
+        ResultSet r =
+            s.executeQuery(
+                "SELECT * FROM tenants WHERE active=" + (active ? 1 : 0) + " ORDER BY name,id")) {
       while (r.next())
         result.add(
             new Tenant(
@@ -68,7 +78,7 @@ public final class RentalStore implements RentalRepository {
                 r.getString("name"),
                 r.getString("phone"),
                 r.getString("note"),
-                true,
+                active,
                 r.getString("zalo"),
                 r.getBoolean("zalo_auto"),
                 r.getString("identity_no"),
@@ -194,6 +204,28 @@ public final class RentalStore implements RentalRepository {
       if (p.executeUpdate() != 1)
         throw new IllegalArgumentException(
             "Cần kết thúc hợp đồng hiện tại/sắp tới trước khi lưu trữ người thuê.");
+    }
+  }
+
+  public void restoreTenant(long id) throws SQLException {
+    try (Connection c = connection()) {
+      c.setAutoCommit(false);
+      try (PreparedStatement p =
+          c.prepareStatement("UPDATE tenants SET active=1 WHERE id=? AND active=0")) {
+        p.setLong(1, id);
+        if (p.executeUpdate() != 1)
+          throw new IllegalArgumentException("Người thuê không tồn tại hoặc chưa được lưu trữ.");
+        AuditLog.record(
+            c,
+            "RESTORE",
+            "tenant",
+            id,
+            "Khôi phục người thuê; giữ lịch sử thuê, thanh toán và người ở cùng.");
+        c.commit();
+      } catch (Exception ex) {
+        c.rollback();
+        throw ex;
+      }
     }
   }
 

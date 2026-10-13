@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.6
+
+- Các nút Dịch vụ & phí chuyển lên trên danh sách.
+- Thuê phòng có lựa chọn xem người đã lưu trữ và khôi phục để chỉnh sửa tiếp; giữ ID, người ở cùng và lịch sử thuê/thu tiền.
+- Nhãn sửa thông tin và thông báo lưu trữ giải thích rõ việc ẩn người, không xóa dữ liệu.
+- Form hóa đơn tự hiện giá mặc định của phòng khi chưa gắn lượt thuê; ưu tiên giá thỏa thuận khi có lượt thuê, hiển thị 0 khi chỉ lập điện nước. Chốt cả tiền phòng vẫn cần thông tin thuê.
+
 ## 0.11.4
 
 - Sửa sidebar bị kéo giãn nút khi cửa sổ cao và cắt mép khung chọn: chiều cao cố định, khoảng cách gọn, cuộn dọc khi cần.

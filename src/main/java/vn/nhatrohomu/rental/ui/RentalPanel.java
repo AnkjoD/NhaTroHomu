@@ -38,6 +38,7 @@ public final class RentalPanel extends JPanel {
   private List<Bill> debts = List.of();
   private boolean busy;
   private boolean refreshPending;
+  private boolean showArchivedPeople;
   private Map<Long, BigDecimal> balances = Map.of();
   private Map<Long, Tenant> contractPeople = Map.of();
 
@@ -83,6 +84,7 @@ public final class RentalPanel extends JPanel {
       return;
     }
     busy = true;
+    final boolean includeArchived = showArchivedPeople;
     new SwingWorker<PanelData, Void>() {
       protected PanelData doInBackground() throws Exception {
         Object items =
@@ -95,6 +97,8 @@ public final class RentalPanel extends JPanel {
         Map<Long, Tenant> people = new HashMap<>();
         if (page == Page.CONTRACTS) {
           for (Tenant person : rentals.tenants()) people.put(person.id(), person);
+          if (includeArchived)
+            for (Tenant person : rentals.archivedTenants()) people.put(person.id(), person);
           for (Object value : (List<?>) items) {
             Contract contract = (Contract) value;
             amounts.put(contract.id(), rentals.heldDeposit(contract.id()));
@@ -215,7 +219,7 @@ public final class RentalPanel extends JPanel {
           Ui.button("Xem chi tiết", () -> safe(() -> contractDetails(contracts.get(selected())))));
       actions.add(
           Ui.button(
-              "Thông tin & người ở cùng",
+              "Sửa thông tin & người ở cùng",
               () -> safe(() -> openContractPerson(contracts.get(selected())))));
       actions.add(
           Ui.button("Nhận / hoàn cọc", () -> safe(() -> depositDialog(contracts.get(selected())))));
@@ -328,6 +332,16 @@ public final class RentalPanel extends JPanel {
             .map(c -> (JButton) c)
             .toList());
     actions.add(Ui.refreshButton(this::refresh));
+    if (page == Page.CONTRACTS) {
+      JCheckBox archived = new JCheckBox("Hiện người đã lưu trữ", showArchivedPeople);
+      archived.setOpaque(false);
+      archived.addActionListener(
+          e -> {
+            showArchivedPeople = archived.isSelected();
+            refresh();
+          });
+      actions.add(archived);
+    }
     heading.add(actions, BorderLayout.SOUTH);
     add(heading, BorderLayout.NORTH);
     JTextField search = new JTextField(22);
@@ -365,7 +379,11 @@ public final class RentalPanel extends JPanel {
     if (page == Page.CONTRACTS) {
       List<Tenant> unassigned =
           contractPeople.values().stream()
-              .filter(t -> t.active() && contracts.stream().noneMatch(k -> k.tenantId() == t.id()))
+              .filter(
+                  t ->
+                      t.active()
+                          ? contracts.stream().noneMatch(k -> k.tenantId() == t.id())
+                          : showArchivedPeople)
               .sorted(Comparator.comparing(Tenant::name))
               .toList();
       if (!unassigned.isEmpty()) main.add(unassignedPeople(unassigned), BorderLayout.SOUTH);
@@ -391,7 +409,14 @@ public final class RentalPanel extends JPanel {
   private JPanel unassignedPeople(List<Tenant> people) {
     JPanel section = Design.clear(new BorderLayout(0, 8));
     section.add(
-        Design.label("Người thuê chưa gắn phòng · " + people.size(), 15, Design.INK, true),
+        Design.label(
+            (people.stream().anyMatch(t -> !t.active())
+                    ? "Người chưa gắn phòng và đã lưu trữ · "
+                    : "Người thuê chưa gắn phòng · ")
+                + people.size(),
+            15,
+            Design.INK,
+            true),
         BorderLayout.NORTH);
     JPanel rows = Ui.column();
     rows.setOpaque(false);
@@ -402,7 +427,8 @@ public final class RentalPanel extends JPanel {
       words.add(Design.label(person.name(), 14, Design.INK, true));
       words.add(
           Design.label(
-              (person.phone().isBlank() ? "Chưa có điện thoại" : person.phone())
+              (!person.active() ? "Đã lưu trữ · " : "")
+                  + (person.phone().isBlank() ? "Chưa có điện thoại" : person.phone())
                   + " · "
                   + person.residents().size()
                   + " người ở cùng",
@@ -411,19 +437,39 @@ public final class RentalPanel extends JPanel {
               false));
       row.add(words);
       JPanel buttons = Design.clear(new FlowLayout(FlowLayout.RIGHT));
-      buttons.add(Ui.button("Thông tin & người ở cùng", () -> tenantForm(person)));
-      buttons.add(Ui.button("Cho thuê phòng", () -> safe(() -> contractForm(person.id()))));
-      buttons.add(
-          Ui.button(
-              "Lưu trữ",
-              () ->
-                  safe(
-                      () -> {
-                        if (Ui.confirm(owner, "Lưu trữ người thuê " + person.name() + "?")) {
-                          rentals.archiveTenant(person.id());
+      if (!person.active()) {
+        buttons.add(
+            Ui.button(
+                "Xem thông tin", () -> textDialog("Người đã lưu trữ", familyDetails(person))));
+        buttons.add(
+            Ui.button(
+                "Khôi phục",
+                () ->
+                    safe(
+                        () -> {
+                          rentals.restoreTenant(person.id());
                           refresh();
-                        }
-                      })));
+                        })));
+      } else {
+        buttons.add(Ui.button("Sửa thông tin & người ở cùng", () -> tenantForm(person)));
+        buttons.add(Ui.button("Cho thuê phòng", () -> safe(() -> contractForm(person.id()))));
+        buttons.add(
+            Ui.button(
+                "Lưu trữ",
+                () ->
+                    safe(
+                        () -> {
+                          if (Ui.confirm(
+                              owner,
+                              "Ẩn người thuê "
+                                  + person.name()
+                                  + " khỏi danh sách đang dùng? Thông tin và lịch sử vẫn được giữ,"
+                                  + " có thể khôi phục.")) {
+                            rentals.archiveTenant(person.id());
+                            refresh();
+                          }
+                        })));
+      }
       row.add(buttons, BorderLayout.EAST);
       rows.add(row);
       rows.add(Box.createVerticalStrut(6));

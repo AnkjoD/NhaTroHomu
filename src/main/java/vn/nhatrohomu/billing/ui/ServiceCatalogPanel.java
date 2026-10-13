@@ -25,14 +25,15 @@ public final class ServiceCatalogPanel extends JPanel {
     this.catalog = catalog;
     JPanel root = Design.clear(new BorderLayout(12, 12));
     root.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-    root.add(
+    JPanel heading = Design.clear(new BorderLayout(0, 12));
+    heading.add(
         new JLabel(
             "Chọn khoản phí trong danh mục khi cho thuê. Giá đã chốt trước đó không tự đổi."),
         BorderLayout.NORTH);
     table.setRowHeight(38);
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     root.add(new JScrollPane(table));
-    JPanel actions = Design.clear(new FlowLayout(FlowLayout.RIGHT));
+    JPanel actions = Design.clear(new FlowLayout(FlowLayout.LEFT));
     actions.add(Ui.button("+ Khoản phí", () -> edit(null)));
     JButton edit =
         Ui.button(
@@ -59,7 +60,8 @@ public final class ServiceCatalogPanel extends JPanel {
     RowActions.install(table, List.of(edit, archive));
     actions.add(edit);
     actions.add(archive);
-    root.add(actions, BorderLayout.SOUTH);
+    heading.add(actions, BorderLayout.SOUTH);
+    root.add(heading, BorderLayout.NORTH);
     add(root);
     refresh();
   }

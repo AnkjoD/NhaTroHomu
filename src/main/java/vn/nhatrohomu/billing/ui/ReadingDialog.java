@@ -109,7 +109,11 @@ public final class ReadingDialog extends JDialog {
     tenancy.add(tenancyChoice);
     tenancy.add(rentalInfo);
     tenancy.add(utilitiesOnly);
-    utilitiesOnly.addActionListener(e -> update());
+    utilitiesOnly.addActionListener(
+        e -> {
+          syncRentDisplay();
+          update();
+        });
     tenancy.add(
         Ui.button(
             "Thiết lập thuê phòng",
@@ -131,8 +135,8 @@ public final class ReadingDialog extends JDialog {
     Ui.field(form, 7, "Người thuê", tenancy);
     Ui.field(form, 8, "Tiền phòng (đ)", rent);
     rent.setToolTipText(
-        "Mặc định tiền tháng trong hợp đồng. Có thể điều chỉnh khi ở chưa đủ tháng; ghi lý do vào"
-            + " ghi chú.");
+        "Có lượt thuê: dùng giá thỏa thuận. Chưa có lượt thuê: hiện giá mặc định của phòng; thiết"
+            + " lập thuê phòng để chốt cùng thông tin người thuê và phí.");
     Ui.field(form, 9, "Phí hàng tháng", feesInfo);
     Ui.field(form, 10, "Ghi chú", note);
     syncRental();
@@ -303,7 +307,8 @@ public final class ReadingDialog extends JDialog {
     Contract contract = selectedContract();
     if (contract == null && !utilitiesOnly.isSelected())
       throw new IllegalArgumentException(
-          "Thiết lập người thuê để lấy tiền phòng mặc định, hoặc chọn Chỉ lập điện nước.");
+          "Giá mặc định đã được gợi ý. Thiết lập thuê phòng để chốt tiền phòng và phí, hoặc chọn"
+              + " Chỉ lập điện nước.");
     BigDecimal amount =
         contract == null ? BigDecimal.ZERO : RentalService.money(rent.getText(), "Tiền phòng");
     if (contract != null && segmented(contract)) {
@@ -406,19 +411,12 @@ public final class ReadingDialog extends JDialog {
                 .stripTrailingZeros()
                 .toPlainString());
       }
-      rent.setEnabled(contract != null);
       utilitiesOnly.setVisible(contract == null);
       if (contract != null) utilitiesOnly.setSelected(false);
-      rent.setText(
-          contract == null
-              ? ""
-              : (segmented(contract)
-                      ? RentalService.prorated(contract.rent(), first(contract), last(contract))
-                      : contract.rent())
-                  .toPlainString());
+      syncRentDisplay();
       rentalInfo.setText(
           contract == null
-              ? "Chưa có thông tin thuê cho tháng này"
+              ? "Chưa gắn người thuê cho tháng này · giá gợi ý lấy từ phòng"
               : "#" + contract.id() + " · " + first(contract) + " → " + last(contract));
       feesInfo.setText(
           contract == null
@@ -454,6 +452,23 @@ public final class ReadingDialog extends JDialog {
               : "Kiểm tra chỉ số mới và tháng");
       total.setToolTipText(ex.getMessage());
     }
+  }
+
+  private void syncRentDisplay() {
+    Contract contract = selectedContract();
+    rent.setEnabled(true);
+    rent.setEditable(contract != null);
+    if (contract == null) {
+      rent.setText(
+          utilitiesOnly.isSelected()
+              ? "0"
+              : room.defaultRent() == null ? "" : room.defaultRent().toPlainString());
+    } else
+      rent.setText(
+          (segmented(contract)
+                  ? RentalService.prorated(contract.rent(), first(contract), last(contract))
+                  : contract.rent())
+              .toPlainString());
   }
 
   private final class PhotoBox extends MeterPhotoPanel {

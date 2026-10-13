@@ -151,7 +151,7 @@ public final class InvoiceWorkflowTest {
                     later(
                         () -> {
                           try {
-                            JDialog person = dialog("Thêm người đứng tên");
+                            JDialog person = dialog("Thêm người thuê");
                             ((JTextField) named(person, "tenant-name"))
                                 .setText("Người thuê thử luồng mới");
                             DisplayTest.find(person, "Lưu").doClick();
@@ -235,7 +235,7 @@ public final class InvoiceWorkflowTest {
                     later(
                         () -> {
                           try {
-                            JDialog profile = dialog("Hồ sơ ·");
+                            JDialog profile = dialog("Thông tin người thuê ·");
                             JTabbedPane tabs = findTabs(profile);
                             check(
                                 tabs.getTitleAt(tabs.getSelectedIndex())
@@ -248,7 +248,7 @@ public final class InvoiceWorkflowTest {
                               if (w instanceof JDialog) w.dispose();
                           }
                         });
-                    DisplayTest.find(details, "Hồ sơ / chỉnh người ở cùng").doClick();
+                    DisplayTest.find(details, "Thông tin & người ở cùng").doClick();
                     DisplayTest.find(details, "Đóng").doClick();
                   } catch (Throwable ex) {
                     error[0] = ex;

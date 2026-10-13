@@ -75,3 +75,13 @@ Khoản phí đã chọn được lưu riêng trong thỏa thuận và hóa đơ
 Tham khảo cách tổ chức thông tin: [Hợp đồng Resident](https://docs.resident.vn/khach-hang/hop-dong), [Dịch vụ Resident](https://docs.resident.vn/quan-ly-van-hanh/dich-vu). Hỗ trợ chưa xác định ngày đi là lựa chọn riêng của NhaTroHomu cho luồng thuê dài hạn; không khẳng định các sản phẩm tham khảo có cùng lựa chọn.
 
 Sổ nâng lên schema 8 với sao lưu trước khi nâng cấp; giá, hợp đồng có thời hạn, hóa đơn và thu tiền cũ được giữ nguyên. Bản 0.9.x không đọc sổ schema 8, cần dùng ứng dụng 0.10.0 trở lên.
+
+## Xuất phiếu tiền cho người thuê (0.10.1)
+
+Trong Hóa đơn, chọn tháng rồi bấm Xuất phiếu các phòng, chọn thư mục lưu. App xuất toàn bộ hóa đơn đang hiệu lực của tháng, gồm cả các trang danh sách, mỗi hóa đơn thành một PDF riêng. Phòng chưa lập hóa đơn chưa có phiếu; phòng đổi người thuê trong tháng có phiếu riêng theo từng hóa đơn/người. Tên file có phòng, tháng và mã hóa đơn, không ghi đè lần xuất trước.
+
+Để xuất một phòng: chọn hóa đơn rồi bấm Xuất phiếu phòng (PDF), hoặc vào Xem hóa đơn → Xuất PDF. Có thể gửi file thủ công qua Zalo hoặc mở bằng trình đọc PDF để in. App không tự gửi file.
+
+Phiếu ghi tiền phòng, điện/nước trước-sau, lượng dùng, đơn giá, phí, tổng phải thu, đã trả và còn thiếu. Tiền phòng kỳ ngắn ghi số ngày thay vì 1 tháng. Phiếu chưa thanh toán không phải biên lai xác nhận đã thu; xuất file không làm phát sinh khoản thu. Ngày thu từ dữ liệu cũ chưa biết vẫn ghi chưa được ghi nhận, không tự gán ngày xuất. Cọc không tự cộng hoặc trừ vào phiếu.
+
+Thư mục kết quả chỉ xuất hiện khi mọi PDF đều tạo thành công. Lỗi sẽ dọn thư mục tạm; lần xuất trước và sổ dữ liệu vẫn giữ nguyên. Thông tin trên phiếu lấy từ sổ tại lúc xuất; sau khi sửa chứng từ/thu tiền, cần xuất lại để gửi bản mới.

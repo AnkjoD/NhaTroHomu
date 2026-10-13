@@ -35,8 +35,8 @@ public final class InvoicePdf {
           document.add(
               new Paragraph(
                   bill.contractId() == null && bill.rent().signum() == 0
-                      ? "HÓA ĐƠN ĐIỆN & NƯỚC"
-                      : "HÓA ĐƠN PHÒNG TRỌ",
+                      ? "PHIẾU TIỀN ĐIỆN & NƯỚC"
+                      : "PHIẾU TIỀN PHÒNG",
                   new Font(base, 15)));
           document.add(
               new Paragraph(
@@ -62,7 +62,7 @@ public final class InvoicePdf {
           document.add(new Paragraph(" ", normal));
           PdfPTable table = new PdfPTable(new float[] {2.1f, 2.4f, 1.5f, 1.7f, 2f});
           table.setWidthPercentage(100);
-          String[] headings = {"Khoản", "Chỉ số", "Lượng", "Đơn giá", "Thành tiền"};
+          String[] headings = {"Khoản", "Số trước → sau", "Lượng dùng", "Đơn giá", "Thành tiền"};
           for (String heading : headings) cell(table, heading, normal, true);
           row(
               table,
@@ -83,13 +83,27 @@ public final class InvoicePdf {
               Ui.money(bill.waterRate()),
               Ui.money(bill.waterCost()));
           if (bill.contractId() != null || bill.rent().signum() > 0) {
+            boolean partial =
+                !bill.periodStart().isBlank()
+                    && (!bill.periodStart().endsWith("-01")
+                        || !bill.periodEnd()
+                            .equals(
+                                java.time.YearMonth.parse(bill.month()).atEndOfMonth().toString()));
+            String rentPeriod =
+                partial
+                    ? (java.time.temporal.ChronoUnit.DAYS.between(
+                                java.time.LocalDate.parse(bill.periodStart()),
+                                java.time.LocalDate.parse(bill.periodEnd()))
+                            + 1)
+                        + " ngày"
+                    : "1 tháng";
             row(
                 table,
                 normal,
                 "Tiền phòng",
-                "Kỳ " + bill.month(),
-                "1 tháng",
-                Ui.money(bill.rent()),
+                bill.periodLabel(),
+                rentPeriod,
+                partial ? "Theo kỳ ở" : Ui.money(bill.rent()),
                 Ui.money(bill.rent()));
             for (Charge fee : bill.fees())
               row(
@@ -108,13 +122,21 @@ public final class InvoicePdf {
               payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
           document.add(
               new Paragraph("Tổng phải thu: " + Ui.money(bill.total()), new Font(base, 15)));
+          BigDecimal remaining = bill.total().subtract(received);
           document.add(
               new Paragraph(
-                  "Đã thu: "
-                      + Ui.money(received)
-                      + "   •   Còn thiếu: "
-                      + Ui.money(bill.total().subtract(received)),
+                  "Thanh toán: "
+                      + (remaining.signum() == 0
+                          ? "Đã thanh toán đủ"
+                          : received.signum() > 0 ? "Đã trả một phần" : "Chưa thanh toán"),
                   normal));
+          document.add(
+              new Paragraph(
+                  "Đã thu: " + Ui.money(received) + "   •   Còn thiếu: " + Ui.money(remaining),
+                  normal));
+          if (remaining.signum() > 0)
+            document.add(
+                new Paragraph("SỐ TIỀN CÒN CẦN TRẢ: " + Ui.money(remaining), new Font(base, 15)));
           document.add(
               new Paragraph(
                   bill.contractId() == null && bill.rent().signum() == 0

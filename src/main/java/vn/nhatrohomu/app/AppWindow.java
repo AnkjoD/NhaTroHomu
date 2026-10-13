@@ -652,6 +652,13 @@ public final class AppWindow extends JFrame {
       filterBar.add(new JLabel("Tháng hóa đơn"));
       filterBar.add(period);
       filterBar.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
+      JButton exportMonth = Ui.button("Xuất phiếu các phòng", this::exportMonthlyInvoices);
+      exportMonth.setName("export-monthly-invoices");
+      exportMonth.setEnabled(
+          invoiceMonth != null && !invoiceMonth.isBlank() && !filtered.isEmpty());
+      exportMonth.setToolTipText(
+          "Chọn một tháng để xuất mỗi hóa đơn thành một PDF riêng, gồm cả các trang danh sách.");
+      filterBar.add(exportMonth);
       a.add(
           Ui.button(
               "Xem hóa đơn",
@@ -670,6 +677,26 @@ public final class AppWindow extends JFrame {
                   Bill b = bills.get(selected(table));
                   new PaymentDialog(this, repository, b).setVisible(true);
                   showHistory();
+                } catch (Exception ex) {
+                  Ui.error(this, ex);
+                }
+              }));
+      a.add(
+          Ui.button(
+              "Xuất phiếu phòng (PDF)",
+              () -> {
+                try {
+                  Bill bill = bills.get(selected(table));
+                  Path destination =
+                      saveFile("phieu-phong-" + bill.month() + "-hd-" + bill.id() + ".pdf");
+                  if (destination == null) return;
+                  Ui.background(
+                      this,
+                      () -> {
+                        InvoicePdf.write(destination, bill, repository.payments(bill.id()));
+                        return destination;
+                      },
+                      path -> JOptionPane.showMessageDialog(this, "Đã xuất phiếu: " + path));
                 } catch (Exception ex) {
                   Ui.error(this, ex);
                 }
@@ -798,6 +825,29 @@ public final class AppWindow extends JFrame {
     } catch (Exception ex) {
       Ui.error(this, ex);
     }
+  }
+
+  private void exportMonthlyInvoices() {
+    String month = invoiceMonth;
+    if (month == null || month.isBlank()) return;
+    JFileChooser chooser = new JFileChooser();
+    chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+    chooser.setDialogTitle("Lưu phiếu từng phòng · tháng " + month);
+    if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+    Path parent = chooser.getSelectedFile().toPath();
+    Ui.background(
+        this,
+        () -> vn.nhatrohomu.integration.MonthlyInvoiceExport.write(parent, month, repository),
+        result ->
+            JOptionPane.showMessageDialog(
+                this,
+                "Đã xuất "
+                    + result.count()
+                    + " phiếu tháng "
+                    + month
+                    + " vào:\n"
+                    + result.directory()
+                    + "\nMỗi hóa đơn là một PDF riêng. Phòng chưa lập hóa đơn chưa có phiếu."));
   }
 
   private String billText(Bill b) {

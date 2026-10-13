@@ -189,7 +189,7 @@ public final class RentalPanel extends JPanel {
               },
               rows);
     } else if (page == Page.CONTRACTS) {
-      actions.add(Design.primary(Ui.button("+ Hợp đồng", () -> safe(this::contractForm))));
+      actions.add(Design.primary(Ui.button("+ Cho thuê phòng", () -> safe(this::contractForm))));
       actions.add(
           Ui.button("Xem chi tiết", () -> safe(() -> contractDetails(contracts.get(selected())))));
       actions.add(
@@ -456,6 +456,7 @@ public final class RentalPanel extends JPanel {
         identity = new JTextField(value.identity()),
         birthday = new JTextField(value.birthday()),
         address = new JTextField(value.address());
+    name.setName("tenant-name");
     JCheckBox auto = new JCheckBox("Zalo dùng số điện thoại", value.zaloAuto());
     zalo.setEditable(!auto.isSelected());
     auto.addActionListener(
@@ -751,11 +752,24 @@ public final class RentalPanel extends JPanel {
     contractForm(null);
   }
 
+  public static void letRoom(JFrame owner, Repository repository, Long roomId, Runnable changed) {
+    try {
+      RentalPanel controller = new RentalPanel(owner, repository, Page.CONTRACTS);
+      controller.contractForm(null, roomId);
+      changed.run();
+    } catch (Exception ex) {
+      Ui.error(owner, ex);
+    }
+  }
+
   private void contractForm(Long preferredTenant) throws Exception {
+    contractForm(preferredTenant, null);
+  }
+
+  private void contractForm(Long preferredTenant, Long preferredRoom) throws Exception {
     List<Room> rooms = repository.rooms();
     List<Tenant> people = rentals.tenants();
-    if (rooms.isEmpty() || people.isEmpty())
-      throw new IllegalArgumentException("Thêm phòng và người thuê trước khi tạo hợp đồng.");
+    if (rooms.isEmpty()) throw new IllegalArgumentException("Thêm phòng trước khi cho thuê.");
     JComboBox<Room> room = new JComboBox<>(rooms.toArray(Room[]::new));
     room.setRenderer(
         new DefaultListCellRenderer() {
@@ -766,11 +780,50 @@ public final class RentalPanel extends JPanel {
           }
         });
     JComboBox<Tenant> tenant = new JComboBox<>(people.toArray(Tenant[]::new));
+    tenant.setName("rental-tenant");
+    if (preferredRoom != null)
+      for (int i = 0; i < room.getItemCount(); i++)
+        if (room.getItemAt(i).id() == preferredRoom) room.setSelectedIndex(i);
+    JPanel tenantChoice = new JPanel(new BorderLayout(8, 0));
+    tenantChoice.setOpaque(false);
+    tenantChoice.add(tenant);
+    tenantChoice.add(
+        Ui.button(
+            "+ Thêm người thuê",
+            () -> {
+              Set<Long> before = new HashSet<>();
+              for (int i = 0; i < tenant.getItemCount(); i++) before.add(tenant.getItemAt(i).id());
+              Tenant previous = (Tenant) tenant.getSelectedItem();
+              tenantForm(null);
+              try {
+                List<Tenant> updated = rentals.tenants();
+                tenant.removeAllItems();
+                updated.forEach(tenant::addItem);
+                Tenant selected =
+                    updated.stream()
+                        .filter(person -> !before.contains(person.id()))
+                        .findFirst()
+                        .orElse(previous);
+                if (selected != null)
+                  updated.stream()
+                      .filter(person -> person.id() == selected.id())
+                      .findFirst()
+                      .ifPresent(tenant::setSelectedItem);
+              } catch (Exception ex) {
+                Ui.error(owner, ex);
+              }
+            }),
+        BorderLayout.EAST);
     if (preferredTenant != null)
       for (int i = 0; i < tenant.getItemCount(); i++)
         if (tenant.getItemAt(i).id() == preferredTenant) tenant.setSelectedIndex(i);
-    JTextField start = new JTextField(LocalDate.now().toString()),
-        end = new JTextField(LocalDate.now().plusYears(1).minusDays(1).toString()),
+    LocalDate proposedStart = LocalDate.now();
+    String lastInvoice = repository.latestMonth(((Room) room.getSelectedItem()).id());
+    if (lastInvoice != null
+        && !YearMonth.parse(lastInvoice).isBefore(YearMonth.from(proposedStart)))
+      proposedStart = YearMonth.parse(lastInvoice).plusMonths(1).atDay(1);
+    JTextField start = new JTextField(proposedStart.toString()),
+        end = new JTextField(proposedStart.plusYears(1).minusDays(1).toString()),
         rent = new JTextField("2000000"),
         deposit = new JTextField("2000000");
     JSpinner due = new JSpinner(new SpinnerNumberModel(5, 1, 28, 1));
@@ -787,7 +840,7 @@ public final class RentalPanel extends JPanel {
     JTextArea fees = new JTextArea("Internet=100000\nVệ sinh=30000", 4, 28);
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Phòng", room);
-    Ui.field(fields, 1, "Người thuê đại diện", tenant);
+    Ui.field(fields, 1, "Người thuê đại diện", tenantChoice);
     Ui.field(
         fields, 2, "Ngày vào ở · YYYY-MM-DD", vn.nhatrohomu.shared.DatePicker.field(start, false));
     Ui.field(
@@ -827,11 +880,14 @@ public final class RentalPanel extends JPanel {
                     Tiền trả trước cho tháng sau khác tiền cọc. Bản này chưa có sổ trả trước hoặc khoản nợ phát sinh độc lập; không ghi phần thừa thành tiền đã thu của hóa đơn hiện tại.
                     """)));
     form(
-        "Tạo hợp đồng thuê",
+        "Cho thuê phòng · thông tin thỏa thuận",
         fields,
         () -> {
           Room selected = (Room) room.getSelectedItem();
           Tenant person = (Tenant) tenant.getSelectedItem();
+          if (person == null)
+            throw new IllegalArgumentException(
+                "Chọn hoặc thêm người thuê đại diện ngay trong màn hình này.");
           rentals.createContract(
               new Contract(
                   0,

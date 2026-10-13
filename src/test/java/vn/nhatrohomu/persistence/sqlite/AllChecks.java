@@ -17,6 +17,7 @@ public final class AllChecks {
       System.out.println("SKIP: Swing checks require a desktop session.");
     else {
       DisplayTest.main(new String[0]);
+      InvoiceWorkflowTest.main(new String[0]);
       GuiSmokeTest.main(new String[0]);
     }
   }

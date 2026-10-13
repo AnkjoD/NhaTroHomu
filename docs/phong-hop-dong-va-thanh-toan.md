@@ -4,7 +4,11 @@
 
 Phòng lưu tên căn phòng, chỉ số đầu kỳ và cách tính nước. Người thuê lưu họ tên, liên hệ, giấy tờ và người ở cùng. Hợp đồng gắn người thuê với phòng trong một khoảng thời gian, đồng thời lưu giá thuê, cọc, ngày thu và phí định kỳ. Vì giá có thể đổi giữa các lần thuê, giá thuê hiện nằm trong hợp đồng, không nằm trong thông tin đồng hồ của phòng.
 
-Luồng thông thường: thêm phòng → thêm người thuê → tạo hợp đồng → lập hóa đơn từng kỳ → ghi tiền thực nhận. Thẻ phòng hiện giá hợp đồng nếu có hợp đồng hiện tại. Nếu chỉ có hóa đơn lịch sử, thẻ ghi rõ tiền phòng của kỳ gần nhất; số này không tự thành giá hợp đồng mới.
+Luồng thông thường: thêm phòng → **Cho thuê phòng** → chọn người thuê đã có hoặc bấm **Thêm người thuê** ngay trong form → điền giá và thời hạn → lưu thỏa thuận → lập hóa đơn từng kỳ → ghi tiền thực nhận. Nút Cho thuê phòng nằm ở màn Phòng trọ và menu từng phòng; cũng có ở màn Hợp đồng. Không cần chuyển sang mục Người thuê để thêm hồ sơ. Hồ sơ người vừa thêm được lưu riêng; nếu hủy form cho thuê sau đó, hồ sơ vẫn còn để chọn lại. Thẻ phòng hiện giá hợp đồng nếu có hợp đồng hiện tại. Nếu chỉ có hóa đơn lịch sử, thẻ ghi rõ tiền phòng của kỳ gần nhất; số này không tự thành giá hợp đồng mới.
+
+Để lập hóa đơn: vào **Hóa đơn → Lập hóa đơn → chọn phòng**, hoặc bấm **Lập hóa đơn** ngay trên thẻ phòng. Nhập chỉ số mới của điện/nước (không nhập số điện đã dùng), kiểm tra kỳ, tiền phòng, phí, tổng tiền và xác nhận trước khi lưu. Số cũ lấy từ kỳ trước. Có thể chọn ảnh để OCR rồi sửa số; lưu hóa đơn chưa có nghĩa đã thu tiền, cần ghi lần thu thực nhận riêng.
+
+Màn Hóa đơn mặc định xem tháng mới nhất có dữ liệu. Dùng Tháng hóa đơn để chọn kỳ cũ hoặc Tất cả tháng. Tổng tiền phía dưới tính toàn phạm vi đã chọn, kể cả có nhiều trang. Xuất CSV tháng này xuất tất cả hóa đơn của tháng đang chọn; ở chế độ Tất cả tháng thì xuất toàn bộ. Các nút Xem hóa đơn/Thu tiền vẫn thao tác đúng hóa đơn đang chọn trong bảng hoặc thẻ.
 
 Hóa đơn là số tiền đã chốt của một tháng: tiền phòng + tiền điện + tiền nước + phí. Công nợ là số tiền hóa đơn còn thiếu sau các lần thu hợp lệ. Hết hợp đồng không làm biến mất hóa đơn hoặc nợ.
 

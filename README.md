@@ -2,9 +2,11 @@
 
 Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR Windows hoặc gói RapidOCR tùy chọn, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.8.3**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.8.4**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
 Hướng dẫn nghiệp vụ: [Phòng, hợp đồng, các trường ngày/cọc/phí và giới hạn sửa hóa đơn, trả trước](docs/phong-hop-dong-va-thanh-toan.md). Giá thuê đặt ở Hợp đồng; thẻ phòng ghi rõ giá hiện tại hoặc tiền của kỳ lịch sử. Thẻ có chiều cao riêng, bấm Xem đầy đủ / Thu gọn để mở và đóng nội dung; đổi bảng/thẻ trở về đầu danh sách.
+
+Màn Hóa đơn mặc định mở tháng mới nhất, có bộ chọn tháng và nút Lập hóa đơn trực tiếp. CSV xuất theo toàn bộ phạm vi tháng được chọn, không chỉ trang đang thấy. Nút Cho thuê phòng cho phép chọn hoặc thêm người thuê ngay trong form, giữ thông tin thỏa thuận khi mở hồ sơ mới; không cần chuyển trang để tạo người thuê trước.
 
 ![Báo cáo và đối soát — dữ liệu minh họa](docs/assets/reports.png)
 
@@ -12,7 +14,7 @@ Hướng dẫn nghiệp vụ: [Phòng, hợp đồng, các trường ngày/cọc
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.8.3-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.8.4-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
@@ -79,7 +81,7 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.8.3/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.8.4/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 

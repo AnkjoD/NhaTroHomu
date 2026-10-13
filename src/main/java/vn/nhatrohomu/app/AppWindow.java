@@ -31,6 +31,7 @@ public final class AppWindow extends JFrame {
   private final Path dataDirectory;
   private final JPanel body = new JPanel(new BorderLayout());
   private int historyPage;
+  private String invoiceMonth;
   private JLabel breadcrumb;
   private String currentPage = "Tổng quan";
 
@@ -84,7 +85,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.8.3", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.8.4", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -221,6 +222,10 @@ public final class AppWindow extends JFrame {
       JPanel heading =
           header("Phòng trọ", "Trạng thái thuê, chỉ số và hóa đơn của từng phòng.", null);
       JPanel addArea = Design.clear(new GridBagLayout());
+      addArea.add(
+          Ui.button(
+              "Cho thuê phòng",
+              () -> RentalPanel.letRoom(this, repository, null, this::showRooms)));
       addArea.add(Design.primary(Ui.button("+  Thêm phòng", () -> roomDialog(null))));
       heading.add(addArea, BorderLayout.EAST);
       top.add(heading, BorderLayout.NORTH);
@@ -399,6 +404,9 @@ public final class AppWindow extends JFrame {
     JMenuItem rental = new JMenuItem("Quản lý hợp đồng / nhận hoàn cọc");
     rental.addActionListener(e -> showContracts());
     popup.add(rental);
+    JMenuItem letRoom = new JMenuItem("Cho thuê phòng · chọn hoặc thêm người thuê");
+    letRoom.addActionListener(e -> RentalPanel.letRoom(this, repository, r.id(), this::showRooms));
+    popup.add(letRoom);
     JMenuItem waterPolicy = new JMenuItem("Đổi cách tính nước / số bàn giao");
     waterPolicy.addActionListener(
         e -> {
@@ -538,14 +546,33 @@ public final class AppWindow extends JFrame {
   private void showHistory() {
     selectNav("Hóa đơn");
     try {
-      int count = repository.billCount();
+      List<Bill> all =
+          repository.billsBetween("1900-01", "9999-12").stream()
+              .sorted(
+                  java.util.Comparator.comparing(Bill::month)
+                      .reversed()
+                      .thenComparing(Bill::roomName))
+              .toList();
+      List<String> months =
+          all.stream()
+              .map(Bill::month)
+              .distinct()
+              .sorted(java.util.Comparator.reverseOrder())
+              .toList();
+      if (invoiceMonth != null && !invoiceMonth.isBlank() && !months.contains(invoiceMonth))
+        invoiceMonth = null;
+      if (invoiceMonth == null && !months.isEmpty()) invoiceMonth = months.getFirst();
+      List<Bill> filtered =
+          invoiceMonth == null || invoiceMonth.isBlank()
+              ? all
+              : all.stream().filter(b -> b.month().equals(invoiceMonth)).toList();
+      int count = filtered.size();
       if (historyPage * 50 >= count) historyPage = Math.max(0, (count - 1) / 50);
-      List<Bill> bills = repository.bills(50, historyPage * 50);
+      List<Bill> bills = filtered.stream().skip(historyPage * 50L).limit(50).toList();
       Object[][] rows = new Object[bills.size()][7];
-      BigDecimal sum = BigDecimal.ZERO;
+      BigDecimal sum = filtered.stream().map(Bill::total).reduce(BigDecimal.ZERO, BigDecimal::add);
       for (int i = 0; i < bills.size(); i++) {
         Bill b = bills.get(i);
-        sum = sum.add(b.total());
         rows[i] =
             new Object[] {
               b.month(),
@@ -564,6 +591,22 @@ public final class AppWindow extends JFrame {
               new String[] {"Kỳ", "Phòng", "Tiền phòng", "Phí", "Tổng", "Thanh toán", "Ghi chú"},
               rows);
       JPanel a = actions();
+      JPanel filterBar = actions();
+      JComboBox<String> period = new JComboBox<>();
+      period.setName("invoice-period");
+      period.addItem("Tất cả tháng");
+      months.forEach(period::addItem);
+      period.setSelectedItem(
+          invoiceMonth == null || invoiceMonth.isBlank() ? "Tất cả tháng" : invoiceMonth);
+      period.addActionListener(
+          e -> {
+            invoiceMonth = period.getSelectedIndex() == 0 ? "" : (String) period.getSelectedItem();
+            historyPage = 0;
+            showHistory();
+          });
+      filterBar.add(new JLabel("Tháng hóa đơn"));
+      filterBar.add(period);
+      filterBar.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
       a.add(
           Ui.button(
               "Xem hóa đơn",
@@ -619,7 +662,12 @@ public final class AppWindow extends JFrame {
               .filter(c -> c instanceof JButton)
               .map(c -> (JButton) c)
               .toList());
-      a.add(Ui.button("Xuất CSV", this::exportCsv));
+      a.add(
+          Ui.button(
+              invoiceMonth == null || invoiceMonth.isBlank()
+                  ? "Xuất CSV toàn bộ"
+                  : "Xuất CSV tháng này",
+              this::exportCsv));
       a.add(Ui.refreshButton(this::showHistory));
       JPanel paging = actions();
       JButton
@@ -649,7 +697,9 @@ public final class AppWindow extends JFrame {
       next.setEnabled((historyPage + 1) * 50 < count);
       paging.add(
           new JLabel(
-              "Tổng trang: "
+              (invoiceMonth == null || invoiceMonth.isBlank()
+                      ? "Tất cả tháng · Tổng: "
+                      : "Tháng " + invoiceMonth + " · Tổng: ")
                   + Ui.money(sum)
                   + " · "
                   + count
@@ -657,13 +707,49 @@ public final class AppWindow extends JFrame {
                   + (historyPage + 1)));
       paging.add(back);
       paging.add(next);
-      show(
+      JPanel heading = Design.clear(new BorderLayout());
+      heading.add(
           header(
               "Rõ từng hóa đơn.",
               "Tiền phòng, phí, người thuê và đơn giá được giữ theo lúc lập hóa đơn.",
               a),
+          BorderLayout.NORTH);
+      heading.add(filterBar, BorderLayout.SOUTH);
+      show(
+          heading,
           new vn.nhatrohomu.shared.SelectionView(table, invoiceActions, 1, "invoices"),
           paging);
+    } catch (Exception ex) {
+      Ui.error(this, ex);
+    }
+  }
+
+  private void newInvoice() {
+    try {
+      List<Room> rooms = repository.rooms();
+      if (rooms.isEmpty()) throw new IllegalArgumentException("Thêm phòng trước khi lập hóa đơn.");
+      JComboBox<Room> choice = new JComboBox<>(rooms.toArray(Room[]::new));
+      choice.setRenderer(
+          new DefaultListCellRenderer() {
+            public Component getListCellRendererComponent(
+                JList<?> list, Object value, int index, boolean selected, boolean focus) {
+              return super.getListCellRendererComponent(
+                  list, value instanceof Room room ? room.name() : value, index, selected, focus);
+            }
+          });
+      if (JOptionPane.showConfirmDialog(
+              this, choice, "Chọn phòng để lập hóa đơn", JOptionPane.OK_CANCEL_OPTION)
+          != JOptionPane.OK_OPTION) return;
+      new ReadingDialog(
+              this,
+              repository,
+              (Room) choice.getSelectedItem(),
+              () -> {
+                invoiceMonth = null;
+                historyPage = 0;
+                showHistory();
+              })
+          .setVisible(true);
     } catch (Exception ex) {
       Ui.error(this, ex);
     }
@@ -811,21 +897,25 @@ public final class AppWindow extends JFrame {
   }
 
   private void exportCsv() {
+    String period = invoiceMonth;
     Path path = saveFile("nhatrohomu-hoa-don.csv");
     if (path == null) return;
     Ui.background(
         this,
         () -> {
-          java.util.List<Bill> all = new java.util.ArrayList<>();
-          for (int offset = 0; ; offset += 50) {
-            List<Bill> page = repository.bills(50, offset);
-            if (page.isEmpty()) break;
-            all.addAll(page);
-          }
+          List<Bill> all =
+              repository.billsBetween(
+                  period == null || period.isBlank() ? "1900-01" : period,
+                  period == null || period.isBlank() ? "9999-12" : period);
           vn.nhatrohomu.reporting.InvoiceCsv.write(path, all, repository);
           return true;
         },
-        ok -> JOptionPane.showMessageDialog(this, "Đã xuất toàn bộ hóa đơn CSV."));
+        ok ->
+            JOptionPane.showMessageDialog(
+                this,
+                period == null || period.isBlank()
+                    ? "Đã xuất toàn bộ hóa đơn CSV."
+                    : "Đã xuất hóa đơn tháng " + period + "."));
   }
 
   private void showSettings() {

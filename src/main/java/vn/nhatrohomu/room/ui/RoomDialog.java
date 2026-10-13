@@ -35,6 +35,17 @@ public final class RoomDialog extends JDialog {
     Ui.field(form, 3, "Nước ban đầu (m³)", water);
     Ui.field(form, 4, "Cách tính nước", mode);
     Ui.field(form, 5, "m³ riêng (trống = mặc định)", fixed);
+    JTextArea rentalHelp =
+        new JTextArea(
+            "Tiền phòng được đặt trong Hợp đồng thuê. Sau khi lưu phòng, thêm Người thuê rồi tạo"
+                + " Hợp đồng để gắn phòng, giá thuê và phí hàng tháng.",
+            3,
+            30);
+    rentalHelp.setEditable(false);
+    rentalHelp.setLineWrap(true);
+    rentalHelp.setWrapStyleWord(true);
+    rentalHelp.setOpaque(false);
+    Ui.field(form, 6, "Tiền phòng", rentalHelp);
     JLabel hint =
         new JLabel(
             hasBills

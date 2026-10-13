@@ -8,8 +8,9 @@ import javax.swing.*;
 public final class SelectionView extends JPanel {
   private final JTable table;
   private final List<JButton> actions;
-  private final JPanel cards = Design.clear(new GridLayout(0, 1, 12, 12));
+  private final JPanel cards = Design.clear(new BorderLayout());
   private final JPanel views = Design.clear(new CardLayout());
+  private final JScrollPane tableScroll, cardScroll;
   private int shown = 60;
   private final int titleColumn;
   private final JComboBox<String> layout = new JComboBox<>(new String[] {"Thẻ", "Bảng"});
@@ -20,17 +21,19 @@ public final class SelectionView extends JPanel {
     this.table = table;
     this.actions = List.copyOf(actions);
     this.titleColumn = titleColumn;
+    cards.setLayout(new BoxLayout(cards, BoxLayout.Y_AXIS));
     JPanel toolbar = Design.clear(new FlowLayout(FlowLayout.RIGHT, 6, 0));
     toolbar.add(new JLabel("Cách xem"));
     toolbar.add(layout);
     add(toolbar, BorderLayout.NORTH);
-    views.add(new JScrollPane(table), "Bảng");
+    tableScroll = new JScrollPane(table);
+    views.add(tableScroll, "Bảng");
     JPanel list = Design.clear(new BorderLayout());
     list.add(cards, BorderLayout.NORTH);
-    JScrollPane scroll = new JScrollPane(list);
-    scroll.getVerticalScrollBar().setUnitIncrement(24);
-    scroll.setBorder(BorderFactory.createEmptyBorder());
-    views.add(scroll, "Thẻ");
+    cardScroll = new JScrollPane(list);
+    cardScroll.getVerticalScrollBar().setUnitIncrement(24);
+    cardScroll.setBorder(BorderFactory.createEmptyBorder());
+    views.add(cardScroll, "Thẻ");
     add(views);
     java.util.prefs.Preferences preferences =
         java.util.prefs.Preferences.userRoot().node("vn/nhatrohomu/layout");
@@ -46,6 +49,7 @@ public final class SelectionView extends JPanel {
           if (!Boolean.getBoolean("nhatrohomu.ui.test"))
             preferences.put(key, (String) layout.getSelectedItem());
           display.run();
+          resetScroll();
         });
     table.getModel().addTableModelListener(e -> render());
     if (table.getRowSorter() != null)
@@ -84,6 +88,24 @@ public final class SelectionView extends JPanel {
 
   public void selectLayout(String value) {
     layout.setSelectedItem(value);
+  }
+
+  private void resetScroll() {
+    Runnable reset =
+        () -> {
+          JScrollPane current = layout.getSelectedItem().equals("Thẻ") ? cardScroll : tableScroll;
+          current.getViewport().setViewPosition(new Point(0, 0));
+          current.getVerticalScrollBar().setValue(0);
+          current.getHorizontalScrollBar().setValue(0);
+        };
+    reset.run();
+    SwingUtilities.invokeLater(reset);
+  }
+
+  private void refreshCards() {
+    cards.revalidate();
+    cardScroll.revalidate();
+    cardScroll.repaint();
   }
 
   private String value(int row, int col) {
@@ -130,7 +152,8 @@ public final class SelectionView extends JPanel {
     if (count == 0) cards.add(Design.label("Chưa có dữ liệu phù hợp.", 14, Design.MUTED, false));
     for (int view = 0; view < count; view++) {
       int row = table.convertRowIndexToModel(view);
-      JPanel card = Design.card(Design.SURFACE);
+      JPanel card = Design.card(Design.SURFACE, true);
+      card.setAlignmentX(Component.LEFT_ALIGNMENT);
       card.setLayout(new BorderLayout(0, 12));
       card.add(Design.label(value(row, titleColumn), 19, Design.INK, true), BorderLayout.NORTH);
       JPanel fields = Design.clear(new GridLayout(0, 2, 10, 6));
@@ -162,8 +185,6 @@ public final class SelectionView extends JPanel {
       }
       JPanel facts = Design.clear(new BorderLayout(0, 8));
       facts.add(fields, BorderLayout.NORTH);
-      extra.setVisible(false);
-      facts.add(extra);
       card.add(facts);
       JPanel buttons = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
       for (int i = 0; i < Math.min(2, actions.size()); i++) {
@@ -173,14 +194,22 @@ public final class SelectionView extends JPanel {
         if (i == 0) Design.primary(action);
         buttons.add(action);
       }
-      if (extra.getComponentCount() > 0)
-        buttons.add(
-            Ui.button(
-                "Xem đầy đủ",
-                () -> {
-                  extra.setVisible(!extra.isVisible());
-                  card.revalidate();
-                }));
+      if (extra.getComponentCount() > 0) {
+        JButton expand = new JButton("Xem đầy đủ");
+        expand.addActionListener(
+            e -> {
+              if (extra.getParent() == facts) {
+                facts.remove(extra);
+                expand.setText("Xem đầy đủ");
+              } else {
+                facts.add(extra, BorderLayout.CENTER);
+                expand.setText("Thu gọn");
+              }
+              facts.revalidate();
+              refreshCards();
+            });
+        buttons.add(expand);
+      }
       if (actions.size() > 2) {
         JPopupMenu menu = new JPopupMenu();
         for (JButton original : actions) {
@@ -200,6 +229,7 @@ public final class SelectionView extends JPanel {
       }
       if (!actions.isEmpty()) Ui.contextMenu(card, menu);
       card.add(buttons, BorderLayout.SOUTH);
+      if (cards.getComponentCount() > 0) cards.add(Box.createVerticalStrut(12));
       cards.add(card);
     }
     if (count < table.getRowCount())
@@ -210,7 +240,6 @@ public final class SelectionView extends JPanel {
                 shown += 60;
                 render();
               }));
-    cards.revalidate();
-    cards.repaint();
+    refreshCards();
   }
 }

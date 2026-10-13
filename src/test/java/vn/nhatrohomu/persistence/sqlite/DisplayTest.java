@@ -25,6 +25,28 @@ public final class DisplayTest {
     return null;
   }
 
+  static JScrollPane visibleScroll(Container parent) {
+    for (Component c : parent.getComponents()) {
+      if (c instanceof JScrollPane scroll && scroll.isShowing()) return scroll;
+      if (c instanceof Container nested) {
+        JScrollPane scroll = visibleScroll(nested);
+        if (scroll != null) return scroll;
+      }
+    }
+    return null;
+  }
+
+  static JTextArea text(Container parent, String value) {
+    for (Component c : parent.getComponents()) {
+      if (c instanceof JTextArea area && area.getText().equals(value)) return area;
+      if (c instanceof Container nested) {
+        JTextArea area = text(nested, value);
+        if (area != null) return area;
+      }
+    }
+    return null;
+  }
+
   public static void main(String[] args) throws Exception {
     SwingUtilities.invokeAndWait(
         () -> {
@@ -82,6 +104,91 @@ public final class DisplayTest {
           theme.doClick();
           check(change[0] == 1, "One switch sends one callback");
         });
+    JFrame[] frame = {null};
+    SelectionView[] cards = {null};
+    JPanel[] firstCard = {null};
+    int[] collapsed = {0}, listHeight = {0}, otherHeight = {0};
+    try {
+      SwingUtilities.invokeAndWait(
+          () -> {
+            Object[][] rows = new Object[12][8];
+            for (int i = 0; i < rows.length; i++)
+              rows[i] =
+                  new Object[] {
+                    "Kỳ " + i, "P01", "100", "200", "300", "400", "500", "extra-detail-" + i
+                  };
+            JTable data =
+                new JTable(
+                    new DefaultTableModel(
+                        rows,
+                        new String[] {
+                          "Kỳ",
+                          "Phòng",
+                          "Tổng",
+                          "Điện cũ",
+                          "Điện mới",
+                          "Nước cũ",
+                          "Nước mới",
+                          "Ghi chú"
+                        }));
+            cards[0] = new SelectionView(data, java.util.List.of(), 0, "test-expand");
+            cards[0].selectLayout("Thẻ");
+            frame[0] = new JFrame("Layout regression — synthetic data");
+            frame[0].add(cards[0]);
+            frame[0].setSize(720, 500);
+            frame[0].setVisible(true);
+          });
+      SwingUtilities.invokeAndWait(
+          () -> {
+            frame[0].validate();
+            JButton expand = find(cards[0], "Xem đầy đủ");
+            firstCard[0] = (JPanel) expand.getParent().getParent();
+            collapsed[0] = firstCard[0].getHeight();
+            JPanel list = (JPanel) firstCard[0].getParent();
+            listHeight[0] = list.getPreferredSize().height;
+            otherHeight[0] = list.getComponent(2).getHeight();
+            check(
+                text(firstCard[0], "extra-detail-0") == null,
+                "Collapsed fields are absent from layout");
+            expand.doClick();
+          });
+      SwingUtilities.invokeAndWait(
+          () -> {
+            RepaintManager.currentManager(frame[0]).validateInvalidComponents();
+            JTextArea detail = text(firstCard[0], "extra-detail-0");
+            check(
+                detail != null && detail.isShowing() && detail.getHeight() > 0,
+                "First expand click displays detail immediately");
+            check(firstCard[0].getHeight() > collapsed[0], "Expanded card grows");
+            check(
+                firstCard[0].getParent().getComponent(2).getHeight() == otherHeight[0],
+                "Expansion does not stretch other cards");
+            find(firstCard[0], "Thu gọn").doClick();
+          });
+      SwingUtilities.invokeAndWait(
+          () -> {
+            RepaintManager.currentManager(frame[0]).validateInvalidComponents();
+            check(
+                firstCard[0].getHeight() == collapsed[0],
+                "Collapse restores the original card height");
+            check(
+                firstCard[0].getParent().getPreferredSize().height == listHeight[0],
+                "Collapse removes blank space from the list");
+            visibleScroll(cards[0]).getVerticalScrollBar().setValue(500);
+            cards[0].selectLayout("Bảng");
+          });
+      SwingUtilities.invokeAndWait(() -> cards[0].selectLayout("Thẻ"));
+      SwingUtilities.invokeAndWait(
+          () ->
+              check(
+                  visibleScroll(cards[0]).getViewport().getViewPosition().equals(new Point(0, 0)),
+                  "Switching layouts resets scroll to the beginning"));
+    } finally {
+      SwingUtilities.invokeAndWait(
+          () -> {
+            if (frame[0] != null) frame[0].dispose();
+          });
+    }
     System.out.println(
         "PASS: " + checks + " calendar, shared layouts, filtering and theme checks.");
   }

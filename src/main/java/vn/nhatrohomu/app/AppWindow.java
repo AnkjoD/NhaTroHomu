@@ -84,7 +84,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.8.1", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.8.3", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -363,13 +363,14 @@ public final class AppWindow extends JFrame {
   private JPanel roomCard(Room r, Contract contract) throws Exception {
     Readings previous = repository.previous(r);
     String latest = repository.latestMonth(r.id());
-    boolean historicalRental =
-        latest != null
-            && repository.roomBills(r.id(), latest, latest).stream()
-                .anyMatch(b -> b.rent().signum() > 0);
+    Bill latestBill =
+        latest == null
+            ? null
+            : repository.roomBills(r.id(), latest, latest).stream().findFirst().orElse(null);
+    boolean historicalRental = latestBill != null && latestBill.rent().signum() > 0;
     JPanel card = Design.card(Design.SURFACE);
     card.setLayout(new BorderLayout(0, 18));
-    card.setPreferredSize(new Dimension(360, 252));
+    card.setPreferredSize(new Dimension(360, 300));
     JPanel top = Design.clear(new BorderLayout());
     JPanel identity = Ui.column();
     identity.setOpaque(false);
@@ -425,7 +426,21 @@ public final class AppWindow extends JFrame {
     menu.addActionListener(e -> popup.show(menu, 0, menu.getHeight()));
     top.add(menu, BorderLayout.EAST);
     card.add(top, BorderLayout.NORTH);
-    JPanel info = Design.clear(new GridLayout(2, 1, 0, 12));
+    JPanel info = Design.clear(new GridLayout(3, 1, 0, 12));
+    JPanel rentInfo =
+        metric(
+            "contract",
+            contract != null
+                ? "Giá thuê / tháng"
+                : historicalRental ? "Tiền phòng kỳ " + latest : "Giá thuê / tháng",
+            contract != null
+                ? Ui.money(contract.rent())
+                : historicalRental ? Ui.money(latestBill.rent()) : "Chưa có hợp đồng");
+    rentInfo.setToolTipText(
+        contract != null
+            ? "Giá trong hợp đồng hiện tại; tiền từng kỳ nằm trong hóa đơn."
+            : "Giá trên hóa đơn cũ không tự thành giá thuê mới. Thiết lập giá ở Hợp đồng.");
+    info.add(rentInfo);
     info.add(metric("bolt", "Chỉ số điện gần nhất", Ui.n(previous.electricity()) + " kWh"));
     info.add(
         metric(

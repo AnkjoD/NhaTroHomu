@@ -180,10 +180,21 @@ public final class Design {
   }
 
   public static JPanel card(Color fill) {
+    return card(fill, false);
+  }
+
+  public static JPanel card(Color fill, boolean fitHeight) {
     return new JPanel() {
       {
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+      }
+
+      @Override
+      public Dimension getMaximumSize() {
+        return fitHeight
+            ? new Dimension(Integer.MAX_VALUE, getPreferredSize().height)
+            : super.getMaximumSize();
       }
 
       protected void paintComponent(Graphics g) {

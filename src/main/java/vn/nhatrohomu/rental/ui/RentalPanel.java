@@ -774,6 +774,16 @@ public final class RentalPanel extends JPanel {
         rent = new JTextField("2000000"),
         deposit = new JTextField("2000000");
     JSpinner due = new JSpinner(new SpinnerNumberModel(5, 1, 28, 1));
+    start.setToolTipText(
+        "Ngày bắt đầu ở theo hợp đồng; tháng đầu không tự chia tiền theo số ngày.");
+    end.setToolTipText(
+        "Ngày cuối dự kiến của thời hạn thuê, tính cả ngày này. Không phải hạn đóng tiền và không"
+            + " tự xóa nợ.");
+    rent.setToolTipText("Giá thuê một tháng trong hợp đồng, chưa cộng điện, nước và các phí.");
+    deposit.setToolTipText(
+        "Mức cọc thỏa thuận. Sau khi tạo hợp đồng, ghi Nhận cọc riêng khi thực nhận tiền.");
+    due.setToolTipText(
+        "Hạn thanh toán hóa đơn hàng tháng (1–28). Tháng đầu không sớm hơn ngày vào ở.");
     JTextArea fees = new JTextArea("Internet=100000\nVệ sinh=30000", 4, 28);
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Phòng", room);
@@ -783,7 +793,7 @@ public final class RentalPanel extends JPanel {
     Ui.field(
         fields,
         3,
-        "Ngày hết hạn (gồm ngày này)",
+        "Ngày kết thúc dự kiến (gồm ngày này)",
         vn.nhatrohomu.shared.DatePicker.field(end, false));
     Ui.field(fields, 4, "Tiền phòng / tháng (đ)", rent);
     Ui.field(fields, 5, "Mức cọc cần nhận (đ)", deposit);
@@ -794,6 +804,28 @@ public final class RentalPanel extends JPanel {
         8,
         "Lưu ý",
         new JLabel("Một hợp đồng/phòng/tháng. Không tự chia tiền theo số ngày."));
+    Ui.field(
+        fields,
+        9,
+        "Cần giải thích?",
+        Ui.button(
+            "Giải thích các trường",
+            () ->
+                textDialog(
+                    "Hợp đồng và tiền phòng",
+                    """
+                    Phòng: căn phòng mà người này thuê.
+                    Người thuê đại diện: người đứng tên; người ở cùng được khai ở hồ sơ Người thuê.
+                    Ngày vào ở: ngày bắt đầu thời hạn thuê.
+                    Ngày kết thúc dự kiến: ngày cuối của thời hạn thuê, gồm cả ngày đó. Ví dụ 13/10/2026 đến 12/10/2027 là thời hạn một năm. Đây không phải hạn đóng tiền; hết hạn không xóa hóa đơn hoặc công nợ.
+                    Tiền phòng/tháng: giá thuê cơ bản, chưa gồm điện, nước và phí. Khi lập hóa đơn, có thể điều chỉnh tiền phòng kỳ đầu/cuối theo thỏa thuận và ghi lý do; app không tự tính theo ngày.
+                    Mức cọc cần nhận: mức đã thỏa thuận; tạo hợp đồng chưa có nghĩa đã nhận cọc. Ghi Nhận cọc riêng khi tiền thực sự được nhận.
+                    Ngày hạn thu mỗi tháng: ngày đến hạn thanh toán hóa đơn, từ 1 đến 28. Chọn 5 nghĩa là hạn ngày 5 hằng tháng; tháng đầu không lấy hạn trước ngày vào ở.
+                    Phí/tháng: phí lặp mỗi tháng, ví dụ Internet=100000 và Vệ sinh=30000. Không dùng mục này cho khoản phát sinh chỉ một lần.
+
+                    Người thuê là hồ sơ con người. Hợp đồng gắn người với phòng và giá thuê trong một khoảng thời gian. Hóa đơn chốt số tiền từng kỳ. Công nợ là phần hóa đơn chưa được thanh toán.
+                    Tiền trả trước cho tháng sau khác tiền cọc. Bản này chưa có sổ trả trước hoặc khoản nợ phát sinh độc lập; không ghi phần thừa thành tiền đã thu của hóa đơn hiện tại.
+                    """)));
     form(
         "Tạo hợp đồng thuê",
         fields,

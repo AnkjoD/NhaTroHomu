@@ -231,6 +231,43 @@ public final class Design {
         d.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         switch (kind) {
+          case "left" -> {
+            d.drawLine(15, 10, 5, 10);
+            d.drawLine(5, 10, 9, 6);
+            d.drawLine(5, 10, 9, 14);
+          }
+          case "right" -> {
+            d.drawLine(5, 10, 15, 10);
+            d.drawLine(15, 10, 11, 6);
+            d.drawLine(15, 10, 11, 14);
+          }
+          case "calendar" -> {
+            d.drawRoundRect(2, 4, 16, 14, 2, 2);
+            d.drawLine(2, 8, 18, 8);
+            d.drawLine(6, 2, 6, 6);
+            d.drawLine(14, 2, 14, 6);
+            d.drawLine(6, 12, 8, 12);
+            d.drawLine(12, 12, 14, 12);
+            d.drawLine(6, 15, 8, 15);
+          }
+          case "moon" -> {
+            java.awt.geom.Area shape =
+                new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(2, 2, 16, 16));
+            shape.subtract(
+                new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(9, -1, 15, 15)));
+            d.fill(shape);
+          }
+          case "sun" -> {
+            d.drawOval(6, 6, 8, 8);
+            for (int i = 0; i < 8; i++) {
+              double angle = i * Math.PI / 4;
+              d.drawLine(
+                  (int) (10 + 7 * Math.cos(angle)),
+                  (int) (10 + 7 * Math.sin(angle)),
+                  (int) (10 + 9 * Math.cos(angle)),
+                  (int) (10 + 9 * Math.sin(angle)));
+            }
+          }
           case "refresh" -> {
             d.drawArc(3, 3, 14, 14, 35, 285);
             d.drawLine(16, 2, 16, 7);

@@ -41,7 +41,7 @@ public final class ExpenseDialog extends JDialog {
     Ui.field(form, 0, "Phòng / toàn nhà", room);
     Ui.field(form, 1, "Loại chi", category);
     Ui.field(form, 2, "Số tiền nguyên đồng *", amount);
-    Ui.field(form, 3, "Ngày đã trả *", date);
+    Ui.field(form, 3, "Ngày đã trả *", vn.nhatrohomu.shared.DatePicker.field(date, false));
     Ui.field(form, 4, "Người/đơn vị nhận tiền *", payee);
     Ui.field(form, 5, "Phương thức", method);
     Ui.field(form, 6, "Ghi chú / mã chuyển khoản", note);

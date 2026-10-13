@@ -55,7 +55,7 @@ public final class ReadingDialog extends JDialog {
           .min(java.util.Comparator.comparing(Contract::startDate))
           .ifPresent(k -> month.setText(k.startDate().substring(0, 7)));
     JPanel form = Ui.form();
-    Ui.field(form, 0, "Kỳ (YYYY-MM)", month);
+    Ui.field(form, 0, "Kỳ (YYYY-MM)", vn.nhatrohomu.shared.DatePicker.field(month, true));
     Ui.field(form, 1, "Điện kỳ trước (kWh)", new JLabel(Ui.n(old.electricity())));
     Ui.field(form, 2, "Chỉ số điện mới", electricity);
     if (room.waterMode().equals("METER")) {
@@ -367,6 +367,21 @@ public final class ReadingDialog extends JDialog {
           });
       JPanel buttons = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 12));
       buttons.add(choose);
+      buttons.add(
+          Ui.button(
+              "Ảnh lớn / khoanh số",
+              () -> {
+                if (photo == null) {
+                  Ui.error(ReadingDialog.this, new IllegalArgumentException("Chọn ảnh trước."));
+                  return;
+                }
+                BufferedImage region = ImagePanel.chooseRegion(ReadingDialog.this, photo);
+                if (region != null) {
+                  preview.setImage(region);
+                  confirm.setSelected(false);
+                  status.setText("Đã chọn vùng OCR; ảnh gốc vẫn được giữ khi lưu hóa đơn.");
+                }
+              }));
       buttons.add(recognize);
       JPanel controls = Ui.column();
       controls.setOpaque(false);

@@ -2,7 +2,7 @@
 
 Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR của Windows, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.7.2**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.8.1**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
 ![Báo cáo và đối soát — dữ liệu minh họa](docs/assets/reports.png)
 
@@ -10,7 +10,7 @@ Phiên bản **0.7.2**. Phạm vi hiện tại: một người quản lý, một
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.7.2-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.8.1-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
@@ -77,7 +77,7 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.7.2/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.8.1/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 
@@ -110,3 +110,15 @@ Chọn dòng để hiện nút thao tác; chuột phải trên dòng để mở 
 ## Hóa đơn lịch sử nhập từ sổ cũ
 
 Schema 6 giữ tiền phòng lịch sử mà không dựng hợp đồng/người thuê chưa được cung cấp. Thành tiền nước gốc có thể khác lượng × giá; `water_amount` lưu riêng số tiền gốc, không đổi chỉ số hay đơn giá. Chỉ chứng từ có nhật ký IMPORT được phép dùng ngoại lệ này; hóa đơn thường vẫn bắt buộc tính đúng theo hợp đồng và đơn giá. Các số liệu khác biệt được ghi chú cần đối soát. Trạng thái đã thu cần chủ sổ xác nhận; nếu thiếu ngày nhận tiền thì để trống, báo cáo không tự gán vào ngày nhập. Khoản nợ chuyển kỳ không cộng hai lần. Nguồn Excel và dữ liệu thật giữ local, không nằm trong repo/bản phát hành.
+
+## Cách xem, ngày tháng và liên kết
+
+Danh sách có lựa chọn Thẻ / Bảng và nhớ cách xem trên máy; lọc, sắp xếp, thao tác và dữ liệu dùng chung. Thẻ có Xem đầy đủ để mở các trường phụ và Xem thêm khi danh sách dài. Dùng nút lịch bên ô ngày/kỳ hoặc nhập ISO như trước. Thanh Homura / Madoka đổi giao diện tối/sáng.
+
+Người thuê có cột phòng hiện tại/sắp thuê. Chọn Phòng / hợp đồng / hóa đơn để mở các liên kết qua ID hợp đồng và công nợ từng hóa đơn. Gắn phòng tạo hợp đồng với người thuê đã chọn; không gán theo tên giống nhau. Hóa đơn Excel chưa có tên/hợp đồng vẫn giữ độc lập, không tự gán sang người mới.
+
+OCR dùng Windows.Media.Ocr, chưa phải mô hình được huấn luyện riêng cho đồng hồ cơ khí. Ảnh lớn / khoanh số cho phép phóng và chọn vùng OCR, vẫn giữ ảnh gốc khi lưu. Kiểm thử một ảnh đồng hồ cơ khí thực tế chưa đọc được đúng dãy số, kể cả cắt vùng/tăng tương phản; chưa đánh giá độ chính xác trên tập ảnh đại diện. Khi không đọc được, nhập tay và xác nhận trước khi chốt.
+
+## Trả thiếu và thu nhiều lần
+
+Mở hóa đơn → Ghi nhận thu tiền, nhập đúng số tiền thực nhận và ngày nhận. Ô tiền không tự điền số còn thiếu để tránh ghi nhầm là đã thu đủ; nút Điền số còn thiếu chỉ điền ô, chưa ghi nhận. Sau khi ghi, app tự tính Còn thiếu và giữ trạng thái Đã thu một phần. Mỗi lần thu bổ sung vào cùng hóa đơn. Không cộng nợ tháng cũ thành một phí của hóa đơn tháng mới, vì công nợ đã tổng hợp các hóa đơn chưa đủ tiền. Khi nhận đủ, nút ghi thêm bị khóa. Đảo lần thu nhập nhầm sẽ mở lại đúng phần nợ; không dùng đảo thu để hoàn tiền thật.

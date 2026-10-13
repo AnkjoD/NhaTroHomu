@@ -57,7 +57,7 @@ public final class ReportPanel extends JPanel {
       Ui.error(this, ex);
     }
     filters.add(new JLabel("Tháng thu / kỳ kiểm tra"));
-    filters.add(month);
+    filters.add(vn.nhatrohomu.shared.DatePicker.field(month, true));
     filters.add(room);
     filters.add(Ui.refreshButton(this::load));
     filters.add(Ui.button("Xuất CSV", this::export));
@@ -66,6 +66,34 @@ public final class ReportPanel extends JPanel {
     add(tabs);
     room.addActionListener(e -> load());
     month.addActionListener(e -> load());
+    javax.swing.Timer applyMonth =
+        new javax.swing.Timer(
+            400,
+            e -> {
+              if (!isDisplayable()) return;
+              try {
+                DataRules.period(month.getText().trim());
+                load();
+              } catch (IllegalArgumentException ignored) {
+              }
+            });
+    applyMonth.setRepeats(false);
+    month
+        .getDocument()
+        .addDocumentListener(
+            new javax.swing.event.DocumentListener() {
+              public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                applyMonth.restart();
+              }
+
+              public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                applyMonth.restart();
+              }
+
+              public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                applyMonth.restart();
+              }
+            });
     load();
   }
 
@@ -106,7 +134,24 @@ public final class ReportPanel extends JPanel {
     text.setOpaque(false);
     text.setPreferredSize(new Dimension(600, 76));
     p.add(text, BorderLayout.NORTH);
-    p.add(new JScrollPane(table));
+    java.util.List<JButton> rowActions;
+    if (action instanceof JButton button) rowActions = java.util.List.of(button);
+    else if (action instanceof JPanel panel)
+      rowActions =
+          java.util.Arrays.stream(panel.getComponents())
+              .filter(c -> c instanceof JButton b && !b.getText().equals("Ghi khoản đã chi"))
+              .map(c -> (JButton) c)
+              .toList();
+    else rowActions = java.util.List.of();
+    p.add(
+        new vn.nhatrohomu.shared.SelectionView(
+            table,
+            rowActions,
+            java.util.stream.IntStream.range(0, table.getColumnCount())
+                .filter(col -> table.getColumnName(col).equals("Phòng"))
+                .findFirst()
+                .orElse(0),
+            "report-" + table.getColumnName(0) + "-" + table.getColumnCount()));
     if (action != null) p.add(action, BorderLayout.SOUTH);
     return p;
   }
@@ -381,11 +426,9 @@ public final class ReportPanel extends JPanel {
     try {
       JPanel panel = (JPanel) tabs.getSelectedComponent();
       JTable table =
-          (JTable)
-              ((JScrollPane)
-                      ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER))
-                  .getViewport()
-                  .getView();
+          ((vn.nhatrohomu.shared.SelectionView)
+                  ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER))
+              .table();
       StringBuilder out = new StringBuilder("\uFEFF");
       out.append(
               csv(

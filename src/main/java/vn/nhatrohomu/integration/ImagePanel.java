@@ -39,6 +39,54 @@ public final class ImagePanel extends JPanel {
     repaint();
   }
 
+  public static BufferedImage chooseRegion(java.awt.Window owner, BufferedImage source) {
+    javax.swing.JDialog dialog =
+        new javax.swing.JDialog(
+            owner, "Khoanh vùng chỉ số", java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+    ImagePanel canvas = new ImagePanel();
+    canvas.setImage(source);
+    javax.swing.JSlider zoom = new javax.swing.JSlider(50, 200, 100);
+    zoom.setToolTipText("Phóng ảnh 50%–200%");
+    Runnable resize =
+        () -> {
+          double factor = zoom.getValue() / 100.0;
+          canvas.setPreferredSize(
+              new Dimension(
+                  (int) (source.getWidth() * factor) + 12,
+                  (int) (source.getHeight() * factor) + 12));
+          canvas.revalidate();
+        };
+    zoom.addChangeListener(e -> resize.run());
+    resize.run();
+    javax.swing.JPanel root = new javax.swing.JPanel(new BorderLayout(8, 10));
+    root.setBorder(javax.swing.BorderFactory.createEmptyBorder(14, 14, 14, 14));
+    javax.swing.JPanel top = new javax.swing.JPanel(new BorderLayout(8, 8));
+    top.add(
+        new javax.swing.JLabel("Kéo khoanh riêng dãy số cần đọc; kéo thanh cuộn để xem vùng khác."),
+        BorderLayout.NORTH);
+    top.add(zoom);
+    root.add(top, BorderLayout.NORTH);
+    root.add(new javax.swing.JScrollPane(canvas));
+    BufferedImage[] result = {null};
+    javax.swing.JPanel buttons = new javax.swing.JPanel(new FlowLayout(FlowLayout.RIGHT));
+    buttons.add(Ui.button("Hủy", dialog::dispose));
+    buttons.add(
+        Design.primary(
+            Ui.button(
+                "Dùng vùng đã chọn",
+                () -> {
+                  result[0] = canvas.selected();
+                  dialog.dispose();
+                })));
+    root.add(buttons, BorderLayout.SOUTH);
+    dialog.setContentPane(root);
+    Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+    dialog.setSize(Math.min(1000, screen.width - 80), Math.min(760, screen.height - 80));
+    dialog.setLocationRelativeTo(owner);
+    dialog.setVisible(true);
+    return result[0];
+  }
+
   private double scale() {
     return image == null
         ? 1

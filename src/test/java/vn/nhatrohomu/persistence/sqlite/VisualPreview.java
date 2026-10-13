@@ -48,6 +48,7 @@ public final class VisualPreview {
   }
 
   public static void main(String[] args) throws Exception {
+    System.setProperty("nhatrohomu.ui.test", "true");
     Path temp = Files.createTempDirectory("nhatrohomu-visual-");
     Path output = Path.of(args[0]);
     Files.createDirectories(output);
@@ -185,11 +186,12 @@ public final class VisualPreview {
                 navigation.invoke(app);
                 RentalPanel panel = (RentalPanel) find(app.getContentPane(), RentalPanel.class);
                 for (String fieldName :
-                    new String[] {"tenants", "contracts", "debts", "balances"}) {
+                    new String[] {"tenants", "contracts", "debts", "balances", "tenantContracts"}) {
                   var field = RentalPanel.class.getDeclaredField(fieldName);
                   field.setAccessible(true);
                   Object value;
-                  if (fieldName.equals("tenants")) value = repo.rentals().tenants();
+                  if (fieldName.equals("tenantContracts")) value = repo.rentals().contracts();
+                  else if (fieldName.equals("tenants")) value = repo.rentals().tenants();
                   else if (fieldName.equals("contracts")) value = repo.rentals().contracts();
                   else if (fieldName.equals("debts")) value = repo.outstandingBills();
                   else {

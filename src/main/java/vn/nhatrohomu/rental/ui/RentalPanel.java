@@ -29,6 +29,8 @@ public final class RentalPanel extends JPanel {
   private final RentalRepository rentals;
   private final Page page;
   private final JFrame owner;
+  private final java.util.function.Consumer<Bill> showBill;
+  private List<Contract> tenantContracts = List.of();
   private JTable table;
   private List<Tenant> tenants = List.of();
   private List<Contract> contracts = List.of();
@@ -37,11 +39,27 @@ public final class RentalPanel extends JPanel {
   private boolean refreshPending;
   private Map<Long, BigDecimal> balances = Map.of();
 
-  private record PanelData(Object items, Map<Long, BigDecimal> balances) {}
+  private record PanelData(Object items, Map<Long, BigDecimal> balances, List<Contract> links) {}
 
   public RentalPanel(JFrame owner, Repository repository, Page page) {
+    this(
+        owner,
+        repository,
+        page,
+        bill -> {
+          try {
+            new PaymentDialog(owner, repository, bill).setVisible(true);
+          } catch (Exception ex) {
+            Ui.error(owner, ex);
+          }
+        });
+  }
+
+  public RentalPanel(
+      JFrame owner, Repository repository, Page page, java.util.function.Consumer<Bill> showBill) {
     super(new BorderLayout(0, 18));
     this.owner = owner;
+    this.showBill = showBill;
     this.repository = repository;
     this.rentals = repository.rentals();
     this.page = page;
@@ -74,7 +92,8 @@ public final class RentalPanel extends JPanel {
             Bill bill = (Bill) value;
             amounts.put(bill.id(), repository.received(bill.id()));
           }
-        return new PanelData(items, amounts);
+        return new PanelData(
+            items, amounts, page == Page.TENANTS ? rentals.contracts() : List.of());
       }
 
       @SuppressWarnings("unchecked")
@@ -85,6 +104,7 @@ public final class RentalPanel extends JPanel {
           PanelData loaded = get();
           Object data = loaded.items();
           balances = loaded.balances();
+          tenantContracts = loaded.links();
           switch (page) {
             case TENANTS -> tenants = (List<Tenant>) data;
             case CONTRACTS -> contracts = (List<Contract>) data;
@@ -130,7 +150,11 @@ public final class RentalPanel extends JPanel {
       actions.add(
           Ui.button("Hồ sơ / người ở cùng", () -> safe(() -> tenantForm(tenants.get(selected())))));
       actions.add(
-          Ui.button("Lịch sử thuê", () -> safe(() -> tenantHistory(tenants.get(selected())))));
+          Ui.button(
+              "Phòng / hợp đồng / hóa đơn",
+              () -> safe(() -> tenantConnections(tenants.get(selected())))));
+      actions.add(
+          Ui.button("Gắn phòng", () -> safe(() -> contractForm(tenants.get(selected()).id()))));
       actions.add(
           Ui.button(
               "Lưu trữ",
@@ -149,12 +173,21 @@ public final class RentalPanel extends JPanel {
               .map(
                   t ->
                       new Object[] {
-                        t.id(), t.name(), t.phone(), t.zaloContact(), t.residents().size(), t.note()
+                        t.id(),
+                        t.name(),
+                        currentRooms(t.id()),
+                        t.phone(),
+                        t.zaloContact(),
+                        t.residents().size(),
+                        t.note()
                       })
               .toArray(Object[][]::new);
       table =
           table(
-              new String[] {"Mã", "Họ tên", "Điện thoại", "Zalo", "Người ở cùng", "Ghi chú"}, rows);
+              new String[] {
+                "Mã", "Họ tên", "Phòng đang thuê", "Điện thoại", "Zalo", "Người ở cùng", "Ghi chú"
+              },
+              rows);
     } else if (page == Page.CONTRACTS) {
       actions.add(Design.primary(Ui.button("+ Hợp đồng", () -> safe(this::contractForm))));
       actions.add(
@@ -255,6 +288,11 @@ public final class RentalPanel extends JPanel {
               },
               rows);
     }
+    List<JButton> rowActions =
+        Arrays.stream(actions.getComponents())
+            .filter(c -> c instanceof JButton b && !b.getText().startsWith("+"))
+            .map(c -> (JButton) c)
+            .toList();
     vn.nhatrohomu.shared.RowActions.install(
         table,
         Arrays.stream(actions.getComponents())
@@ -295,7 +333,7 @@ public final class RentalPanel extends JPanel {
             });
     JPanel main = Design.clear(new BorderLayout(0, 12));
     main.add(search, BorderLayout.NORTH);
-    main.add(new JScrollPane(table));
+    main.add(new vn.nhatrohomu.shared.SelectionView(table, rowActions, 1, "rental-" + page.name()));
     add(main);
     add(
         Design.label(
@@ -375,6 +413,41 @@ public final class RentalPanel extends JPanel {
     dialog.setVisible(true);
   }
 
+  private void residentForm(JTable roster, DefaultTableModel members, int row) {
+    if (roster.isEditing() && !roster.getCellEditor().stopCellEditing()) return;
+    JTextField[] inputs = new JTextField[5];
+    for (int i = 0; i < 5; i++)
+      inputs[i] =
+          new JTextField(row < 0 ? "" : Objects.toString(members.getValueAt(row, i), ""), 22);
+    JPanel fields = Ui.form();
+    String[] labels = {"Họ tên", "Quan hệ", "Ngày sinh YYYY-MM-DD", "CCCD / giấy tờ", "Điện thoại"};
+    for (int i = 0; i < 5; i++)
+      Ui.field(
+          fields,
+          i,
+          labels[i],
+          i == 2 ? vn.nhatrohomu.shared.DatePicker.field(inputs[i], false) : inputs[i]);
+    while (JOptionPane.showConfirmDialog(
+            roster,
+            fields,
+            row < 0 ? "Thêm người ở cùng" : "Sửa người ở cùng",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE)
+        == JOptionPane.OK_OPTION) {
+      try {
+        String[] values =
+            Arrays.stream(inputs).map(field -> field.getText().trim()).toArray(String[]::new);
+        vn.nhatrohomu.shared.TenantRules.resident(
+            new Resident(values[0], values[1], values[2], values[3], values[4]));
+        if (row < 0) members.addRow(values);
+        else for (int i = 0; i < 5; i++) members.setValueAt(values[i], row, i);
+        return;
+      } catch (IllegalArgumentException ex) {
+        Ui.error(roster, ex);
+      }
+    }
+  }
+
   private void tenantForm(Tenant tenant) {
     Tenant value = tenant == null ? new Tenant(0, "", "", "", true) : tenant;
     JTextField name = new JTextField(value.name(), 25),
@@ -419,7 +492,11 @@ public final class RentalPanel extends JPanel {
     Ui.field(fields, 2, "Tự điền Zalo", auto);
     Ui.field(fields, 3, "Số Zalo (chưa xác minh tài khoản)", zalo);
     Ui.field(fields, 4, "CCCD / giấy tờ (tùy chọn)", identity);
-    Ui.field(fields, 5, "Ngày sinh YYYY-MM-DD (tùy chọn)", birthday);
+    Ui.field(
+        fields,
+        5,
+        "Ngày sinh YYYY-MM-DD (tùy chọn)",
+        vn.nhatrohomu.shared.DatePicker.field(birthday, false));
     Ui.field(fields, 6, "Địa chỉ thường trú", address);
     Ui.field(fields, 7, "Ghi chú", new JScrollPane(note));
     DefaultTableModel members =
@@ -451,8 +528,7 @@ public final class RentalPanel extends JPanel {
     family.add(help, BorderLayout.NORTH);
     family.add(new JScrollPane(roster));
     JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    controls.add(
-        Ui.button("+ Người ở cùng", () -> members.addRow(new Object[] {"", "", "", "", ""})));
+    controls.add(Ui.button("+ Người ở cùng", () -> residentForm(roster, members, -1)));
     JButton removeMember =
         Ui.button(
             "Xóa dòng",
@@ -460,8 +536,11 @@ public final class RentalPanel extends JPanel {
               if (roster.isEditing() && !roster.getCellEditor().stopCellEditing()) return;
               if (roster.getSelectedRow() >= 0) members.removeRow(roster.getSelectedRow());
             });
+    JButton editMember =
+        Ui.button("Sửa người ở cùng", () -> residentForm(roster, members, roster.getSelectedRow()));
+    controls.add(editMember);
     controls.add(removeMember);
-    vn.nhatrohomu.shared.RowActions.install(roster, List.of(removeMember), false);
+    vn.nhatrohomu.shared.RowActions.install(roster, List.of(editMember, removeMember), false);
     family.add(controls, BorderLayout.SOUTH);
     family.setPreferredSize(new Dimension(580, 280));
     JTabbedPane tabs = new JTabbedPane();
@@ -498,6 +577,158 @@ public final class RentalPanel extends JPanel {
         });
   }
 
+  private String currentRooms(long tenantId) {
+    String rooms =
+        String.join(
+            ", ",
+            tenantContracts.stream()
+                .filter(k -> k.tenantId() == tenantId && k.covers(LocalDate.now()))
+                .map(Contract::roomName)
+                .toList());
+    if (!rooms.isBlank()) return rooms;
+    String future =
+        String.join(
+            ", ",
+            tenantContracts.stream()
+                .filter(
+                    k ->
+                        k.tenantId() == tenantId
+                            && RentalService.date(k.startDate()).isAfter(LocalDate.now()))
+                .map(Contract::roomName)
+                .toList());
+    return future.isBlank() ? "Chưa có hợp đồng đang hiệu lực" : "Sắp thuê: " + future;
+  }
+
+  private void tenantConnections(Tenant tenant) {
+    JDialog dialog = new JDialog(owner, "Liên kết · " + tenant.name(), true);
+    JPanel root = new JPanel(new BorderLayout(0, 12));
+    root.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
+    root.add(
+        Design.label(
+            tenant.name() + " · phòng, hợp đồng, hóa đơn và công nợ", 18, Design.INK, true),
+        BorderLayout.NORTH);
+    JTabbedPane tabs = new JTabbedPane();
+    root.add(tabs);
+    JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    bottom.add(
+        Ui.button(
+            "Gắn phòng / tạo hợp đồng",
+            () ->
+                safe(
+                    () -> {
+                      contractForm(tenant.id());
+                      dialog.dispose();
+                    })));
+    bottom.add(Ui.button("Đóng", dialog::dispose));
+    root.add(bottom, BorderLayout.SOUTH);
+    dialog.setContentPane(root);
+    dialog.setSize(950, 650);
+    dialog.setLocationRelativeTo(owner);
+    record Links(List<Contract> contracts, List<Bill> bills, Map<Long, BigDecimal> received) {}
+    Ui.background(
+        dialog,
+        () -> {
+          List<Contract> links =
+              rentals.contracts().stream().filter(k -> k.tenantId() == tenant.id()).toList();
+          Set<Long> ids = new HashSet<>();
+          for (Contract k : links) ids.add(k.id());
+          List<Bill> invoices =
+              repository.billsBetween("1900-01", "9999-12").stream()
+                  .filter(b -> b.contractId() != null && ids.contains(b.contractId()))
+                  .toList();
+          Map<Long, BigDecimal> received = new HashMap<>();
+          for (Bill b : invoices) received.put(b.id(), repository.received(b.id()));
+          return new Links(links, invoices, received);
+        },
+        data -> {
+          Object[][] rows =
+              data.contracts().stream()
+                  .map(
+                      k ->
+                          new Object[] {
+                            k.id(),
+                            k.roomName(),
+                            k.startDate(),
+                            k.effectiveEnd(),
+                            Ui.money(k.rent()),
+                            k.status()
+                          })
+                  .toArray(Object[][]::new);
+          JTable linked =
+              table(
+                  new String[] {"Hợp đồng", "Phòng", "Vào ở", "Đến", "Tiền phòng", "Trạng thái"},
+                  rows);
+          JButton contract =
+              Ui.button(
+                  "Xem hợp đồng",
+                  () ->
+                      safe(
+                          () ->
+                              contractDetails(
+                                  data.contracts()
+                                      .get(
+                                          linked.convertRowIndexToModel(
+                                              linked.getSelectedRow())))));
+          vn.nhatrohomu.shared.RowActions.install(linked, List.of(contract));
+          tabs.addTab(
+              "Phòng & hợp đồng",
+              new vn.nhatrohomu.shared.SelectionView(
+                  linked, List.of(contract), 1, "tenant-contracts"));
+          Object[][] bills =
+              data.bills().stream()
+                  .map(
+                      b ->
+                          new Object[] {
+                            b.id(),
+                            b.roomName(),
+                            b.month(),
+                            Ui.money(b.total()),
+                            Ui.money(data.received().get(b.id())),
+                            Ui.money(b.total().subtract(data.received().get(b.id())))
+                          })
+                  .toArray(Object[][]::new);
+          JTable invoice =
+              table(new String[] {"Hóa đơn", "Phòng", "Kỳ", "Tổng", "Đã thu", "Còn thiếu"}, bills);
+          JButton detail =
+              Ui.button(
+                  "Xem hóa đơn",
+                  () -> {
+                    int row = invoice.convertRowIndexToModel(invoice.getSelectedRow());
+                    showBill.accept(data.bills().get(row));
+                  });
+          JButton collect =
+              Ui.button(
+                  "Thu tiền",
+                  () ->
+                      safe(
+                          () -> {
+                            int row = invoice.convertRowIndexToModel(invoice.getSelectedRow());
+                            Bill b = data.bills().get(row);
+                            new PaymentDialog(owner, repository, b).setVisible(true);
+                            BigDecimal received = repository.received(b.id());
+                            invoice.getModel().setValueAt(Ui.money(received), row, 4);
+                            invoice
+                                .getModel()
+                                .setValueAt(Ui.money(b.total().subtract(received)), row, 5);
+                            refresh();
+                          }));
+          vn.nhatrohomu.shared.RowActions.install(invoice, List.of(detail, collect));
+          tabs.addTab(
+              "Hóa đơn & công nợ",
+              new vn.nhatrohomu.shared.SelectionView(
+                  invoice, List.of(detail, collect), 1, "tenant-invoices"));
+          if (data.contracts().isEmpty())
+            root.add(
+                new JLabel(
+                    "Người thuê chưa được gắn phòng. Tạo hợp đồng để liên kết; không tự gán hóa đơn"
+                        + " Excel thiếu tên."),
+                BorderLayout.NORTH);
+          dialog.revalidate();
+          dialog.repaint();
+        });
+    dialog.setVisible(true);
+  }
+
   private void tenantHistory(Tenant tenant) throws Exception {
     StringBuilder text =
         new StringBuilder(tenant.name() + "\nĐiện thoại: " + tenant.phone() + "\n");
@@ -517,6 +748,10 @@ public final class RentalPanel extends JPanel {
   }
 
   private void contractForm() throws Exception {
+    contractForm(null);
+  }
+
+  private void contractForm(Long preferredTenant) throws Exception {
     List<Room> rooms = repository.rooms();
     List<Tenant> people = rentals.tenants();
     if (rooms.isEmpty() || people.isEmpty())
@@ -531,6 +766,9 @@ public final class RentalPanel extends JPanel {
           }
         });
     JComboBox<Tenant> tenant = new JComboBox<>(people.toArray(Tenant[]::new));
+    if (preferredTenant != null)
+      for (int i = 0; i < tenant.getItemCount(); i++)
+        if (tenant.getItemAt(i).id() == preferredTenant) tenant.setSelectedIndex(i);
     JTextField start = new JTextField(LocalDate.now().toString()),
         end = new JTextField(LocalDate.now().plusYears(1).minusDays(1).toString()),
         rent = new JTextField("2000000"),
@@ -540,8 +778,13 @@ public final class RentalPanel extends JPanel {
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Phòng", room);
     Ui.field(fields, 1, "Người thuê đại diện", tenant);
-    Ui.field(fields, 2, "Ngày vào ở · YYYY-MM-DD", start);
-    Ui.field(fields, 3, "Ngày hết hạn (gồm ngày này)", end);
+    Ui.field(
+        fields, 2, "Ngày vào ở · YYYY-MM-DD", vn.nhatrohomu.shared.DatePicker.field(start, false));
+    Ui.field(
+        fields,
+        3,
+        "Ngày hết hạn (gồm ngày này)",
+        vn.nhatrohomu.shared.DatePicker.field(end, false));
     Ui.field(fields, 4, "Tiền phòng / tháng (đ)", rent);
     Ui.field(fields, 5, "Mức cọc cần nhận (đ)", deposit);
     Ui.field(fields, 6, "Ngày hạn thu mỗi tháng", due);
@@ -624,7 +867,7 @@ public final class RentalPanel extends JPanel {
   private void closeForm(Contract contract) {
     JTextField date = new JTextField(LocalDate.now().toString(), 20);
     JPanel fields = Ui.form();
-    Ui.field(fields, 0, "Ngày kết thúc thuê", date);
+    Ui.field(fields, 0, "Ngày kết thúc thuê", vn.nhatrohomu.shared.DatePicker.field(date, false));
     Ui.field(
         fields,
         1,
@@ -686,7 +929,7 @@ public final class RentalPanel extends JPanel {
     JPanel fields = Ui.form();
     Ui.field(fields, 0, "Loại", kind);
     Ui.field(fields, 1, "Số tiền nguyên đồng", amount);
-    Ui.field(fields, 2, "Ngày · YYYY-MM-DD", date);
+    Ui.field(fields, 2, "Ngày · YYYY-MM-DD", vn.nhatrohomu.shared.DatePicker.field(date, false));
     Ui.field(fields, 3, "Ghi chú", note);
     JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
     buttons.add(

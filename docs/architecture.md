@@ -90,3 +90,9 @@ Lịch sử phòng truy vấn theo `room_id` và khoảng kỳ, chỉ lấy hóa
 ### Ngoại lệ lịch sử (v6)
 
 `bills.water_amount` nullable là thành tiền nước gốc đã chốt từ nguồn; khi NULL dùng lượng × đơn giá. `bills_no_rewrite` bảo vệ trường này. Validator yêu cầu nhật ký `IMPORT` trỏ tới đúng ID hóa đơn để chấp nhận số tiền gốc hoặc tiền phòng lịch sử không có hợp đồng. Các API lập hóa đơn thông thường không cho nhập ngoại lệ. Nâng cấp v5 → v6 có backup, giữ trigger phiên bản cũ để kiểm tra backup v4/v5 trước nâng cấp.
+
+### Bố cục và nhập ngày (v0.8)
+
+`SelectionView` hiển thị cùng JTable model/RowSorter bằng thẻ hoặc bảng, không tạo một bộ dữ liệu riêng. Hành động thẻ chuyển model row sang view row trước khi chạy action chung. Danh sách dài tải thêm thẻ theo nhóm 60 để giảm số component; bảng/CSV vẫn giữ toàn bộ dữ liệu đã lọc. Lựa chọn bố cục lưu bằng Java Preferences trên máy.
+
+`DatePicker` dùng java.time, chỉ thay ô ISO khi người dùng chọn; các kiểm tra nghiệp vụ tiếp tục ở DataRules. `ThemeSwitch` phát lựa chọn cho AppWindow lưu theme.txt. Liên kết người thuê sử dụng tenant_id → contract → room_id, và bill.contract_id; không suy ra theo tên hoặc gán tự động chứng từ nhập.

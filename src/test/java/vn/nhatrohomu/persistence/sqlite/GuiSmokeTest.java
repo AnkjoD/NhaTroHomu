@@ -25,6 +25,7 @@ public final class GuiSmokeTest {
   }
 
   public static void main(String[] args) throws Exception {
+    System.setProperty("nhatrohomu.ui.test", "true");
     Path temp = Files.createTempDirectory("nhatrohomu-gui-test-");
     try {
       SqliteRepository repo = new SqliteRepository(temp.resolve("test.db"));
@@ -107,8 +108,8 @@ public final class GuiSmokeTest {
                   new java.util.function.Consumer<>() {
                     public void accept(java.awt.Container c) {
                       for (java.awt.Component child : c.getComponents()) {
-                        if (child instanceof JButton b && b.getText().equals("Homura · Tối")) {
-                          b.doClick();
+                        if (child instanceof vn.nhatrohomu.shared.ThemeSwitch theme) {
+                          theme.choose(Design.Mode.HOMURA);
                           return;
                         }
                         if (child instanceof java.awt.Container nested) accept(nested);
@@ -143,6 +144,41 @@ public final class GuiSmokeTest {
                   || preview.total().compareTo(new BigDecimal("2100000")) != 0)
                 throw new AssertionError("Reading form did not include the rental contract");
               rentalBill.dispose();
+              repo.saveBill(preview, null, null);
+              Bill paymentBill = repo.bills(1, 0).getFirst();
+              var payment = new vn.nhatrohomu.billing.ui.PaymentDialog(app, repo, paymentBill);
+              var amountField = payment.getClass().getDeclaredField("amount");
+              amountField.setAccessible(true);
+              JTextField receivedInput = (JTextField) amountField.get(payment);
+              var saveField = payment.getClass().getDeclaredField("addReceipt");
+              saveField.setAccessible(true);
+              JButton saveReceipt = (JButton) saveField.get(payment);
+              var fillField = payment.getClass().getDeclaredField("fillRemaining");
+              fillField.setAccessible(true);
+              JButton fill = (JButton) fillField.get(payment);
+              if (!receivedInput.getText().isEmpty() || saveReceipt.isEnabled())
+                throw new AssertionError("Blank receipt must not be treated as paid in full");
+              fill.doClick();
+              if (!receivedInput.getText().equals(paymentBill.total().toPlainString())
+                  || repo.received(paymentBill.id()).signum() != 0)
+                throw new AssertionError("Filling amount must not record money");
+              receivedInput.setText("1500000");
+              if (!saveReceipt.isEnabled())
+                throw new AssertionError("Valid partial amount disabled");
+              receivedInput.setText("99999999");
+              if (saveReceipt.isEnabled()) throw new AssertionError("Overpayment enabled");
+              payment.dispose();
+              repo.addPayment(
+                  paymentBill.id(),
+                  paymentBill.total(),
+                  java.time.LocalDate.now().toString(),
+                  "Synthetic full receipt");
+              var settled = new vn.nhatrohomu.billing.ui.PaymentDialog(app, repo, paymentBill);
+              if (((JButton) saveField.get(settled)).isEnabled()
+                  || ((JButton) fillField.get(settled)).isEnabled())
+                throw new AssertionError("Fully paid invoice must disable adding receipts");
+              settled.dispose();
+
               new ReadingDialog(app, repo, fixed, () -> {}).dispose();
               ReportPanel report = new ReportPanel(repo);
               var snapshotField = ReportPanel.class.getDeclaredField("snapshot");
@@ -162,12 +198,14 @@ public final class GuiSmokeTest {
               if (tabs == null || tabs.getTabCount() != 6)
                 throw new AssertionError("Report sections missing");
               JPanel page = (JPanel) tabs.getSelectedComponent();
-              JScrollPane scroll =
-                  (JScrollPane)
+              vn.nhatrohomu.shared.SelectionView view =
+                  (vn.nhatrohomu.shared.SelectionView)
                       ((java.awt.BorderLayout) page.getLayout())
                           .getLayoutComponent(java.awt.BorderLayout.CENTER);
-              if (scroll.getViewport().getHeight() < 150)
-                throw new AssertionError("Report explanation hid the table");
+              view.selectLayout("Bảng");
+              app.validate();
+              if (view.getHeight() < 150)
+                throw new AssertionError("Report explanation hid the data view");
             } catch (Exception e) {
               throw new RuntimeException(e);
             } finally {

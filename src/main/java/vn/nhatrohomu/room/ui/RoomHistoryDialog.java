@@ -37,9 +37,9 @@ public final class RoomHistoryDialog extends JDialog {
         BorderLayout.NORTH);
     JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT));
     filters.add(new JLabel("Từ kỳ"));
-    filters.add(from);
+    filters.add(vn.nhatrohomu.shared.DatePicker.field(from, true));
     filters.add(new JLabel("Đến kỳ"));
-    filters.add(to);
+    filters.add(vn.nhatrohomu.shared.DatePicker.field(to, true));
     filters.add(Ui.button("Xem", this::load));
     filters.add(
         Ui.button(
@@ -56,7 +56,7 @@ public final class RoomHistoryDialog extends JDialog {
     table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     JScrollPane scroll = new JScrollPane(table);
-    root.add(scroll);
+
     JPanel bottom = new JPanel(new BorderLayout());
     bottom.add(status, BorderLayout.NORTH);
     JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -73,6 +73,7 @@ public final class RoomHistoryDialog extends JDialog {
             });
     buttons.add(detail);
     RowActions.install(table, List.of(detail));
+    root.add(new vn.nhatrohomu.shared.SelectionView(table, List.of(detail), 0, "room-history"));
     buttons.add(export);
     buttons.add(Ui.button("Đóng", this::dispose));
     bottom.add(buttons);

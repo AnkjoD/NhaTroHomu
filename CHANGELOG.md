@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.1
+
+- Màn hình thu tiền nhấn mạnh tiền thực nhận, thu một phần và nợ còn lại; không tự điền coi như thu đủ.
+- Điền số còn thiếu là thao tác riêng; khóa ghi thêm khi đã đủ. Kiểm tra thu nhiều lần, nợ qua kỳ và đảo thu.
+
+
+## 0.8.0
+
+- Thẻ / Bảng dùng chung dữ liệu và thao tác cho danh sách, báo cáo, lịch sử; nhớ lựa chọn trên máy.
+- Lịch chọn ngày/tháng, thanh Homura / Madoka có biểu tượng riêng.
+- Hồ sơ hiện phòng thuê và mở liên kết hợp đồng, hóa đơn, công nợ; chọn người sẵn khi gắn phòng.
+- Ảnh lớn để khoanh vùng số OCR; giữ ảnh gốc, vẫn xác nhận số thủ công. Chưa có cải thiện độ chính xác OCR được khẳng định.
+
+
 ## 0.7.2
 
 - Schema 6 hỗ trợ hóa đơn lịch sử có tiền phòng khi chưa có hồ sơ hợp đồng; yêu cầu nhật ký nhập.

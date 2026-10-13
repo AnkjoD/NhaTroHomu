@@ -31,6 +31,7 @@ public final class AppWindow extends JFrame {
   private final Path dataDirectory;
   private final JPanel body = new JPanel(new BorderLayout());
   private int historyPage;
+  private JLabel breadcrumb;
   private String currentPage = "Tổng quan";
 
   private final java.util.Map<String, JButton> navigation = new java.util.LinkedHashMap<>();
@@ -83,7 +84,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.7.2", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.8.1", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -95,30 +96,20 @@ public final class AppWindow extends JFrame {
         BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Design.LINE),
             BorderFactory.createEmptyBorder(16, 28, 16, 28)));
-    bar.add(
-        Design.label("KHÔNG GIAN QUẢN LÝ  /  PHÒNG TRỌ", 10, Design.MUTED, false),
-        BorderLayout.WEST);
-    JPanel themes = Design.clear(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-    for (Design.Mode mode : Design.Mode.values()) {
-      JButton toggle =
-          Ui.button(
-              mode == Design.Mode.HOMURA ? "Homura · Tối" : "Madoka · Sáng",
-              () -> {
-                try {
-                  Design.choose(mode, dataDirectory);
-                  buildShell();
-                } catch (Exception ex) {
-                  Ui.error(this, ex);
-                }
-              });
-      toggle.setToolTipText(
-          mode == Design.Mode.HOMURA
-              ? "Homura — tím đêm và sắc bạc"
-              : "Madoka — hồng dịu và nền sáng");
-      toggle.setBackground(mode == Design.mode ? Design.MINT : Design.SURFACE);
-      toggle.setForeground(mode == Design.mode ? Ui.GREEN : Design.MUTED);
-      themes.add(toggle);
-    }
+    breadcrumb = Design.label("QUẢN LÝ PHÒNG TRỌ", 10, Design.MUTED, false);
+    bar.add(breadcrumb, BorderLayout.WEST);
+    JPanel themes = Design.clear(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+    themes.add(
+        new vn.nhatrohomu.shared.ThemeSwitch(
+            Design.mode,
+            mode -> {
+              try {
+                Design.choose(mode, dataDirectory);
+                buildShell();
+              } catch (Exception ex) {
+                Ui.error(this, ex);
+              }
+            }));
     bar.add(themes, BorderLayout.EAST);
     workspace.add(bar, BorderLayout.NORTH);
     workspace.add(body, BorderLayout.CENTER);
@@ -150,6 +141,8 @@ public final class AppWindow extends JFrame {
 
   private void selectNav(String title) {
     currentPage = title;
+    if (breadcrumb != null)
+      breadcrumb.setText("QUẢN LÝ PHÒNG TRỌ / " + title.toUpperCase(java.util.Locale.ROOT));
     navigation.forEach(
         (name, b) -> {
           boolean active = name.equals(title);
@@ -514,7 +507,7 @@ public final class AppWindow extends JFrame {
   private void showRental(String title, RentalPanel.Page page) {
     selectNav(title);
     body.removeAll();
-    body.add(new RentalPanel(this, repository, page));
+    body.add(new RentalPanel(this, repository, page, this::billDialog));
     body.revalidate();
     body.repaint();
   }
@@ -600,6 +593,11 @@ public final class AppWindow extends JFrame {
                   Ui.error(this, ex);
                 }
               }));
+      java.util.List<JButton> invoiceActions =
+          java.util.Arrays.stream(a.getComponents())
+              .filter(c -> c instanceof JButton)
+              .map(c -> (JButton) c)
+              .toList();
       vn.nhatrohomu.shared.RowActions.install(
           table,
           java.util.Arrays.stream(a.getComponents())
@@ -624,6 +622,14 @@ public final class AppWindow extends JFrame {
                     historyPage++;
                     showHistory();
                   });
+      back.setText("");
+      back.setIcon(Design.icon("left", Design.INK));
+      back.setToolTipText("Trang trước");
+      back.getAccessibleContext().setAccessibleName("Trang trước");
+      next.setText("");
+      next.setIcon(Design.icon("right", Design.INK));
+      next.setToolTipText("Trang sau");
+      next.getAccessibleContext().setAccessibleName("Trang sau");
       back.setEnabled(historyPage > 0);
       next.setEnabled((historyPage + 1) * 50 < count);
       paging.add(
@@ -641,7 +647,7 @@ public final class AppWindow extends JFrame {
               "Rõ từng hóa đơn.",
               "Tiền phòng, phí, người thuê và đơn giá được giữ theo lúc lập hóa đơn.",
               a),
-          new JScrollPane(table),
+          new vn.nhatrohomu.shared.SelectionView(table, invoiceActions, 1, "invoices"),
           paging);
     } catch (Exception ex) {
       Ui.error(this, ex);

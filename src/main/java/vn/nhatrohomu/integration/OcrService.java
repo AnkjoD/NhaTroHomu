@@ -12,6 +12,40 @@ import javax.imageio.stream.ImageInputStream;
 
 /** OCR chạy trên máy, chỉ khởi tạo khi người dùng yêu cầu; không gửi ảnh ra mạng. */
 public final class OcrService {
+  public enum Engine {
+    WINDOWS("Windows · nhẹ"),
+    RAPID("RapidOCR · PP-OCRv4");
+    private final String label;
+
+    Engine(String label) {
+      this.label = label;
+    }
+
+    public String toString() {
+      return label;
+    }
+  }
+
+  public static Path rapidDirectory() {
+    String override = System.getProperty("nhatrohomu.ocr.directory");
+    if (override != null) return Path.of(override).toAbsolutePath();
+    try {
+      Path location =
+          Path.of(OcrService.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      return Files.isRegularFile(location)
+          ? location.getParent().resolve("ocr")
+          : location.getParent().getParent().resolve("lib/ocr");
+    } catch (Exception ex) {
+      return Path.of("lib/ocr").toAbsolutePath();
+    }
+  }
+
+  public static boolean rapidAvailable() {
+    Path directory = rapidDirectory();
+    return List.of("rapidocr4j-1.0.3.jar", "onnxruntime-1.18.0.jar", "opencv-4.6.0-0.jar").stream()
+        .allMatch(name -> Files.isRegularFile(directory.resolve(name)));
+  }
+
   public static BufferedImage load(Path path) throws IOException {
     try (ImageInputStream input = ImageIO.createImageInputStream(path.toFile())) {
       if (input == null) throw new IOException("Không đọc được ảnh.");
@@ -51,6 +85,10 @@ public final class OcrService {
   }
 
   public Result recognize(BufferedImage image) throws Exception {
+    return recognize(image, Engine.WINDOWS);
+  }
+
+  public Result recognize(BufferedImage image, Engine engine) throws Exception {
     Path directory = Files.createTempDirectory("nhatrohomu-ocr-");
     Process process = null;
     try {
@@ -62,6 +100,38 @@ public final class OcrService {
         Files.copy(in, script);
       }
       ImageIO.write(image, "png", photo.toFile());
+      if (engine == Engine.RAPID) {
+        if (!rapidAvailable())
+          throw new IOException("Chưa cài gói RapidOCR. Chạy install-ocr.ps1 hoặc chọn Windows.");
+        Path result = directory.resolve("recognized.txt");
+        String classpath =
+            System.getProperty("java.class.path")
+                + File.pathSeparator
+                + rapidDirectory()
+                + File.separator
+                + "*";
+        process =
+            new ProcessBuilder(
+                    Path.of(System.getProperty("java.home"), "bin", "java.exe").toString(),
+                    "-Xms32m",
+                    "-Xmx128m",
+                    "-cp",
+                    classpath,
+                    RapidOcrWorker.class.getName(),
+                    photo.toString(),
+                    result.toString())
+                .redirectErrorStream(true)
+                .redirectOutput(output.toFile())
+                .start();
+        if (!process.waitFor(60, TimeUnit.SECONDS))
+          throw new IOException("RapidOCR quá thời gian. Thử khoanh sát vùng số.");
+        if (process.exitValue() != 0 || !Files.isRegularFile(result))
+          throw new IOException(
+              "RapidOCR không chạy được. Thử Windows hoặc nhập tay; kiểm tra gói OCR và Windows"
+                  + " x64.");
+        String text = Files.readString(result, StandardCharsets.UTF_8).trim();
+        return new Result(text, candidates(text));
+      }
       String windows = System.getenv("SystemRoot");
       if (windows == null) throw new IOException("OCR bản này cần Windows 10/11.");
       Path shell = Path.of(windows, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");

@@ -311,6 +311,11 @@ public final class ReadingDialog extends JDialog {
                 }
               });
       JButton recognize = Design.primary(new JButton("Nhận diện chỉ số"));
+      JComboBox<OcrService.Engine> engine = new JComboBox<>(OcrService.Engine.values());
+      engine.setSelectedItem(
+          OcrService.rapidAvailable() ? OcrService.Engine.RAPID : OcrService.Engine.WINDOWS);
+      engine.setToolTipText(
+          "RapidOCR cần gói tùy chọn. Khoanh riêng dãy số; luôn kiểm tra trước khi lưu.");
       recognize.addActionListener(
           event -> {
             BufferedImage selected = preview.selected();
@@ -319,16 +324,19 @@ public final class ReadingDialog extends JDialog {
               return;
             }
             working = true;
+            OcrService.Engine selectedEngine = (OcrService.Engine) engine.getSelectedItem();
+            engine.setEnabled(false);
             recognize.setEnabled(false);
             choose.setEnabled(false);
             status.setText("Đang nhận diện…");
             new SwingWorker<OcrService.Result, Void>() {
               protected OcrService.Result doInBackground() throws Exception {
-                return new OcrService().recognize(selected);
+                return new OcrService().recognize(selected, selectedEngine);
               }
 
               protected void done() {
                 working = false;
+                engine.setEnabled(true);
                 recognize.setEnabled(true);
                 choose.setEnabled(true);
                 if (!ReadingDialog.this.isDisplayable()) return;
@@ -385,6 +393,10 @@ public final class ReadingDialog extends JDialog {
       buttons.add(recognize);
       JPanel controls = Ui.column();
       controls.setOpaque(false);
+      JPanel engineRow = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
+      engineRow.add(new JLabel("Công cụ đọc ảnh:"));
+      engineRow.add(engine);
+      controls.add(engineRow);
       controls.add(buttons);
       controls.add(status);
       add(controls, BorderLayout.SOUTH);

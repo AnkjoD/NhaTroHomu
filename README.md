@@ -1,8 +1,8 @@
 # NhaTroHomu
 
-Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR của Windows, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
+Ứng dụng Windows quản lý phòng trọ trên máy cá nhân, xây dựng bằng **Java 21, Swing, FlatLaf, JDBC và SQLite**. Đọc ảnh đồng hồ điện/nước bằng OCR Windows hoặc gói RapidOCR tùy chọn, cho người dùng kiểm tra và sửa chỉ số trước khi lập hóa đơn.
 
-Phiên bản **0.8.1**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
+Phiên bản **0.8.2**. Phạm vi hiện tại: một người quản lý, một sổ dữ liệu local. Không cần server để sử dụng.
 
 ![Báo cáo và đối soát — dữ liệu minh họa](docs/assets/reports.png)
 
@@ -10,7 +10,7 @@ Phiên bản **0.8.1**. Phạm vi hiện tại: một người quản lý, một
 
 ## Chạy thử
 
-Giải nén toàn bộ `NhaTroHomu-0.8.1-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
+Giải nén toàn bộ `NhaTroHomu-0.8.2-windows-x64.zip`, mở `NhaTroHomu.exe`. Bản portable đã có Java; giữ nguyên các thư mục đi kèm.
 
 `Mo-ban-demo.cmd` mở sổ minh họa riêng với phòng, hợp đồng, hóa đơn và thu tiền từng phần. Dữ liệu demo không được ghi vào sổ thật.
 
@@ -77,7 +77,7 @@ Nếu đã cài Maven: `mvn test` chạy cùng bộ kiểm tra hồi quy thông 
 
 Kiểm tra bao gồm tính tiền, hợp đồng/cọc, thu từng phần, snapshot, migration, PDF, backup/restore, dữ liệu không hợp lệ, thu đồng thời, đổi nước, báo cáo, chi phí và CSV. Các kiểm tra dùng sổ tạm. CI Windows được cấu hình trong `.github/workflows/windows.yml`; trạng thái CI chỉ được xác nhận khi workflow chạy trên GitHub.
 
-Đóng gói tạo `release/v0.8.1/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
+Đóng gói tạo `release/v0.8.2/NhaTroHomu/NhaTroHomu.exe` và ZIP đi kèm runtime. Script không ghi đè thư mục phát hành đã có. `-Installer` cần WiX 3. Heap đặt tối đa 256 MB; đây không phải số đo tổng RAM của tiến trình.
 
 ## Dữ liệu và an toàn
 
@@ -117,7 +117,13 @@ Danh sách có lựa chọn Thẻ / Bảng và nhớ cách xem trên máy; lọc
 
 Người thuê có cột phòng hiện tại/sắp thuê. Chọn Phòng / hợp đồng / hóa đơn để mở các liên kết qua ID hợp đồng và công nợ từng hóa đơn. Gắn phòng tạo hợp đồng với người thuê đã chọn; không gán theo tên giống nhau. Hóa đơn Excel chưa có tên/hợp đồng vẫn giữ độc lập, không tự gán sang người mới.
 
-OCR dùng Windows.Media.Ocr, chưa phải mô hình được huấn luyện riêng cho đồng hồ cơ khí. Ảnh lớn / khoanh số cho phép phóng và chọn vùng OCR, vẫn giữ ảnh gốc khi lưu. Kiểm thử một ảnh đồng hồ cơ khí thực tế chưa đọc được đúng dãy số, kể cả cắt vùng/tăng tương phản; chưa đánh giá độ chính xác trên tập ảnh đại diện. Khi không đọc được, nhập tay và xác nhận trước khi chốt.
+OCR mặc định dùng Windows.Media.Ocr. Có thể cài **RapidOCR4j 1.0.3 / PP-OCRv4 / ONNX Runtime CPU** bằng `powershell -ExecutionPolicy Bypass -File .\install-ocr.ps1`, chạy trong thư mục source hoặc thư mục chứa EXE. Cài cho bản portable từ source: thêm `-AppDirectory "đường dẫn thư mục chứa NhaTroHomu.exe"`. Script tải ba JAR cố định từ Maven Central và kiểm tra SHA-256; cần mạng một lần, khoảng **198 MB** tải thêm. Model có sẵn trong JAR, lúc nhận diện không gửi ảnh ra mạng và không cần Python/GPU. Gói này không nằm trong ZIP bản thường. Xóa riêng thư mục `app/ocr` (portable) hoặc `lib/ocr` (source) nếu muốn gỡ gói; dữ liệu sổ nằm riêng.
+
+Sau khi cài, mở lại màn hình lập hóa đơn và chọn engine cạnh nút nhận diện. RapidOCR chạy trong tiến trình Java riêng, giới hạn hai luồng CPU và heap 128 MB, thoát sau mỗi lần đọc để trả RAM/native memory. Đo riêng worker với ảnh thử đã giảm kích thước theo luồng app: khoảng 320 MB RAM đỉnh, khoảng 5–8 giây trên máy thử; không phải cam kết cho mọi máy/ảnh. Tổng RAM có thể cao hơn heap; lần nhận diện đầu cần thời gian nạp model và giải nén thư viện native. Không thay engine âm thầm nếu lỗi.
+
+Thử một ảnh đồng hồ cơ khí thực tế: Windows chưa đọc đúng; RapidOCR đọc đúng năm chữ số trắng khi dùng ảnh nguyên và khi khoanh riêng vùng số. Đây là kiểm tra một ảnh, **chưa phải độ chính xác trên tập ảnh đại diện**, chưa xác nhận chữ số đỏ thập phân hay đồng hồ nước. Ảnh lớn / khoanh số cho phép phóng và chọn vùng OCR, vẫn giữ ảnh gốc khi lưu. OCR toàn ảnh có thể trả cả số sê-ri/thông số; người dùng phải chọn đúng chỉ số, sửa và xác nhận trước khi chốt. Không suy ra phần thập phân bị mờ từ kết quả OCR.
+
+Kiểm tra OCR bằng ảnh tổng hợp (sau `run.ps1 -Test`): `java -cp "build/test-classes;build/classes;lib/*" vn.nhatrohomu.persistence.sqlite.OcrIntegrationTest RAPID`. Bỏ `RAPID` để kiểm tra Windows. Ảnh cá nhân không được đưa vào source hoặc kiểm thử public.
 
 ## Trả thiếu và thu nhiều lần
 

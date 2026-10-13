@@ -13,6 +13,16 @@ The application source uses MIT (see LICENSE). That does not replace dependency 
 Dependency JAR files retain their embedded license/notice files. The bundled runtime retains its legal directory.
 Windows OCR is an operating-system component invoked on the user's machine, not redistributed with the app.
 
+Optional OCR pack (downloaded by install-ocr.ps1; unmodified JARs keep their notices):
+
+| Component | Version | License / source |
+|---|---|---|
+| RapidOCR4j and bundled PP-OCR models | 1.0.3 / PP-OCRv4 | Apache-2.0 — https://github.com/hzkitty/RapidOCR4j ; model origin https://github.com/PaddlePaddle/PaddleOCR |
+| ONNX Runtime CPU | 1.18.0 | MIT — https://github.com/microsoft/onnxruntime/tree/v1.18.0 |
+| OpenPnP OpenCV distribution | 4.6.0-0 | BSD-3-Clause loader / Apache-2.0 OpenCV 4.6 — https://github.com/openpnp/opencv ; https://github.com/opencv/opencv/tree/4.6.0 |
+
+These optional native libraries increase disk use and OCR peak memory; they are loaded only in a short-lived worker process. The standard portable ZIP does not bundle them.
+
 Be Vietnam Pro font: SIL Open Font License 1.1. Font and OFL.txt are embedded in resources/fonts. Upstream: https://github.com/google/fonts/tree/main/ofl/bevietnampro
 
 

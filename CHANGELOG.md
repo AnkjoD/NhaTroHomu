@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+
+- Đưa nút Lập nhiều phòng vào màn Phòng trọ.
+- Dán ảnh clipboard/Ctrl+V hoặc file ảnh từ Explorer trong nhập một phòng và nhiều phòng.
+- Chọn nhiều ảnh điện/nước, xác nhận gán ảnh theo phòng, gợi ý thứ tự tên file tự nhiên.
+- Dùng cùng phần khoanh vùng/OCR cho nhập đơn và nhiều phòng; lưu ảnh cùng hóa đơn, luôn cho kiểm tra/sửa chỉ số trước khi chốt.
+
 ## 0.11.0
 
 - Tiền trả trước có nguồn kỳ, chủ sở hữu, phân bổ và hoàn tiền riêng; tích sẵn lựa chọn sử dụng khi thu kỳ sau. Báo cáo tránh tính hai lần thu.

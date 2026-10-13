@@ -86,7 +86,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.0", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.1", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -251,6 +251,21 @@ public final class AppWindow extends JFrame {
       search.putClientProperty("JTextField.placeholderText", "Tìm phòng hoặc người thuê…");
       search.setPreferredSize(new Dimension(240, 38));
       listHead.add(search, BorderLayout.EAST);
+      JPanel billingActions = Design.clear(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+      billingActions.add(
+          Design.primary(
+              Ui.button(
+                  "Lập nhiều phòng",
+                  () -> {
+                    try {
+                      new vn.nhatrohomu.billing.ui.BatchBillingDialog(
+                              this, repository, this::showRooms)
+                          .setVisible(true);
+                    } catch (Exception ex) {
+                      Ui.error(this, ex);
+                    }
+                  })));
+      listHead.add(billingActions, BorderLayout.CENTER);
       top.add(listHead, BorderLayout.SOUTH);
       JPanel grid = Design.clear(new GridLayout(0, 2, 18, 18));
       Runnable fill =

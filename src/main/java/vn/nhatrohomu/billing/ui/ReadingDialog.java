@@ -1,16 +1,13 @@
 package vn.nhatrohomu.billing.ui;
 
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import vn.nhatrohomu.billing.BillingService;
-import vn.nhatrohomu.integration.ImagePanel;
 import vn.nhatrohomu.integration.OcrService;
 import vn.nhatrohomu.persistence.Repository;
 import vn.nhatrohomu.rental.RentalService;
@@ -459,197 +456,9 @@ public final class ReadingDialog extends JDialog {
     }
   }
 
-  private final class PhotoBox extends JPanel {
-    private BufferedImage photo;
-    private boolean working;
-    private final ImagePanel preview = new ImagePanel();
-
+  private final class PhotoBox extends MeterPhotoPanel {
     PhotoBox(String name, JTextField target) {
-      super(new BorderLayout(8, 8));
-      setOpaque(false);
-      setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0));
-      add(preview, BorderLayout.CENTER);
-      String cropKey = "crop." + room.id() + (name.equals("Ảnh điện") ? ".electricity" : ".water");
-      JCheckBox remember =
-          new JCheckBox(
-              "Nhớ khung cho phòng này",
-              Boolean.parseBoolean(
-                  vn.nhatrohomu.shared.LocalUiSettings.get(cropKey + ".enabled", "true")));
-      java.util.function.Consumer<ImagePanel.Region> store =
-          bounds -> {
-            confirm.setSelected(false);
-            if (!remember.isSelected()) return;
-            try {
-              vn.nhatrohomu.shared.LocalUiSettings.put(
-                  cropKey,
-                  bounds == null
-                      ? null
-                      : bounds.x()
-                          + ","
-                          + bounds.y()
-                          + ","
-                          + bounds.width()
-                          + ","
-                          + bounds.height());
-            } catch (Exception ex) {
-              Ui.error(ReadingDialog.this, ex);
-            }
-          };
-      preview.onRegionChanged(store);
-      remember.addActionListener(
-          e -> {
-            try {
-              vn.nhatrohomu.shared.LocalUiSettings.put(
-                  cropKey + ".enabled", Boolean.toString(remember.isSelected()));
-              if (!remember.isSelected()) vn.nhatrohomu.shared.LocalUiSettings.put(cropKey, null);
-              else store.accept(preview.region());
-            } catch (Exception ex) {
-              Ui.error(ReadingDialog.this, ex);
-            }
-          });
-      JLabel status =
-          Design.label(
-              "Kéo chuột khoanh vùng số. OCR có thể sai, hãy kiểm tra lại.",
-              10,
-              Design.MUTED,
-              false);
-      JButton choose =
-          Ui.button(
-              "Chọn " + name.toLowerCase(),
-              () -> {
-                JFileChooser picker = new JFileChooser();
-                picker.setFileFilter(
-                    new FileNameExtensionFilter("Ảnh PNG, JPG", "png", "jpg", "jpeg"));
-                if (picker.showOpenDialog(ReadingDialog.this) == JFileChooser.APPROVE_OPTION) {
-                  Ui.background(
-                      ReadingDialog.this,
-                      () -> OcrService.load(picker.getSelectedFile().toPath()),
-                      image -> {
-                        photo = image;
-                        preview.setImage(image);
-                        if (remember.isSelected()) {
-                          String value = vn.nhatrohomu.shared.LocalUiSettings.get(cropKey, "");
-                          if (!value.isBlank()) {
-                            try {
-                              String[] coordinates = value.split(",");
-                              if (coordinates.length == 4)
-                                preview.setRegion(
-                                    new ImagePanel.Region(
-                                        Double.parseDouble(coordinates[0]),
-                                        Double.parseDouble(coordinates[1]),
-                                        Double.parseDouble(coordinates[2]),
-                                        Double.parseDouble(coordinates[3])));
-                            } catch (IllegalArgumentException ignored) {
-                            }
-                          }
-                        }
-                        confirm.setSelected(false);
-                        status.setText("Đã chọn ảnh. Khoanh vùng rồi bấm Đọc số.");
-                      });
-                }
-              });
-      JButton recognize = Design.primary(new JButton("Nhận diện chỉ số"));
-      JComboBox<OcrService.Engine> engine = new JComboBox<>(OcrService.Engine.values());
-      engine.setSelectedItem(
-          OcrService.rapidAvailable() ? OcrService.Engine.RAPID : OcrService.Engine.WINDOWS);
-      engine.setToolTipText(
-          "RapidOCR cần gói tùy chọn. Khoanh riêng dãy số; luôn kiểm tra trước khi lưu.");
-      recognize.addActionListener(
-          event -> {
-            BufferedImage selected = preview.selected();
-            if (selected == null) {
-              Ui.error(ReadingDialog.this, new IllegalArgumentException("Chọn ảnh trước."));
-              return;
-            }
-            working = true;
-            OcrService.Engine selectedEngine = (OcrService.Engine) engine.getSelectedItem();
-            engine.setEnabled(false);
-            recognize.setEnabled(false);
-            choose.setEnabled(false);
-            status.setText("Đang nhận diện…");
-            new SwingWorker<OcrService.Result, Void>() {
-              protected OcrService.Result doInBackground() throws Exception {
-                return new OcrService().recognize(selected, selectedEngine);
-              }
-
-              protected void done() {
-                working = false;
-                engine.setEnabled(true);
-                recognize.setEnabled(true);
-                choose.setEnabled(true);
-                if (!ReadingDialog.this.isDisplayable()) return;
-                try {
-                  OcrService.Result result = get();
-                  status.setText("Đã đọc ảnh. Hãy kiểm tra và chọn số đúng.");
-                  if (result.candidates().isEmpty()) {
-                    Ui.error(
-                        ReadingDialog.this,
-                        new IllegalArgumentException(
-                            "Không tìm thấy số. Cắt ảnh sát hơn hoặc nhập tay."));
-                    return;
-                  }
-                  JComboBox<String> candidates =
-                      new JComboBox<>(result.candidates().toArray(String[]::new));
-                  JTextArea raw = new JTextArea(result.text(), 5, 36);
-                  raw.setEditable(false);
-                  raw.setLineWrap(true);
-                  JPanel panel = Ui.column();
-                  panel.add(new JLabel("Số tìm thấy (có thể là số seri/đơn vị, cần kiểm tra):"));
-                  panel.add(candidates);
-                  panel.add(new JScrollPane(raw));
-                  if (JOptionPane.showConfirmDialog(
-                          ReadingDialog.this,
-                          panel,
-                          "Chọn chỉ số để điền",
-                          JOptionPane.OK_CANCEL_OPTION)
-                      == JOptionPane.OK_OPTION)
-                    target.setText((String) candidates.getSelectedItem());
-                } catch (Exception ex) {
-                  status.setText("Không nhận diện được; vẫn có thể nhập tay.");
-                  Ui.error(ReadingDialog.this, ex);
-                }
-              }
-            }.execute();
-          });
-      JPanel buttons = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 12));
-      buttons.add(choose);
-      buttons.add(
-          Ui.button(
-              "Ảnh lớn / khoanh số",
-              () -> {
-                if (photo == null) {
-                  Ui.error(ReadingDialog.this, new IllegalArgumentException("Chọn ảnh trước."));
-                  return;
-                }
-                ImagePanel.Region region = ImagePanel.chooseRegionBounds(ReadingDialog.this, photo);
-                if (region != null) {
-                  preview.setImage(photo);
-                  preview.setRegion(region);
-                  store.accept(region);
-                  confirm.setSelected(false);
-                  status.setText("Đã chọn vùng OCR; ảnh gốc vẫn được giữ khi lưu hóa đơn.");
-                }
-              }));
-      buttons.add(recognize);
-      JPanel controls = Ui.column();
-      controls.setOpaque(false);
-      JPanel engineRow = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
-      engineRow.add(new JLabel("Công cụ đọc ảnh:"));
-      engineRow.add(engine);
-      controls.add(engineRow);
-      JPanel cropRow = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
-      cropRow.add(remember);
-      cropRow.add(
-          Ui.button(
-              "Bỏ khung",
-              () -> {
-                preview.setRegion(null);
-                store.accept(null);
-              }));
-      controls.add(cropRow);
-      controls.add(buttons);
-      controls.add(status);
-      add(controls, BorderLayout.SOUTH);
+      super(ReadingDialog.this, room, name, target, () -> confirm.setSelected(false));
     }
   }
 }

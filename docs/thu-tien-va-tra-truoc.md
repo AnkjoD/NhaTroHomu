@@ -28,9 +28,16 @@ Trong **Thuê phòng → Danh mục phí**, tạo các khoản như Internet, v�
 
 ## Lập nhiều phòng và sửa chỉ số
 
-Trong **Hóa đơn → Lập nhiều phòng**, chọn tháng, nhập số mới theo từng phòng và kiểm tra tổng trước khi lưu. Phòng có lượt thuê lấy sẵn tiền phòng thỏa thuận. Phòng thiếu hồ sơ thuê không được chọn sẵn; chọn rõ nếu chỉ lập điện nước. Nhiều lượt thuê chưa chốt cùng tháng cần lập riêng để chọn đúng người.
+Trong **Phòng trọ → Lập nhiều phòng** hoặc **Hóa đơn → Lập nhiều phòng**, chọn tháng, nhập số mới theo từng phòng và kiểm tra tổng trước khi lưu. Phòng có lượt thuê lấy sẵn tiền phòng thỏa thuận. Phòng thiếu hồ sơ thuê không được chọn sẵn; chọn rõ nếu chỉ lập điện nước. Nhiều lượt thuê chưa chốt cùng tháng cần lập riêng để chọn đúng người.
 
-Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu được khóa lại; phòng lỗi giữ phần nhập để sửa và thử lại, tránh lập trùng. Màn này hiện nhập chỉ số bằng tay, chưa nhận ảnh hàng loạt.
+Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu được khóa lại; phòng lỗi giữ phần nhập để sửa và thử lại, tránh lập trùng.
+
+### Dán ảnh và chọn nhiều ảnh đồng hồ
+
+- Mở phần **Ảnh đồng hồ** của phòng, chọn tab Điện/Nước rồi **Dán ảnh**. Có thể bấm vào vùng ảnh và Ctrl+V. Khi con trỏ ở ô nhập số, Ctrl+V vẫn dán chữ như bình thường. Hỗ trợ ảnh đã sao chép và một file ảnh sao chép từ Explorer.
+- **Chọn nhiều ảnh điện/nước** cho phép chọn nhiều file trong một lần. App gợi ý thứ tự theo tên file (2 trước 10), rồi cho chọn ảnh ứng với từng phòng. Có thể chọn **Không gán ảnh**. Không được gán cùng file cho hai phòng trong cùng thao tác.
+- Kiểm tra ảnh tại đúng phòng, khoanh vùng rồi **Nhận diện chỉ số**. OCR gợi ý các số; bạn chọn số và sửa tay khi cần. Gán ảnh không tự điền số, không tự lập hóa đơn hay ghi thanh toán.
+- Ảnh điện/nước được lưu cùng hóa đơn khi chốt. Điện và nước chọn theo hai lượt riêng; phòng nước khoán không nhận ảnh nước. Ảnh không được chọn trong màn gán không được nhập.
 
 Số cũ là mốc lấy từ kỳ trước hoặc bàn giao, không sửa tự do trong hóa đơn mới. Chỉ hủy để lập lại hóa đơn cuối đủ điều kiện, không còn thanh toán/trả trước hiệu lực và không làm sai bàn giao/kỳ sau. Sai kỳ cũ có chứng từ nối tiếp cần quy trình điều chỉnh; không tự tính lại tiền hay sửa lịch sử đã thu.
 

@@ -24,6 +24,10 @@ public final class BatchBillingDialog extends JDialog {
 
   private record Result(Entry entry, String error) {}
 
+  private record Assigned(Entry entry, java.nio.file.Path path) {}
+
+  private record Loaded(Entry entry, java.awt.image.BufferedImage image) {}
+
   public BatchBillingDialog(JFrame owner, Repository repository, Runnable saved) throws Exception {
     super(owner, "Lập hóa đơn nhiều phòng", true);
     this.repository = repository;
@@ -42,14 +46,18 @@ public final class BatchBillingDialog extends JDialog {
         Ui.button(
             "Áp dụng tháng",
             () -> {
-              if (entries.stream()
-                      .anyMatch(
-                          e -> !e.electricity.getText().isBlank() || !e.note.getText().isBlank())
+              if (entries.stream().anyMatch(e -> e.dirty && !e.stored)
                   && !Ui.confirm(this, "Đổi tháng sẽ bỏ phần đang nhập chưa lưu. Tiếp tục?"))
                 return;
               load();
             }));
-    root.add(top, BorderLayout.NORTH);
+    JPanel toolbars = Design.clear(new GridLayout(0, 1, 0, 8));
+    toolbars.add(top);
+    JPanel photoActions = Design.clear(new FlowLayout(FlowLayout.LEFT));
+    photoActions.add(Ui.button("Chọn nhiều ảnh điện", () -> assignPhotos(true)));
+    photoActions.add(Ui.button("Chọn nhiều ảnh nước", () -> assignPhotos(false)));
+    toolbars.add(photoActions);
+    root.add(toolbars, BorderLayout.NORTH);
     JScrollPane scroll = new JScrollPane(cards);
     scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
     scroll.getVerticalScrollBar().setUnitIncrement(22);
@@ -69,6 +77,14 @@ public final class BatchBillingDialog extends JDialog {
   }
 
   private void load() {
+    if (entries.stream()
+        .anyMatch(
+            e ->
+                e.electricityPhoto != null
+                    && (e.electricityPhoto.working || e.waterPhoto.working))) {
+      Ui.error(this, new IllegalArgumentException("Chờ nhận diện xong trước khi đổi tháng."));
+      return;
+    }
     final YearMonth selected;
     try {
       selected = DataRules.period(month.getText().trim());
@@ -80,7 +96,11 @@ public final class BatchBillingDialog extends JDialog {
         this,
         () -> {
           List<Prepared> plans = new ArrayList<>();
-          for (Room room : repository.rooms()) {
+          for (Room room :
+              repository.rooms().stream()
+                  .sorted(
+                      (a, b) -> vn.nhatrohomu.integration.PhotoOrder.compare(a.name(), b.name()))
+                  .toList()) {
             try {
               plans.add(new Prepared(room, BillingDraft.prepare(repository, room, selected), ""));
             } catch (Exception ex) {
@@ -114,7 +134,11 @@ public final class BatchBillingDialog extends JDialog {
     }
     List<Bill> bills = new ArrayList<>();
     try {
-      for (Entry entry : selected) bills.add(entry.calculate());
+      for (Entry entry : selected) {
+        if (entry.electricityPhoto.working || entry.waterPhoto.working)
+          throw new IllegalArgumentException("Chờ nhận diện ảnh xong trước khi lưu.");
+        bills.add(entry.calculate());
+      }
     } catch (Exception ex) {
       Ui.error(this, ex);
       return;
@@ -136,7 +160,15 @@ public final class BatchBillingDialog extends JDialog {
           List<Result> results = new ArrayList<>();
           for (int i = 0; i < bills.size(); i++) {
             try {
-              repository.saveBill(bills.get(i), null, null);
+              Entry entry = selected.get(i);
+              repository.saveBill(
+                  bills.get(i),
+                  entry.electricityPhoto.photo == null
+                      ? null
+                      : vn.nhatrohomu.integration.OcrService.png(entry.electricityPhoto.photo),
+                  entry.waterPhoto.photo == null
+                      ? null
+                      : vn.nhatrohomu.integration.OcrService.png(entry.waterPhoto.photo));
               results.add(new Result(selected.get(i), ""));
             } catch (Exception ex) {
               results.add(new Result(selected.get(i), ex.getMessage()));
@@ -156,6 +188,10 @@ public final class BatchBillingDialog extends JDialog {
               for (JTextField field :
                   List.of(entry.electricity, entry.water, entry.rent, entry.note))
                 field.setEditable(false);
+              entry.photoViews.setVisible(false);
+              entry.showPhotos.setEnabled(false);
+              entry.electricityPhoto.clearPhoto();
+              entry.waterPhoto.clearPhoto();
               entry.status.setText("Đã lập hóa đơn · chưa thu tiền");
               entry.status.setForeground(Ui.GREEN);
             } else {
@@ -173,6 +209,145 @@ public final class BatchBillingDialog extends JDialog {
         });
   }
 
+  private void assignPhotos(boolean electric) {
+    List<Entry> targets =
+        entries.stream()
+            .filter(
+                e ->
+                    e.plan.draft() != null
+                        && !e.stored
+                        && (electric || e.plan.room().waterMode().equals("METER")))
+            .toList();
+    if (targets.isEmpty()) {
+      Ui.error(
+          this, new IllegalArgumentException("Không có phòng chưa lập phù hợp trong tháng này."));
+      return;
+    }
+    JFileChooser picker = new JFileChooser();
+    picker.setMultiSelectionEnabled(true);
+    picker.setFileFilter(
+        new javax.swing.filechooser.FileNameExtensionFilter("Ảnh PNG, JPG", "png", "jpg", "jpeg"));
+    if (picker.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+    java.io.File[] files = picker.getSelectedFiles();
+    java.util.Arrays.sort(
+        files, (a, b) -> vn.nhatrohomu.integration.PhotoOrder.compare(a.getName(), b.getName()));
+    JPanel mapping = Ui.form();
+    List<JComboBox<java.io.File>> choices = new ArrayList<>();
+    for (int i = 0; i < targets.size(); i++) {
+      JComboBox<java.io.File> choice = new JComboBox<>();
+      choice.addItem(null);
+      for (java.io.File file : files) choice.addItem(file);
+      choice.setRenderer(
+          new DefaultListCellRenderer() {
+            public Component getListCellRendererComponent(
+                JList<?> list, Object value, int index, boolean selected, boolean focus) {
+              putClientProperty("html.disable", true);
+              return super.getListCellRendererComponent(
+                  list,
+                  value == null ? "Không gán ảnh" : ((java.io.File) value).getName(),
+                  index,
+                  selected,
+                  focus);
+            }
+          });
+      if (i < files.length) choice.setSelectedIndex(i + 1);
+      choices.add(choice);
+      Ui.field(mapping, i, targets.get(i).plan.room().name(), choice);
+    }
+    JPanel content = Design.clear(new BorderLayout(8, 8));
+    content.add(
+        new JLabel(
+            "Gợi ý theo tên file. Chọn lại ảnh cho đúng phòng; ảnh sẽ hiện để bạn kiểm tra."),
+        BorderLayout.NORTH);
+    JScrollPane scroll = new JScrollPane(mapping);
+    scroll.setPreferredSize(new Dimension(650, Math.min(420, targets.size() * 60 + 30)));
+    content.add(scroll);
+    if (JOptionPane.showConfirmDialog(
+            this,
+            content,
+            electric ? "Gán ảnh điện cho phòng" : "Gán ảnh nước cho phòng",
+            JOptionPane.OK_CANCEL_OPTION)
+        != JOptionPane.OK_OPTION) return;
+    List<Assigned> assigned = new ArrayList<>();
+    java.util.Set<java.nio.file.Path> unique = new java.util.HashSet<>();
+    for (int i = 0; i < choices.size(); i++) {
+      java.io.File file = (java.io.File) choices.get(i).getSelectedItem();
+      if (file == null) continue;
+      if (!unique.add(file.toPath())) {
+        Ui.error(
+            this,
+            new IllegalArgumentException(
+                "Một ảnh đang được gán cho nhiều phòng. Chọn lại để tránh nhầm."));
+        return;
+      }
+      Entry target = targets.get(i);
+      if (target.electricityPhoto.working || target.waterPhoto.working) {
+        Ui.error(this, new IllegalArgumentException("Chờ nhận diện xong trước khi đổi ảnh."));
+        return;
+      }
+      assigned.add(new Assigned(target, file.toPath()));
+    }
+    if (assigned.isEmpty()) return;
+    if (assigned.stream()
+            .anyMatch(
+                a ->
+                    (electric ? a.entry().electricityPhoto.photo : a.entry().waterPhoto.photo)
+                        != null)
+        && !Ui.confirm(
+            this,
+            "Thay ảnh đang có ở các phòng đã chọn? Chỉ số đang nhập được giữ để bạn kiểm tra lại."))
+      return;
+    final long existingPixels = photoPixels();
+    Ui.background(
+        this,
+        () -> {
+          List<Loaded> images = new ArrayList<>();
+          long pixels = existingPixels;
+          for (Assigned a : assigned) {
+            var image = vn.nhatrohomu.integration.OcrService.load(a.path());
+            pixels += pixels(image);
+            requireCapacity(pixels);
+            images.add(new Loaded(a.entry(), image));
+          }
+          return images;
+        },
+        images -> {
+          for (Loaded image : images) {
+            Entry entry = image.entry();
+            (electric ? entry.electricityPhoto : entry.waterPhoto).accept(image.image());
+            entry.showPhotos.setSelected(true);
+            entry.photoViews.setVisible(true);
+            entry.photoViews.setSelectedIndex(electric ? 0 : 1);
+            entry.card.revalidate();
+          }
+          cards.revalidate();
+          cards.repaint();
+          progress.setText(
+              "Đã gán "
+                  + images.size()
+                  + " ảnh. Đối chiếu đúng phòng, bấm Nhận diện rồi kiểm tra chỉ số trước khi lưu.");
+        });
+  }
+
+  private static long pixels(java.awt.image.BufferedImage image) {
+    return image == null ? 0 : (long) image.getWidth() * image.getHeight();
+  }
+
+  private long photoPixels() {
+    long result = 0;
+    for (Entry entry : entries)
+      if (entry.electricityPhoto != null)
+        result += pixels(entry.electricityPhoto.photo) + pixels(entry.waterPhoto.photo);
+    return result;
+  }
+
+  private static void requireCapacity(long pixels) {
+    if (pixels > 32_000_000)
+      throw new IllegalArgumentException(
+          "Nhiều ảnh đang mở cùng lúc. Lập theo nhóm phòng nhỏ hơn hoặc giảm kích thước ảnh để giữ"
+              + " ứng dụng nhẹ.");
+  }
+
   private final class Entry {
     final Prepared plan;
     final JPanel card = Design.card(Design.SURFACE);
@@ -182,7 +357,10 @@ public final class BatchBillingDialog extends JDialog {
         rent = new JTextField(),
         note = new JTextField();
     final JLabel status = new JLabel();
-    boolean stored;
+    boolean stored, dirty;
+    MeterPhotoPanel electricityPhoto, waterPhoto;
+    final JTabbedPane photoViews = new JTabbedPane();
+    final JCheckBox showPhotos = new JCheckBox("Ảnh đồng hồ · chọn, dán hoặc nhận diện");
 
     Entry(Prepared plan) {
       this.plan = plan;
@@ -222,15 +400,42 @@ public final class BatchBillingDialog extends JDialog {
       rent.setEditable(draft.contract() != null);
       Ui.field(fields, 5, "Tiền phòng (đ)", rent);
       Ui.field(fields, 6, "Ghi chú", note);
-      card.add(fields);
+      electricityPhoto =
+          new MeterPhotoPanel(
+              BatchBillingDialog.this, draft.room(), "Ảnh điện", electricity, () -> dirty = true);
+      waterPhoto =
+          new MeterPhotoPanel(
+              BatchBillingDialog.this, draft.room(), "Ảnh nước", water, () -> dirty = true);
+      electricityPhoto.beforeAccept(
+          image -> requireCapacity(photoPixels() - pixels(electricityPhoto.photo) + pixels(image)));
+      waterPhoto.beforeAccept(
+          image -> requireCapacity(photoPixels() - pixels(waterPhoto.photo) + pixels(image)));
+      photoViews.addTab("Điện", electricityPhoto);
+      if (draft.room().waterMode().equals("METER")) photoViews.addTab("Nước", waterPhoto);
+      photoViews.setVisible(false);
+      showPhotos.addActionListener(
+          e -> {
+            photoViews.setVisible(showPhotos.isSelected());
+            card.revalidate();
+            cards.revalidate();
+          });
+      JPanel center = Design.clear(new BorderLayout(0, 10));
+      center.add(fields, BorderLayout.NORTH);
+      JPanel photos = Design.clear(new BorderLayout(0, 8));
+      photos.add(showPhotos, BorderLayout.NORTH);
+      photos.add(photoViews);
+      center.add(photos);
+      card.add(center);
       card.add(status, BorderLayout.SOUTH);
       DocumentListener changes =
           new DocumentListener() {
             public void insertUpdate(DocumentEvent e) {
+              dirty = true;
               preview();
             }
 
             public void removeUpdate(DocumentEvent e) {
+              dirty = true;
               preview();
             }
 

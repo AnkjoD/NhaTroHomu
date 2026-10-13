@@ -24,6 +24,7 @@ public final class AllChecks {
       DisplayTest.main(new String[0]);
       InvoiceWorkflowTest.main(new String[0]);
       GuiSmokeTest.main(new String[0]);
+      PhotoWorkflowTest.main(new String[0]);
     }
   }
 }

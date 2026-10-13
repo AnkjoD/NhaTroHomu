@@ -10,6 +10,14 @@ import vn.nhatrohomu.shared.Models.*;
 public interface Repository {
   RentalRepository rentals();
 
+  default vn.nhatrohomu.billing.ServiceCatalog services() {
+    throw new UnsupportedOperationException();
+  }
+
+  default vn.nhatrohomu.billing.CollectionRepository collections() {
+    throw new UnsupportedOperationException();
+  }
+
   List<Room> rooms() throws SQLException;
 
   void saveRoom(Room room) throws SQLException;

@@ -322,6 +322,18 @@ public final class RentalPanel extends JPanel {
             .map(c -> (JButton) c)
             .toList());
     actions.add(Ui.refreshButton(this::refresh));
+    if (page == Page.CONTRACTS) {
+      actions.add(Ui.button("Hồ sơ khác", this::openProfiles));
+      actions.add(
+          Ui.button(
+              "Danh mục phí",
+              () ->
+                  safe(
+                      () ->
+                          new vn.nhatrohomu.billing.ui.ServiceCatalogDialog(
+                                  owner, repository.services())
+                              .setVisible(true))));
+    }
     heading.add(actions, BorderLayout.SOUTH);
     add(heading, BorderLayout.NORTH);
     JTextField search = new JTextField(22);
@@ -392,6 +404,31 @@ public final class RentalPanel extends JPanel {
     int row = table.getSelectedRow();
     if (row < 0) throw new IllegalArgumentException("Chọn một dòng trước.");
     return table.convertRowIndexToModel(row);
+  }
+
+  private void openProfiles() {
+    JDialog dialog = new JDialog(owner, "Người thuê và gia đình", true);
+    JPanel root = Design.clear(new BorderLayout());
+    root.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
+    root.add(new RentalPanel(owner, repository, Page.TENANTS, showBill));
+    root.add(
+        Ui.button(
+            "Đóng",
+            () -> {
+              dialog.dispose();
+              refresh();
+            }),
+        BorderLayout.SOUTH);
+    dialog.setContentPane(root);
+    dialog.setSize(1000, 700);
+    dialog.setLocationRelativeTo(owner);
+    dialog.setVisible(true);
+  }
+
+  public static void editProfile(JFrame owner, Repository repository, Runnable done) {
+    RentalPanel controller = new RentalPanel(owner, repository, Page.TENANTS);
+    controller.tenantForm(null);
+    done.run();
   }
 
   @FunctionalInterface
@@ -951,10 +988,13 @@ public final class RentalPanel extends JPanel {
     endChoice.add(endCalendar);
     JCheckBox takeDeposit = new JCheckBox("Có thỏa thuận tiền cọc");
     deposit.setEditable(false);
+    deposit.setEnabled(false);
+    deposit.setText("");
     takeDeposit.addActionListener(
         e -> {
           deposit.setEditable(takeDeposit.isSelected());
-          if (!takeDeposit.isSelected()) deposit.setText("0");
+          deposit.setEnabled(takeDeposit.isSelected());
+          if (!takeDeposit.isSelected()) deposit.setText("");
         });
     JPanel depositChoice = Design.clear(new BorderLayout(0, 6));
     depositChoice.add(takeDeposit, BorderLayout.NORTH);
@@ -970,8 +1010,7 @@ public final class RentalPanel extends JPanel {
     due.setToolTipText(
         "Hạn thanh toán hóa đơn hàng tháng (1–28). Tháng đầu không sớm hơn ngày vào ở.");
     vn.nhatrohomu.shared.ChargeEditor fees =
-        new vn.nhatrohomu.shared.ChargeEditor(
-            rentals.contracts().stream().flatMap(k -> k.fees().stream()).distinct().toList());
+        new vn.nhatrohomu.shared.ChargeEditor(repository.services());
     Readings initial = repository.previous((Room) room.getSelectedItem());
     JTextField handoverE = new JTextField(initial.electricity().toPlainString()),
         handoverW = new JTextField(initial.water().toPlainString());
@@ -1032,8 +1071,8 @@ public final class RentalPanel extends JPanel {
         "Khoản thu thêm hằng tháng",
         withHint(
             fees,
-            "Chỉ thêm phí bạn có thu, như Internet hoặc vệ sinh. Không có phí thì để trống. Có thể"
-                + " dùng lại phí từ thỏa thuận đã lưu."));
+            "Chọn phí từ danh mục. Quản lý khoản phí để thêm hoặc sửa giá mặc định; không thu phí"
+                + " thì để trống."));
     Ui.field(
         fields,
         8,

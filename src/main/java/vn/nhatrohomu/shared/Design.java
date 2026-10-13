@@ -242,6 +242,17 @@ public final class Design {
         d.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         switch (kind) {
+          case "empty-check" -> d.drawRoundRect(3, 3, 14, 14, 5, 5);
+          case "unpaid" -> {
+            d.drawOval(2, 2, 16, 16);
+            d.drawLine(7, 7, 13, 13);
+            d.drawLine(13, 7, 7, 13);
+          }
+          case "check" -> {
+            d.drawRoundRect(3, 3, 14, 14, 5, 5);
+            d.drawLine(6, 10, 9, 13);
+            d.drawLine(9, 13, 14, 7);
+          }
           case "left" -> {
             d.drawLine(15, 10, 5, 10);
             d.drawLine(5, 10, 9, 6);

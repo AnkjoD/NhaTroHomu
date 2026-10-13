@@ -30,7 +30,13 @@ public final class DatabaseValidator {
           "expenses",
           "expense_reversals",
           "residents",
-          "handover_events");
+          "handover_events",
+          "service_catalog",
+          "collection_events",
+          "advance_receipts",
+          "advance_reversals",
+          "advance_refunds",
+          "advance_refund_reversals");
 
   public static void checkSafeSchema(Path file) throws SQLException {
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + file);
@@ -88,6 +94,15 @@ public final class DatabaseValidator {
   }
 
   public static void validate(Connection c) throws SQLException {
+    CreditValidator.validate(c);
+    try (Statement s = c.createStatement();
+        ResultSet r = s.executeQuery("SELECT * FROM service_catalog")) {
+      while (r.next()) {
+        DataRules.name(r.getString("name"), "Tên khoản phí", 100);
+        DataRules.money(d(r, "amount"), "Giá phí");
+        flag(r.getInt("active"));
+      }
+    }
     try (Statement s = c.createStatement()) {
       try (ResultSet r = s.executeQuery("PRAGMA integrity_check")) {
         if (!r.next() || !r.getString(1).equals("ok"))

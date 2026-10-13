@@ -27,6 +27,7 @@
 /exports/
 app.lock
 theme.txt
+presentation.properties
 
 # Private study material is never included in the product repository
 /learning-private/

@@ -140,6 +140,8 @@ public final class DataRules {
     Set<String> labels = new HashSet<>();
     for (Charge fee : b.fees()) {
       name(fee.label(), "Tên phí", 100);
+      if (fee.serviceId() != null && fee.serviceId() <= 0)
+        throw new IllegalArgumentException("Mã khoản phí không hợp lệ.");
       money(fee.amount(), "Phí");
       if (!labels.add(fee.label().trim().toLowerCase(Locale.ROOT)))
         throw new IllegalArgumentException("Tên phí trùng.");

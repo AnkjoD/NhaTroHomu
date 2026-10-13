@@ -304,7 +304,10 @@ final class TurnoverStore {
     BigDecimal normalRent = RentalService.prorated(k.rent(), first, last);
     List<Charge> normalFees =
         k.fees().stream()
-            .map(f -> new Charge(f.label(), RentalService.prorated(f.amount(), first, last)))
+            .map(
+                f ->
+                    new Charge(
+                        f.label(), RentalService.prorated(f.amount(), first, last), f.serviceId()))
             .toList();
     if ((normalRent.compareTo(b.rent()) != 0 || !normalFees.equals(b.fees())) && b.note().isBlank())
       throw new IllegalArgumentException("Ghi lý do khi điều chỉnh tiền phòng/phí so với số ngày.");

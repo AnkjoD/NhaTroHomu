@@ -72,7 +72,7 @@ erDiagram
 - `TurnoverStore`: chốt hóa đơn cuối, ngày kết thúc và OUT trong một transaction. Hai lượt cùng tháng phải không trùng ngày; chỉ số IN của người mới không gồm lượng dùng lúc phòng trống. Unique hóa đơn theo phòng/tháng/lượt thuê, đồng thời kiểm tra khoảng ngày không chồng nhau. Hóa đơn legacy chưa có khoảng ngày được giữ theo cả tháng.
 - Bàn giao phải tăng đúng thứ tự kể cả mốc dự kiến phía sau; validator kiểm tra cả khi phục hồi. Trả phòng dùng lại hóa đơn cuối khớp hoàn toàn thay vì lập trùng; không hủy hóa đơn đã gắn OUT.
 - Lượng dùng/tổng phải khớp chỉ số và giá ở mọi nhánh, kể cả hóa đơn không có hợp đồng.
-- Thu không vượt dư nợ. Khóa ghi trước khi đọc số dư; request key tránh ghi hai lần khi retry cùng thao tác.
+- Phân bổ thanh toán không vượt dư nợ; tiền mới nhận vượt dư nợ được giữ riêng trong trả trước. Khóa ghi trước khi đọc số dư; request key tránh ghi hai lần khi retry cùng thao tác.
 - Hủy hóa đơn giữ bản gốc/ảnh, không tái sử dụng ID; chỉ hủy kỳ cuối không còn khoản thu hiệu lực và không đi ngược mốc chuyển nước.
 - Đảo thu/chi giữ bản gốc, mỗi bản gốc chỉ đảo một lần. Trigger chặn sửa/xóa lịch sử tài chính và audit qua SQL thông thường.
 - Hợp đồng nhập nhầm chưa có chứng từ được đánh dấu hủy, giữ ID và điều khoản; không tính vào khoảng thuê/nghĩa vụ.
@@ -80,6 +80,14 @@ erDiagram
 - Phục hồi xác thực mọi dòng trước khi thay file live. Hóa đơn đã hủy vẫn phải có tổng và tham chiếu hợp lệ.
 
 ## Báo cáo
+
+### Schema 9: danh mục phí và trả trước
+
+`service_catalog` giữ giá mặc định; `contract_charges.service_id` và `bill_charges.service_id` liên kết tùy chọn, vẫn giữ tên/giá snapshot. Không tính lại hóa đơn khi đổi danh mục.
+
+`collection_events` giữ tiền mới nhận, tiền trả trước sử dụng, phần trả hóa đơn và phần giữ lại. `advance_receipts` giữ tiền dư, nguồn hóa đơn/kỳ và người sở hữu. `payments.advance_id` phân biệt dùng số dư với tiền thu mới; `collection_id` nối lần ghi nhận. `advance_reversals`, `advance_refunds`, `advance_refund_reversals` giữ lịch sử sửa nhầm/hoàn thực tế. Tổng phân bổ và hoàn hiệu lực không vượt nguồn. Validator kiểm tra cân đối và chủ sở hữu; báo cáo bỏ phân bổ trả trước khỏi dòng tiền thực nhận.
+
+`presentation.properties` là tùy chọn trình bày local: mẫu PNG và vùng OCR chuẩn hóa theo từng phòng. Không chứa bản ghi tài chính; không đưa file này vào Git.
 
 `ReportStore` đọc các phần trong một transaction, không nạp BLOB ảnh. Phân biệt kỳ phục vụ và ngày giao dịch. Tiền thu/chi có bản gốc và đảo nên báo cáo theo ngày có thể tái dựng điều chỉnh. Công nợ và tuổi nợ hiện là số dư hôm nay, chưa phải báo cáo tại ngày quá khứ.
 

@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Atomic schema upgrades; preserve released v1/v2/v3 books. */
 final class Schema {
-  static final int VERSION = 8;
+  static final int VERSION = 9;
   static final String BILL_COLUMNS =
       "id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,e_photo,w_photo,contract_id,tenant_name,rent,due_date";
 
@@ -168,6 +168,57 @@ final class Schema {
                 s.execute("DROP TRIGGER bills_no_rewrite");
                 s.execute(triggers().get("bills_no_rewrite"));
               }
+              if (version < 9) {
+                s.execute(
+                    "CREATE TABLE service_catalog(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT"
+                        + " NOT NULL COLLATE NOCASE UNIQUE,amount TEXT NOT NULL,active INTEGER NOT"
+                        + " NULL DEFAULT 1 CHECK(active IN(0,1)))");
+                s.execute(
+                    "ALTER TABLE contract_charges ADD COLUMN service_id INTEGER REFERENCES"
+                        + " service_catalog(id)");
+                s.execute(
+                    "ALTER TABLE bill_charges ADD COLUMN service_id INTEGER REFERENCES"
+                        + " service_catalog(id)");
+                s.execute(
+                    "CREATE TABLE collection_events(id INTEGER PRIMARY KEY AUTOINCREMENT,bill_id"
+                        + " INTEGER NOT NULL REFERENCES bills(id),owner_tenant_id INTEGER"
+                        + " REFERENCES tenants(id),cash TEXT NOT NULL,received_date TEXT NOT"
+                        + " NULL,note TEXT NOT NULL,use_advance INTEGER NOT NULL CHECK(use_advance"
+                        + " IN(0,1)),request_key TEXT NOT NULL UNIQUE,used_advance TEXT NOT"
+                        + " NULL,applied_cash TEXT NOT NULL,saved_advance TEXT NOT NULL,created_at"
+                        + " TEXT NOT NULL)");
+                s.execute(
+                    "CREATE TABLE advance_receipts(id INTEGER PRIMARY KEY"
+                        + " AUTOINCREMENT,collection_id INTEGER NOT NULL UNIQUE REFERENCES"
+                        + " collection_events(id),bill_id INTEGER NOT NULL REFERENCES"
+                        + " bills(id),owner_tenant_id INTEGER REFERENCES tenants(id),amount TEXT"
+                        + " NOT NULL,received_date TEXT NOT NULL,note TEXT NOT NULL,created_at TEXT"
+                        + " NOT NULL)");
+                s.execute(
+                    "CREATE TABLE advance_reversals(id INTEGER PRIMARY KEY AUTOINCREMENT,advance_id"
+                        + " INTEGER NOT NULL UNIQUE REFERENCES advance_receipts(id),reversed_at"
+                        + " TEXT NOT NULL,reason TEXT NOT NULL)");
+                s.execute(
+                    "CREATE TABLE advance_refunds(id INTEGER PRIMARY KEY AUTOINCREMENT,advance_id"
+                        + " INTEGER NOT NULL REFERENCES advance_receipts(id),amount TEXT NOT"
+                        + " NULL,paid_date TEXT NOT NULL,note TEXT NOT NULL,request_key TEXT NOT"
+                        + " NULL UNIQUE,created_at TEXT NOT NULL)");
+                s.execute(
+                    "CREATE TABLE advance_refund_reversals(id INTEGER PRIMARY KEY"
+                        + " AUTOINCREMENT,refund_id INTEGER NOT NULL UNIQUE REFERENCES"
+                        + " advance_refunds(id),reversed_at TEXT NOT NULL,reason TEXT NOT NULL)");
+                s.execute(
+                    "ALTER TABLE payments ADD COLUMN advance_id INTEGER REFERENCES"
+                        + " advance_receipts(id)");
+                s.execute(
+                    "ALTER TABLE payments ADD COLUMN collection_id INTEGER REFERENCES"
+                        + " collection_events(id)");
+                s.execute("CREATE INDEX payments_advance ON payments(advance_id,bill_id)");
+                for (var trigger : triggers(9).entrySet())
+                  if (trigger.getKey().startsWith("advance_")
+                      || trigger.getKey().startsWith("collection_events_"))
+                    s.execute(trigger.getValue());
+              }
               try (ResultSet r = s.executeQuery("PRAGMA foreign_key_check")) {
                 if (r.next()) throw new SQLException("Migration có quan hệ dữ liệu không hợp lệ.");
               }
@@ -191,6 +242,27 @@ final class Schema {
 
   static java.util.Map<String, String> triggers(int version) {
     java.util.Map<String, String> result = new java.util.LinkedHashMap<>();
+    if (version >= 9)
+      for (String table :
+          new String[] {
+            "collection_events",
+            "advance_receipts",
+            "advance_reversals",
+            "advance_refunds",
+            "advance_refund_reversals"
+          })
+        for (String op : new String[] {"UPDATE", "DELETE"}) {
+          String name = table + "_no_" + op.toLowerCase();
+          result.put(
+              name,
+              "CREATE TRIGGER "
+                  + name
+                  + " BEFORE "
+                  + op
+                  + " ON "
+                  + table
+                  + " BEGIN SELECT RAISE(ABORT,'Financial history is immutable'); END");
+        }
     if (version >= 7)
       for (String op : new String[] {"UPDATE", "DELETE"}) {
         String name = "handover_events_no_" + op.toLowerCase();

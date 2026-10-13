@@ -156,6 +156,10 @@ public final class GuiSmokeTest {
               var fillField = payment.getClass().getDeclaredField("fillRemaining");
               fillField.setAccessible(true);
               JButton fill = (JButton) fillField.get(payment);
+              var advanceField = payment.getClass().getDeclaredField("useAdvance");
+              advanceField.setAccessible(true);
+              if (!((JCheckBox) advanceField.get(payment)).isSelected())
+                throw new AssertionError("Advance option must default on");
               if (!receivedInput.getText().isEmpty() || saveReceipt.isEnabled())
                 throw new AssertionError("Blank receipt must not be treated as paid in full");
               fill.doClick();
@@ -166,7 +170,7 @@ public final class GuiSmokeTest {
               if (!saveReceipt.isEnabled())
                 throw new AssertionError("Valid partial amount disabled");
               receivedInput.setText("99999999");
-              if (saveReceipt.isEnabled()) throw new AssertionError("Overpayment enabled");
+              if (!saveReceipt.isEnabled()) throw new AssertionError("Advance payment disabled");
               payment.dispose();
               repo.addPayment(
                   paymentBill.id(),
@@ -178,6 +182,10 @@ public final class GuiSmokeTest {
                   || ((JButton) fillField.get(settled)).isEnabled())
                 throw new AssertionError("Fully paid invoice must disable adding receipts");
               settled.dispose();
+              new vn.nhatrohomu.billing.ui.ServiceCatalogDialog(app, repo.services()).dispose();
+              new vn.nhatrohomu.integration.ReceiptStyleDialog(
+                      app, paymentBill, repo.payments(paymentBill.id()))
+                  .dispose();
 
               new ReadingDialog(app, repo, fixed, () -> {}).dispose();
               ReportPanel report = new ReportPanel(repo);

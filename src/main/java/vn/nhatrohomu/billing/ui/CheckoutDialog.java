@@ -161,7 +161,12 @@ public final class CheckoutDialog extends JDialog {
       rent.setText(RentalService.prorated(contract.rent(), first, last).toPlainString());
       fees.setCharges(
           contract.fees().stream()
-              .map(f -> new Charge(f.label(), RentalService.prorated(f.amount(), first, last)))
+              .map(
+                  f ->
+                      new Charge(
+                          f.label(),
+                          RentalService.prorated(f.amount(), first, last),
+                          f.serviceId()))
               .toList());
       Bill existing =
           repository.roomBills(room.id(), month.toString(), month.toString()).stream()

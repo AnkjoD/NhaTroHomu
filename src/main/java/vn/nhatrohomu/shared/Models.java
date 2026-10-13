@@ -29,7 +29,18 @@ public final class Models {
     }
   }
 
-  public record Payment(long id, long billId, BigDecimal amount, String date, String note) {}
+  public record Payment(
+      long id,
+      long billId,
+      BigDecimal amount,
+      String date,
+      String note,
+      Long advanceId,
+      String sourceMonth) {
+    public Payment(long id, long billId, BigDecimal amount, String date, String note) {
+      this(id, billId, amount, date, note, null, "");
+    }
+  }
 
   public record Resident(
       String name, String relationship, String birthday, String identity, String phone) {}
@@ -64,7 +75,18 @@ public final class Models {
     }
   }
 
-  public record Charge(String label, BigDecimal amount) {}
+  public record Charge(String label, BigDecimal amount, Long serviceId) {
+    public Charge(String label, BigDecimal amount) {
+      this(label, amount, null);
+    }
+  }
+
+  public record ServiceItem(long id, String name, BigDecimal amount) {
+    @Override
+    public String toString() {
+      return name + " · " + vn.nhatrohomu.shared.Ui.money(amount);
+    }
+  }
 
   public record Contract(
       long id,

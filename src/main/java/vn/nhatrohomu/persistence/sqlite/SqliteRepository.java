@@ -151,6 +151,14 @@ public final class SqliteRepository implements Repository {
     }
   }
 
+  public vn.nhatrohomu.billing.ServiceCatalog services() {
+    return new ServiceCatalogStore(database);
+  }
+
+  public vn.nhatrohomu.billing.CollectionRepository collections() {
+    return new CollectionStore(database);
+  }
+
   public void archiveRoom(long id) throws SQLException {
     try (Connection c = connection()) {
       c.setAutoCommit(false);
@@ -659,8 +667,10 @@ public final class SqliteRepository implements Repository {
     try (Connection c = connection();
         PreparedStatement p =
             c.prepareStatement(
-                "SELECT p.* FROM payments p WHERE bill_id=? AND NOT EXISTS(SELECT 1 FROM"
-                    + " payment_reversals r WHERE r.payment_id=p.id) ORDER BY received_date,id")) {
+                "SELECT p.*,src.month source_month FROM payments p LEFT JOIN advance_receipts a ON"
+                    + " a.id=p.advance_id LEFT JOIN bills src ON src.id=a.bill_id WHERE p.bill_id=?"
+                    + " AND NOT EXISTS(SELECT 1 FROM payment_reversals r WHERE r.payment_id=p.id)"
+                    + " ORDER BY p.received_date,p.id")) {
       p.setLong(1, billId);
       try (ResultSet r = p.executeQuery()) {
         while (r.next())
@@ -670,13 +680,15 @@ public final class SqliteRepository implements Repository {
                   billId,
                   decimal(r, "amount"),
                   r.getString("received_date"),
-                  r.getString("note")));
+                  r.getString("note"),
+                  r.getObject("advance_id") == null ? null : r.getLong("advance_id"),
+                  r.getString("source_month") == null ? "" : r.getString("source_month")));
       }
     }
     return list;
   }
 
-  private void updatePaid(Connection c, long id) throws SQLException {
+  static void updatePaid(Connection c, long id) throws SQLException {
     BigDecimal received = BigDecimal.ZERO, total;
     try (PreparedStatement p = c.prepareStatement("SELECT total FROM bills WHERE id=?")) {
       p.setLong(1, id);
@@ -803,6 +815,7 @@ public final class SqliteRepository implements Repository {
             billId = r.getLong(1);
           }
         }
+        CollectionStore.reverseAssociated(c, id, reason);
         try (PreparedStatement p =
             c.prepareStatement(
                 "INSERT INTO payment_reversals(payment_id,reversed_at,reason) VALUES(?,?,?)")) {
@@ -857,6 +870,7 @@ public final class SqliteRepository implements Repository {
           }
         }
         for (long payment : originals) {
+          CollectionStore.reverseAssociated(c, payment, "Đảo qua helper tương thích");
           try (PreparedStatement p =
               c.prepareStatement(
                   "INSERT INTO payment_reversals(payment_id,reversed_at,reason) VALUES(?,?,?)")) {
@@ -885,6 +899,8 @@ public final class SqliteRepository implements Repository {
                 "UPDATE bills SET voided_at=?,void_reason=? WHERE id=? AND room_id=? AND voided_at"
                     + " IS NULL AND NOT EXISTS(SELECT 1 FROM payments p WHERE p.bill_id=bills.id"
                     + " AND NOT EXISTS(SELECT 1 FROM payment_reversals r WHERE r.payment_id=p.id))"
+                    + " AND NOT EXISTS(SELECT 1 FROM advance_receipts a WHERE a.bill_id=bills.id"
+                    + " AND NOT EXISTS(SELECT 1 FROM advance_reversals x WHERE x.advance_id=a.id))"
                     + " AND month=(SELECT MAX(month) FROM bills WHERE room_id=? AND voided_at IS"
                     + " NULL) AND NOT EXISTS(SELECT 1 FROM water_transitions t WHERE"
                     + " t.room_id=bills.room_id AND t.effective_month>bills.month) AND NOT"

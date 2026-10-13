@@ -44,13 +44,16 @@ public final class OpenEndedTest {
     repo.rentals().saveTenant(new Tenant(0, "Đại diện thử", "", "", true));
     try (Connection c = DatabaseAccess.open(file);
         Statement s = c.createStatement()) {
+      FeatureTest.removeSchema9(s);
       s.execute("PRAGMA user_version=7");
     }
     repo = new SqliteRepository(file);
     try (Connection c = DatabaseAccess.open(file);
         Statement s = c.createStatement();
         ResultSet r = s.executeQuery("PRAGMA user_version")) {
-      check(r.next() && r.getInt(1) == 8, "Schema 7 upgrades without rebuilding existing tables");
+      check(
+          r.next() && r.getInt(1) == Schema.VERSION,
+          "Schema 7 upgrades without rebuilding existing tables");
     }
     try (var files = Files.list(directory)) {
       check(

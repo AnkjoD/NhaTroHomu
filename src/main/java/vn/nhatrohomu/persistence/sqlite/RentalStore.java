@@ -204,10 +204,15 @@ public final class RentalStore implements RentalRepository {
     List<Charge> fees = new ArrayList<>();
     try (PreparedStatement p =
         c.prepareStatement(
-            "SELECT label,amount FROM " + table + " WHERE " + key + "=? ORDER BY id")) {
+            "SELECT label,amount,service_id FROM " + table + " WHERE " + key + "=? ORDER BY id")) {
       p.setLong(1, id);
       try (ResultSet r = p.executeQuery()) {
-        while (r.next()) fees.add(new Charge(r.getString(1), new BigDecimal(r.getString(2))));
+        while (r.next())
+          fees.add(
+              new Charge(
+                  r.getString(1),
+                  new BigDecimal(r.getString(2)),
+                  r.getObject(3) == null ? null : r.getLong(3)));
       }
     }
     return fees;
@@ -216,11 +221,14 @@ public final class RentalStore implements RentalRepository {
   static void saveCharges(Connection c, String table, String key, long id, List<Charge> fees)
       throws SQLException {
     try (PreparedStatement p =
-        c.prepareStatement("INSERT INTO " + table + "(" + key + ",label,amount) VALUES(?,?,?)")) {
+        c.prepareStatement(
+            "INSERT INTO " + table + "(" + key + ",label,amount,service_id) VALUES(?,?,?,?)")) {
       for (Charge fee : fees) {
         p.setLong(1, id);
         p.setString(2, fee.label().trim());
         p.setString(3, fee.amount().toPlainString());
+        if (fee.serviceId() == null) p.setNull(4, Types.INTEGER);
+        else p.setLong(4, fee.serviceId());
         p.addBatch();
       }
       p.executeBatch();
@@ -366,6 +374,18 @@ public final class RentalStore implements RentalRepository {
                   "Khoảng thuê đã có hóa đơn. Không gắn hợp đồng mới vào kỳ đã chốt.");
           }
         }
+        for (Charge fee : contract.fees())
+          if (fee.serviceId() != null) {
+            try (PreparedStatement service =
+                c.prepareStatement("SELECT name FROM service_catalog WHERE id=? AND active=1")) {
+              service.setLong(1, fee.serviceId());
+              try (ResultSet entry = service.executeQuery()) {
+                if (!entry.next() || !entry.getString(1).equals(fee.label()))
+                  throw new IllegalArgumentException(
+                      "Khoản phí đã thay đổi hoặc lưu trữ. Chọn lại từ danh mục.");
+              }
+            }
+          }
         try (PreparedStatement p =
             c.prepareStatement(
                 "INSERT INTO contracts(room_id,tenant_id,start_date,end_date,rent,deposit,due_day)"

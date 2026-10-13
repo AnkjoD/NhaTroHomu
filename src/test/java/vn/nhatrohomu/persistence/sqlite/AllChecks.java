@@ -13,6 +13,8 @@ public final class AllChecks {
     ProfileHistoryTest.main(new String[0]);
     HistoricalInvoiceTest.main(new String[0]);
     DebtFlowTest.main(new String[0]);
+    CollectionTest.main(new String[0]);
+    PresentationCatalogTest.main(new String[0]);
     TurnoverTest.main(new String[0]);
     OpenEndedTest.main(new String[0]);
     MonthlyExportTest.main(new String[0]);

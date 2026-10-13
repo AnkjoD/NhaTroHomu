@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0
+
+- Tiền trả trước có nguồn kỳ, chủ sở hữu, phân bổ và hoàn tiền riêng; tích sẵn lựa chọn sử dụng khi thu kỳ sau. Báo cáo tránh tính hai lần thu.
+- Schema 9 thêm danh mục phí liên kết với giá thỏa thuận/snapshot hóa đơn; nâng cấp có backup.
+- Gộp màn thuê, thao tác hồ sơ/người ở cùng và danh mục phí; khóa tiền cọc khi không thỏa thuận.
+- Lập nhiều phòng qua danh sách cuộn, giữ phần lỗi để thử lại và khóa phòng đã lưu.
+- Hóa đơn có trạng thái đỏ/X hoặc xanh/tích; xem phiếu trước, chi tiết nội bộ riêng, chỉnh font/cỡ/tiêu đề PNG.
+- Nhớ khung OCR theo phòng và loại đồng hồ; form chỉ số rộng hơn, nhãn đơn giản, tiền phòng lấy thỏa thuận.
+
 ## 0.9.0
 
 - Mục Thuê phòng gom hồ sơ và lượt thuê; thêm người trong form, giá mặc định lấy từ phòng nhưng thỏa thuận và hóa đơn giữ giá riêng.

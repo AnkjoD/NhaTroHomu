@@ -32,6 +32,12 @@ public final class PaymentDialog extends JDialog {
   private final JTable table = new JTable(model);
   private String requestKey = java.util.UUID.randomUUID().toString();
   private List<Payment> payments = List.of();
+  private List<vn.nhatrohomu.billing.CollectionRepository.Advance> advances = List.of();
+  private List<vn.nhatrohomu.billing.CollectionRepository.Advance> issued = List.of();
+  private List<vn.nhatrohomu.billing.CollectionRepository.Refund> refunds = List.of();
+  private final JCheckBox useAdvance = new JCheckBox("Dùng tiền trả trước", true);
+  private final JLabel advanceInfo = new JLabel(), preview = new JLabel();
+  private final JComboBox<Tenant> advanceOwner = new JComboBox<>();
 
   public PaymentDialog(JFrame owner, Repository repository, Bill bill) throws Exception {
     super(owner, "Thu tiền · " + bill.roomName() + " / " + bill.month(), true);
@@ -48,12 +54,15 @@ public final class PaymentDialog extends JDialog {
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     root.add(new JScrollPane(table), BorderLayout.CENTER);
     JPanel form = new JPanel(new GridLayout(0, 2, 12, 10));
-    form.add(new JLabel("Số tiền thực nhận (đồng, không phân cách)"));
+    form.add(new JLabel("Số tiền khách vừa đưa (đ)"));
     amount.putClientProperty("JTextField.placeholderText", "Nhập số tiền khách vừa trả");
     JPanel receive = new JPanel(new BorderLayout(6, 0));
     receive.add(amount);
     receive.add(fillRemaining, BorderLayout.EAST);
-    fillRemaining.addActionListener(e -> amount.setText(remaining.toPlainString()));
+    fillRemaining.addActionListener(
+        e ->
+            amount.setText(
+                remaining.subtract(advanceAmount()).max(BigDecimal.ZERO).toPlainString()));
     form.add(receive);
 
     amount
@@ -74,12 +83,81 @@ public final class PaymentDialog extends JDialog {
             });
     form.add(new JLabel("Ngày thu · YYYY-MM-DD"));
     form.add(vn.nhatrohomu.shared.DatePicker.field(date, false));
-    form.add(new JLabel("Ghi chú / phương thức thanh toán"));
+    form.add(new JLabel("Ghi chú"));
     form.add(note);
+    if (bill.contractId() == null) {
+      advanceOwner.addItem(null);
+      for (Tenant person : repository.rentals().tenants()) advanceOwner.addItem(person);
+      advanceOwner.setRenderer(
+          new DefaultListCellRenderer() {
+            public Component getListCellRendererComponent(
+                JList<?> list, Object value, int index, boolean selected, boolean focus) {
+              return super.getListCellRendererComponent(
+                  list,
+                  value == null ? "Chưa có hồ sơ: giữ riêng theo phòng cũ" : value,
+                  index,
+                  selected,
+                  focus);
+            }
+          });
+      JPanel ownerChoice = new JPanel(new BorderLayout(6, 0));
+      ownerChoice.setOpaque(false);
+      ownerChoice.add(advanceOwner);
+      ownerChoice.add(
+          Ui.button(
+              "+ Hồ sơ",
+              () -> {
+                java.util.Set<Long> before = new java.util.HashSet<>();
+                for (int i = 0; i < advanceOwner.getItemCount(); i++)
+                  if (advanceOwner.getItemAt(i) != null) before.add(advanceOwner.getItemAt(i).id());
+                vn.nhatrohomu.rental.ui.RentalPanel.editProfile(
+                    owner,
+                    repository,
+                    () -> {
+                      try {
+                        Tenant selected = (Tenant) advanceOwner.getSelectedItem();
+                        advanceOwner.removeAllItems();
+                        advanceOwner.addItem(null);
+                        for (Tenant person : repository.rentals().tenants()) {
+                          advanceOwner.addItem(person);
+                          if (!before.contains(person.id())) selected = person;
+                        }
+                        if (selected != null)
+                          for (int i = 0; i < advanceOwner.getItemCount(); i++)
+                            if (advanceOwner.getItemAt(i) != null
+                                && advanceOwner.getItemAt(i).id() == selected.id())
+                              advanceOwner.setSelectedIndex(i);
+                      } catch (Exception ex) {
+                        Ui.error(this, ex);
+                      }
+                    });
+              }),
+          BorderLayout.EAST);
+      form.add(new JLabel("Người có tiền trả trước"));
+      form.add(ownerChoice);
+      advanceOwner.addActionListener(
+          e -> {
+            try {
+              reloadAdvances();
+              validateAmount();
+            } catch (Exception ex) {
+              Ui.error(this, ex);
+            }
+          });
+    }
+    JPanel credit = new JPanel(new BorderLayout(0, 4));
+    credit.setOpaque(false);
+    credit.add(useAdvance, BorderLayout.NORTH);
+    credit.add(advanceInfo);
+    form.add(new JLabel("Tiền trả trước từ kỳ trước"));
+    form.add(credit);
+    form.add(new JLabel("Sau khi ghi nhận"));
+    form.add(preview);
+    useAdvance.addActionListener(e -> validateAmount());
     JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
     JButton reverse =
         Ui.button(
-            "Đảo lần thu nhập nhầm",
+            "Sửa khoản thu nhập nhầm",
             () -> {
               try {
                 int row = table.getSelectedRow();
@@ -90,8 +168,18 @@ public final class PaymentDialog extends JDialog {
                         + " tiền thật cho khách.")) {
                   String reason = JOptionPane.showInputDialog(this, "Lý do nhập nhầm:");
                   if (reason == null) return;
-                  repository.reversePayment(
-                      payments.get(table.convertRowIndexToModel(row)).id(), reason);
+                  int modelRow = table.convertRowIndexToModel(row);
+                  if (modelRow < payments.size())
+                    repository.reversePayment(payments.get(modelRow).id(), reason);
+                  else if (modelRow < payments.size() + issued.size())
+                    repository
+                        .collections()
+                        .reverseAdvance(issued.get(modelRow - payments.size()).id(), reason);
+                  else
+                    repository
+                        .collections()
+                        .reverseRefund(
+                            refunds.get(modelRow - payments.size() - issued.size()).id(), reason);
                   refresh();
                 }
               } catch (Exception ex) {
@@ -99,16 +187,107 @@ public final class PaymentDialog extends JDialog {
               }
             });
     actions.add(reverse);
+    JButton refund =
+        Ui.button(
+            "Ghi nhận hoàn trả trước",
+            () -> {
+              try {
+                int row = table.getSelectedRow();
+                if (row < 0) return;
+                int index = table.convertRowIndexToModel(row) - payments.size();
+                if (index < 0 || index >= issued.size())
+                  throw new IllegalArgumentException(
+                      "Chọn khoản trả trước còn số dư để ghi nhận tiền đã hoàn cho khách.");
+                var source = issued.get(index);
+                JTextField value = new JTextField(source.available().toPlainString()),
+                    day = new JTextField(LocalDate.now().toString()),
+                    memo = new JTextField();
+                JPanel fields = new JPanel(new GridLayout(0, 2, 10, 10));
+                fields.add(new JLabel("Tiền đã hoàn cho khách (đ)"));
+                fields.add(value);
+                fields.add(new JLabel("Ngày hoàn"));
+                fields.add(vn.nhatrohomu.shared.DatePicker.field(day, false));
+                fields.add(new JLabel("Ghi chú"));
+                fields.add(memo);
+                if (JOptionPane.showConfirmDialog(
+                        this, fields, "Ghi nhận tiền đã hoàn thực tế", JOptionPane.OK_CANCEL_OPTION)
+                    != JOptionPane.OK_OPTION) return;
+                repository
+                    .collections()
+                    .refund(
+                        source.id(),
+                        BillingService.number(value.getText(), "Tiền hoàn"),
+                        day.getText().trim(),
+                        memo.getText(),
+                        java.util.UUID.randomUUID().toString());
+                refresh();
+              } catch (Exception ex) {
+                Ui.error(this, ex);
+              }
+            });
+    actions.add(refund);
     vn.nhatrohomu.shared.RowActions.install(table, List.of(reverse), false);
+    refund.setVisible(false);
+    table
+        .getSelectionModel()
+        .addListSelectionListener(
+            e -> {
+              int row = table.getSelectedRow(),
+                  index = row < 0 ? -1 : table.convertRowIndexToModel(row) - payments.size();
+              refund.setVisible(
+                  index >= 0
+                      && index < issued.size()
+                      && issued.get(index).available().signum() > 0);
+            });
     addReceipt.addActionListener(
         e -> {
           try {
-            repository.addPayment(
-                bill.id(),
-                BillingService.number(amount.getText(), "Tiền thực nhận"),
-                date.getText().trim(),
-                note.getText(),
-                requestKey);
+            BigDecimal value =
+                amount.getText().isBlank()
+                    ? BigDecimal.ZERO
+                    : BillingService.number(amount.getText(), "Tiền thực nhận");
+            BigDecimal used = advanceAmount(),
+                applied = value.min(remaining.subtract(used)),
+                surplus = value.subtract(applied);
+            java.util.List<String> usedSources = new java.util.ArrayList<>();
+            BigDecimal left = used;
+            for (var source : advances) {
+              BigDecimal take = source.available().min(left);
+              if (take.signum() <= 0) break;
+              usedSources.add(source.month() + ": " + Ui.money(take));
+              left = left.subtract(take);
+            }
+            String sources = String.join("; ", usedSources);
+            String confirmation =
+                "Tiền khách vừa đưa: "
+                    + Ui.money(value)
+                    + "\nDùng trả trước: "
+                    + Ui.money(used)
+                    + (used.signum() > 0 ? " (nguồn " + sources + ")" : "")
+                    + "\nGiữ cho kỳ sau: "
+                    + Ui.money(surplus)
+                    + "\nCòn nợ: "
+                    + Ui.money(remaining.subtract(used).subtract(applied));
+            if (bill.contractId() == null)
+              confirmation +=
+                  "\nSố dư thuộc: "
+                      + (selectedOwner() == null
+                          ? "hồ sơ cũ của " + bill.roomName()
+                          : ((Tenant) advanceOwner.getSelectedItem()).name());
+            if (remaining.signum() == 0)
+              confirmation +=
+                  "\nHóa đơn đã trả đủ. Đây là tiền mới trả trước, không phải sửa khoản thu cũ.";
+            if (!Ui.confirm(this, confirmation + "\nGhi nhận?")) return;
+            repository
+                .collections()
+                .collect(
+                    bill.id(),
+                    value,
+                    date.getText().trim(),
+                    note.getText(),
+                    useAdvance.isSelected(),
+                    requestKey,
+                    selectedOwner());
             requestKey = java.util.UUID.randomUUID().toString();
             note.setText("");
             refresh();
@@ -123,8 +302,8 @@ public final class PaymentDialog extends JDialog {
     entry.add(form);
     JTextArea help =
         new JTextArea(
-            "Khách trả thiếu: ghi đúng tiền vừa nhận, phần còn lại tự nằm trong Công nợ. Thu bổ"
-                + " sung vào cùng hóa đơn; không cộng nợ cũ thành phí tháng mới.");
+            "Nhập tiền khách vừa đưa. Trả thiếu thì giữ số nợ; trả dư thì lưu cho kỳ sau. Muốn sửa"
+                + " tiền đã ghi, chọn dòng gốc rồi Sửa khoản thu nhập nhầm.");
     help.setEditable(false);
     help.setLineWrap(true);
     help.setWrapStyleWord(true);
@@ -136,40 +315,82 @@ public final class PaymentDialog extends JDialog {
     root.add(bottom, BorderLayout.SOUTH);
     setContentPane(root);
     refresh();
-    setSize(900, 560);
+    setSize(980, 650);
     setLocationRelativeTo(owner);
   }
 
   private void validateAmount() {
     try {
-      BigDecimal value = BillingService.number(amount.getText(), "Tiền thực nhận");
+      BigDecimal value =
+          amount.getText().isBlank()
+              ? BigDecimal.ZERO
+              : BillingService.number(amount.getText(), "Tiền thực nhận");
       addReceipt.setEnabled(
-          remaining.signum() > 0
-              && value.signum() > 0
+          (value.signum() > 0 || advanceAmount().signum() > 0)
+              && value.signum() >= 0
               && value.stripTrailingZeros().scale() <= 0
-              && value.compareTo(remaining) <= 0
               && value.compareTo(new BigDecimal("1000000000")) <= 0);
+      BigDecimal used = advanceAmount(), applied = value.min(remaining.subtract(used));
+      BigDecimal surplus = value.subtract(applied);
+      preview.setText(
+          surplus.signum() > 0
+              ? "Giữ cho kỳ sau: " + Ui.money(surplus)
+              : "Còn nợ: " + Ui.money(remaining.subtract(used).subtract(applied)));
     } catch (IllegalArgumentException ex) {
       addReceipt.setEnabled(false);
     }
   }
 
+  private BigDecimal advanceAmount() {
+    return useAdvance.isSelected()
+        ? advances.stream()
+            .map(vn.nhatrohomu.billing.CollectionRepository.Advance::available)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .min(remaining)
+        : BigDecimal.ZERO;
+  }
+
+  private Long selectedOwner() {
+    Tenant selected = (Tenant) advanceOwner.getSelectedItem();
+    return selected == null ? null : selected.id();
+  }
+
+  private void reloadAdvances() throws Exception {
+    advances = repository.collections().available(bill.id(), selectedOwner());
+    useAdvance.setVisible(!advances.isEmpty());
+    BigDecimal available =
+        advances.stream()
+            .map(vn.nhatrohomu.billing.CollectionRepository.Advance::available)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    advanceInfo.setText(
+        advances.isEmpty()
+            ? "Chưa có số dư từ kỳ trước"
+            : Ui.money(available) + " từ " + advances.size() + " khoản");
+    advanceInfo.setToolTipText(
+        advances.stream()
+            .map(a -> "Tháng " + a.month() + ": " + Ui.money(a.available()))
+            .collect(java.util.stream.Collectors.joining("; ")));
+  }
+
   private void refresh() throws Exception {
     payments = repository.payments(bill.id());
+    reloadAdvances();
+    issued = repository.collections().issued(bill.id());
+    refunds = repository.collections().refunds(bill.id());
     BigDecimal received =
         payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal rest = bill.total().subtract(received);
     balance.setText(
         "Tổng: "
             + Ui.money(bill.total())
-            + "  ·  Đã thu: "
+            + "  ·  Đã thanh toán: "
             + Ui.money(received)
             + "  ·  Còn: "
             + Ui.money(rest));
     remaining = rest;
     amount.setText("");
     boolean owes = rest.signum() > 0;
-    amount.setEnabled(owes);
+    amount.setEnabled(true);
     addReceipt.setEnabled(false);
     fillRemaining.setEnabled(owes);
     state.setText(
@@ -186,5 +407,25 @@ public final class PaymentDialog extends JDialog {
             Ui.money(p.amount()),
             p.note()
           });
+    for (var advance : issued)
+      model.addRow(
+          new Object[] {
+            advance.date(),
+            Ui.money(advance.original()),
+            "Trả trước tháng "
+                + advance.month()
+                + " · "
+                + (advance.ownerName().isBlank() ? "giữ theo phòng cũ" : advance.ownerName())
+                + " · số dư "
+                + Ui.money(advance.available())
+          });
+    for (var refund : refunds)
+      model.addRow(
+          new Object[] {
+            refund.date(),
+            Ui.money(refund.amount().negate()),
+            "Đã hoàn trả trước · " + refund.note()
+          });
+    validateAmount();
   }
 }

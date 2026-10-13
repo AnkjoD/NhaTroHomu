@@ -16,7 +16,49 @@ public final class ChargeEditor extends JPanel {
   private Runnable changed = () -> {};
   private boolean replacing;
 
-  private record Line(JPanel panel, JTextField name, JTextField amount) {}
+  private record Line(JPanel panel, JTextField name, JTextField amount, Long serviceId) {}
+
+  public ChargeEditor(vn.nhatrohomu.billing.ServiceCatalog catalog) throws Exception {
+    this(List.of());
+    remove(((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.SOUTH));
+    JComboBox<vn.nhatrohomu.shared.Models.ServiceItem> choices = new JComboBox<>();
+    JButton add =
+        Ui.button(
+            "Chọn khoản phí",
+            () -> {
+              var selected = (vn.nhatrohomu.shared.Models.ServiceItem) choices.getSelectedItem();
+              if (selected != null)
+                addLine(selected.name(), selected.amount().toPlainString(), selected.id());
+            });
+    Runnable reload =
+        () -> {
+          try {
+            choices.removeAllItems();
+            for (var item : catalog.items()) choices.addItem(item);
+            add.setEnabled(choices.getItemCount() > 0);
+          } catch (Exception ex) {
+            Ui.error(this, ex);
+          }
+        };
+    JPanel controls = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
+    controls.add(choices);
+    controls.add(add);
+    controls.add(
+        Ui.button(
+            "Quản lý khoản phí",
+            () -> {
+              try {
+                new vn.nhatrohomu.billing.ui.ServiceCatalogDialog(
+                        SwingUtilities.getWindowAncestor(this), catalog)
+                    .setVisible(true);
+                reload.run();
+              } catch (Exception ex) {
+                Ui.error(this, ex);
+              }
+            }));
+    add(controls, BorderLayout.SOUTH);
+    reload.run();
+  }
 
   public ChargeEditor(List<Charge> previous) {
     super(new BorderLayout(0, 8));
@@ -49,7 +91,9 @@ public final class ChargeEditor extends JPanel {
               "Dùng lại",
               () -> {
                 Charge selected = (Charge) suggestions.getSelectedItem();
-                if (selected != null) addLine(selected.label(), selected.amount().toPlainString());
+                if (selected != null)
+                  addLine(
+                      selected.label(), selected.amount().toPlainString(), selected.serviceId());
               }));
     }
     add(controls, BorderLayout.SOUTH);
@@ -64,6 +108,10 @@ public final class ChargeEditor extends JPanel {
   }
 
   private void addLine(String label, String value) {
+    addLine(label, value, null);
+  }
+
+  private void addLine(String label, String value, Long serviceId) {
     if (entries.size() >= 20) {
       Ui.error(this, new IllegalArgumentException("Tối đa 20 khoản phí."));
       return;
@@ -72,6 +120,7 @@ public final class ChargeEditor extends JPanel {
     JPanel fields = Design.clear(new GridLayout(1, 2, 8, 0));
     JTextField name = new JTextField(label, 14), amount = new JTextField(value, 12);
     name.setName("charge-name");
+    name.setEditable(serviceId == null);
     amount.setName("charge-amount");
     name.putClientProperty("JTextField.placeholderText", "Ví dụ: Internet");
     amount.putClientProperty("JTextField.placeholderText", "Ví dụ: 100000");
@@ -84,7 +133,7 @@ public final class ChargeEditor extends JPanel {
     fields.add(nameField);
     fields.add(amountField);
     row.add(fields);
-    Line entry = new Line(row, name, amount);
+    Line entry = new Line(row, name, amount, serviceId);
     row.add(
         Ui.button(
             "Bỏ",
@@ -124,7 +173,7 @@ public final class ChargeEditor extends JPanel {
     try {
       entries.clear();
       lines.removeAll();
-      fees.forEach(fee -> addLine(fee.label(), fee.amount().toPlainString()));
+      fees.forEach(fee -> addLine(fee.label(), fee.amount().toPlainString(), fee.serviceId()));
       lines.revalidate();
       lines.repaint();
     } finally {
@@ -142,7 +191,10 @@ public final class ChargeEditor extends JPanel {
       if (!names.add(label.toLowerCase(java.util.Locale.ROOT)))
         throw new IllegalArgumentException("Khoản phí bị trùng tên: " + label);
       result.add(
-          new Charge(label, RentalService.money(entry.amount().getText(), "Số tiền " + label)));
+          new Charge(
+              label,
+              RentalService.money(entry.amount().getText(), "Số tiền " + label),
+              entry.serviceId()));
     }
     return List.copyOf(result);
   }

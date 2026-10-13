@@ -115,6 +115,8 @@ public final class InvoicePdf {
             document.add(
                 new Paragraph("CÒN NỢ KỲ NÀY: " + Ui.money(remaining), new Font(base, 15)));
           }
+          for (String source : InvoiceImage.advanceLines(payments))
+            document.add(new Paragraph(source, normal));
         } finally {
           document.close();
         }

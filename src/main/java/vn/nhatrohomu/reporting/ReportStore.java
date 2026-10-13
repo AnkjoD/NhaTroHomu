@@ -73,6 +73,7 @@ public final class ReportStore {
           BigDecimal amount = new BigDecimal(r.getString("amount"));
           if (r.getString("reversed_at") == null)
             collected.merge(r.getLong("bill_id"), amount, BigDecimal::add);
+          if (r.getObject("advance_id") != null) continue;
           String date = r.getString("received_date");
           if (date.isBlank()) unknown++;
           else if (YearMonth.from(RentalService.date(date)).equals(period)) {
@@ -102,6 +103,90 @@ public final class ReportStore {
                       "Đảo thu",
                       r.getString("reason")));
               cash = cash.subtract(amount);
+            }
+          }
+        }
+      }
+      try (Statement s = c.createStatement();
+          ResultSet r =
+              s.executeQuery(
+                  "SELECT a.*,b.room_id,b.room_name,b.month,x.reversed_at,x.reason FROM"
+                      + " advance_receipts a JOIN bills b ON b.id=a.bill_id LEFT JOIN"
+                      + " advance_reversals x ON x.advance_id=a.id ORDER BY"
+                      + " a.received_date,a.id")) {
+        while (r.next()) {
+          if (roomFilter != null && roomFilter != r.getLong("room_id")) continue;
+          BigDecimal value = new BigDecimal(r.getString("amount"));
+          String date = r.getString("received_date");
+          if (YearMonth.from(RentalService.date(date)).equals(period)) {
+            cash = cash.add(value);
+            movements.add(
+                new Movement(
+                    date,
+                    r.getString("room_name"),
+                    r.getString("month"),
+                    value,
+                    "Nhận trả trước",
+                    r.getString("note")));
+          }
+          if (r.getString("reversed_at") != null) {
+            String reversed =
+                Instant.parse(r.getString("reversed_at"))
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .toString();
+            if (YearMonth.from(RentalService.date(reversed)).equals(period)) {
+              cash = cash.subtract(value);
+              movements.add(
+                  new Movement(
+                      reversed,
+                      r.getString("room_name"),
+                      r.getString("month"),
+                      value.negate(),
+                      "Đảo trả trước",
+                      r.getString("reason")));
+            }
+          }
+        }
+      }
+      try (Statement s = c.createStatement();
+          ResultSet r =
+              s.executeQuery(
+                  "SELECT f.*,b.room_id,b.room_name,b.month,x.reversed_at,x.reason FROM"
+                      + " advance_refunds f JOIN advance_receipts a ON a.id=f.advance_id JOIN bills"
+                      + " b ON b.id=a.bill_id LEFT JOIN advance_refund_reversals x ON"
+                      + " x.refund_id=f.id")) {
+        while (r.next()) {
+          if (roomFilter != null && roomFilter != r.getLong("room_id")) continue;
+          BigDecimal value = new BigDecimal(r.getString("amount"));
+          String date = r.getString("paid_date");
+          if (YearMonth.from(RentalService.date(date)).equals(period)) {
+            cash = cash.subtract(value);
+            movements.add(
+                new Movement(
+                    date,
+                    r.getString("room_name"),
+                    r.getString("month"),
+                    value.negate(),
+                    "Hoàn trả trước",
+                    r.getString("note")));
+          }
+          if (r.getString("reversed_at") != null) {
+            String reversed =
+                Instant.parse(r.getString("reversed_at"))
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .toString();
+            if (YearMonth.from(RentalService.date(reversed)).equals(period)) {
+              cash = cash.add(value);
+              movements.add(
+                  new Movement(
+                      reversed,
+                      r.getString("room_name"),
+                      r.getString("month"),
+                      value,
+                      "Đảo hoàn trả trước",
+                      r.getString("reason")));
             }
           }
         }

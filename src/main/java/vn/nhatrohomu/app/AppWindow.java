@@ -42,6 +42,7 @@ public final class AppWindow extends JFrame {
     super("NhaTroHomu · Quản lý phòng trọ");
     this.repository = repository;
     this.dataDirectory = dataDirectory;
+    vn.nhatrohomu.shared.LocalUiSettings.load(dataDirectory);
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
     setSize(Math.min(1240, screen.width - 80), Math.min(820, screen.height - 80));
@@ -85,7 +86,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.9.0", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.0", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -544,26 +545,7 @@ public final class AppWindow extends JFrame {
     body.removeAll();
     if (page == RentalPanel.Page.DEBTS)
       body.add(new RentalPanel(this, repository, page, this::billDialog));
-    else {
-      JTabbedPane tabs = new JTabbedPane();
-      tabs.setOpaque(false);
-      tabs.setBackground(Design.SURFACE);
-      tabs.setForeground(Design.INK);
-      tabs.addTab(
-          "Người đang thuê / lịch sử thuê",
-          new RentalPanel(this, repository, RentalPanel.Page.CONTRACTS, this::billDialog));
-      tabs.addTab(
-          "Hồ sơ / người ở cùng",
-          new RentalPanel(this, repository, RentalPanel.Page.TENANTS, this::billDialog));
-      rentalTab = page == RentalPanel.Page.TENANTS ? 1 : 0;
-      tabs.setSelectedIndex(rentalTab);
-      tabs.addChangeListener(
-          e -> {
-            rentalTab = tabs.getSelectedIndex();
-            if (tabs.getSelectedComponent() instanceof RentalPanel panel) panel.refreshData();
-          });
-      body.add(tabs);
-    }
+    else body.add(new RentalPanel(this, repository, RentalPanel.Page.CONTRACTS, this::billDialog));
     body.revalidate();
     body.repaint();
   }
@@ -615,9 +597,8 @@ public final class AppWindow extends JFrame {
               Ui.money(b.rent()),
               Ui.money(b.feeTotal()),
               Ui.money(b.total()),
-              b.paid()
-                  ? "Đã thu đủ"
-                  : repository.received(b.id()).signum() > 0 ? "Thu một phần" : "Chưa thu",
+              vn.nhatrohomu.shared.PaymentStatus.of(
+                  b.total(), repository.received(b.id()), b.dueDate()),
               b.note()
             };
       }
@@ -635,6 +616,21 @@ public final class AppWindow extends JFrame {
                 "Ghi chú"
               },
               rows);
+      table
+          .getColumnModel()
+          .getColumn(7)
+          .setCellRenderer(
+              new javax.swing.table.DefaultTableCellRenderer() {
+                public Component getTableCellRendererComponent(
+                    JTable t, Object value, boolean selected, boolean focus, int row, int col) {
+                  super.getTableCellRendererComponent(t, value, selected, focus, row, col);
+                  if (value instanceof vn.nhatrohomu.shared.PaymentStatus status) {
+                    setIcon(status.icon());
+                    if (!selected) setForeground(status.color());
+                  } else setIcon(null);
+                  return this;
+                }
+              });
       JPanel a = actions();
       JPanel filterBar = actions();
       JComboBox<String> period = new JComboBox<>();
@@ -652,6 +648,18 @@ public final class AppWindow extends JFrame {
       filterBar.add(new JLabel("Tháng hóa đơn"));
       filterBar.add(period);
       filterBar.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
+      filterBar.add(
+          Ui.button(
+              "Lập nhiều phòng",
+              () -> {
+                try {
+                  new vn.nhatrohomu.billing.ui.BatchBillingDialog(
+                          this, repository, this::showHistory)
+                      .setVisible(true);
+                } catch (Exception ex) {
+                  Ui.error(this, ex);
+                }
+              }));
       JButton exportMonth = Ui.button("Xuất phiếu các phòng", () -> exportMonthlyInvoices(false));
       exportMonth.setName("export-monthly-invoices");
       exportMonth.setEnabled(
@@ -932,9 +940,46 @@ public final class AppWindow extends JFrame {
     text.setLineWrap(true);
     text.setWrapStyleWord(true);
     text.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-    dialog.add(new JScrollPane(text));
+    JLabel preview = new JLabel();
+    Runnable refreshPreview =
+        () -> {
+          try {
+            var picture =
+                vn.nhatrohomu.integration.InvoiceImage.render(b, repository.payments(b.id()));
+            preview.setIcon(
+                new ImageIcon(
+                    picture.getScaledInstance(
+                        800, picture.getHeight() * 800 / picture.getWidth(), Image.SCALE_SMOOTH)));
+          } catch (Exception ex) {
+            Ui.error(dialog, ex);
+          }
+        };
+    refreshPreview.run();
+    JPanel views = new JPanel(new CardLayout());
+    views.add(new JScrollPane(preview), "preview");
+    views.add(new JScrollPane(text), "details");
+    dialog.add(views);
     JPanel buttons = actions();
+    JToggleButton details = new JToggleButton("Chi tiết nội bộ");
+    details.addActionListener(
+        e ->
+            ((CardLayout) views.getLayout())
+                .show(views, details.isSelected() ? "details" : "preview"));
+    buttons.add(details);
     buttons.add(Ui.button("Ảnh điện", () -> showPhoto(dialog, b.id(), true)));
+    buttons.add(
+        Ui.button(
+            "Chỉnh mẫu ảnh",
+            () -> {
+              try {
+                new vn.nhatrohomu.integration.ReceiptStyleDialog(
+                        dialog, b, repository.payments(b.id()))
+                    .setVisible(true);
+                refreshPreview.run();
+              } catch (Exception ex) {
+                Ui.error(dialog, ex);
+              }
+            }));
     buttons.setLayout(new GridLayout(0, 4, 8, 8));
     buttons.add(Ui.button("Ảnh nước", () -> showPhoto(dialog, b.id(), false)));
     buttons.add(
@@ -999,6 +1044,10 @@ public final class AppWindow extends JFrame {
     buttons.add(Ui.button("Đóng", dialog::dispose));
     dialog.add(buttons, BorderLayout.SOUTH);
     dialog.pack();
+    Rectangle bounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+    dialog.setSize(
+        Math.min(dialog.getWidth(), bounds.width - 50),
+        Math.min(dialog.getHeight(), bounds.height - 50));
     dialog.setLocationRelativeTo(this);
     dialog.setVisible(true);
   }

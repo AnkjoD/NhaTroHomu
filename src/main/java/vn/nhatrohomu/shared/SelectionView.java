@@ -152,7 +152,19 @@ public final class SelectionView extends JPanel {
     if (count == 0) cards.add(Design.label("Chưa có dữ liệu phù hợp.", 14, Design.MUTED, false));
     for (int view = 0; view < count; view++) {
       int row = table.convertRowIndexToModel(view);
-      JPanel card = Design.card(Design.SURFACE, true);
+      Color fill = Design.SURFACE;
+      for (int col = 0; col < table.getModel().getColumnCount(); col++) {
+        if (table.getModel().getValueAt(row, col) instanceof PaymentStatus status) {
+          Color accent = status.paid() ? new Color(25, 130, 91) : new Color(174, 53, 55);
+          fill =
+              new Color(
+                  (int) (fill.getRed() * 0.84 + accent.getRed() * 0.16),
+                  (int) (fill.getGreen() * 0.84 + accent.getGreen() * 0.16),
+                  (int) (fill.getBlue() * 0.84 + accent.getBlue() * 0.16));
+          break;
+        }
+      }
+      JPanel card = Design.card(fill, true);
       card.setAlignmentX(Component.LEFT_ALIGNMENT);
       card.setLayout(new BorderLayout(0, 12));
       card.add(Design.label(value(row, titleColumn), 19, Design.INK, true), BorderLayout.NORTH);
@@ -180,7 +192,11 @@ public final class SelectionView extends JPanel {
         content.setWrapStyleWord(true);
         content.setOpaque(false);
         content.setRows(Math.min(3, 1 + text.length() / 65));
-        field.add(content);
+        if (table.getModel().getValueAt(row, col) instanceof PaymentStatus status) {
+          JLabel badge = new JLabel(status.text(), status.icon(), SwingConstants.LEFT);
+          badge.setForeground(status.color());
+          field.add(badge);
+        } else field.add(content);
         (included++ < 4 ? fields : extra).add(field);
       }
       JPanel facts = Design.clear(new BorderLayout(0, 8));

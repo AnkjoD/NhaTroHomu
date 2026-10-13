@@ -29,6 +29,7 @@ public final class ReadingDialog extends JDialog {
   private final JLabel rentalInfo = new JLabel(), feesInfo = new JLabel();
   private final JLabel oldElectricity = new JLabel(), oldWater = new JLabel();
   private final JComboBox<Contract> tenancyChoice = new JComboBox<>();
+  private final JCheckBox utilitiesOnly = new JCheckBox("Chỉ lập điện nước, không thu tiền phòng");
   private boolean syncingRental;
   private final JTextField month = new JTextField(YearMonth.now().toString()),
       electricity = new JTextField(),
@@ -46,7 +47,7 @@ public final class ReadingDialog extends JDialog {
     this.room = room;
     rates = repository.rates();
     old = repository.previous(room);
-    contracts = repository.rentals().contracts();
+    contracts = new java.util.ArrayList<>(repository.rentals().contracts());
     electricity.setText(Ui.n(old.electricity()));
     water.setText(Ui.n(old.water()));
     fixed.setText(Ui.n(room.fixedWater() == null ? rates.defaultWater() : room.fixedWater()));
@@ -83,10 +84,14 @@ public final class ReadingDialog extends JDialog {
     Ui.field(form, 0, "Kỳ (YYYY-MM)", vn.nhatrohomu.shared.DatePicker.field(month, true));
     oldElectricity.setText(Ui.n(old.electricity()));
     oldWater.setText(Ui.n(old.water()));
-    Ui.field(form, 1, "Điện đầu kỳ/lúc vào ở (kWh)", oldElectricity);
+    Ui.field(form, 1, "Số điện cũ (kWh)", oldElectricity);
+    oldElectricity.setToolTipText(
+        "Lấy từ số chốt trước hoặc bàn giao. Sửa sai ở chứng từ nguồn để không lệch tiền và kỳ"
+            + " sau.");
     Ui.field(form, 2, "Chỉ số điện mới", electricity);
     if (room.waterMode().equals("METER")) {
-      Ui.field(form, 3, "Nước đầu kỳ/lúc vào ở (m³)", oldWater);
+      Ui.field(form, 3, "Số nước cũ (m³)", oldWater);
+      oldWater.setToolTipText(oldElectricity.getToolTipText());
       Ui.field(form, 4, "Chỉ số nước mới", water);
     } else Ui.field(form, 3, "Nước cố định kỳ này (m³)", fixed);
     Ui.field(form, 5, "Đơn giá điện / kWh", new JLabel(Ui.money(rates.electricity())));
@@ -106,13 +111,33 @@ public final class ReadingDialog extends JDialog {
     JPanel tenancy = Ui.column();
     tenancy.add(tenancyChoice);
     tenancy.add(rentalInfo);
-    Ui.field(form, 7, "Lần thuê / người thuê", tenancy);
-    Ui.field(form, 8, "Tiền phòng kỳ này (đ)", rent);
+    tenancy.add(utilitiesOnly);
+    utilitiesOnly.addActionListener(e -> update());
+    tenancy.add(
+        Ui.button(
+            "Thiết lập thuê phòng",
+            () ->
+                vn.nhatrohomu.rental.ui.RentalPanel.letRoom(
+                    owner,
+                    repository,
+                    room.id(),
+                    () -> {
+                      try {
+                        contracts.clear();
+                        contracts.addAll(repository.rentals().contracts());
+                        syncRental();
+                        update();
+                      } catch (Exception ex) {
+                        Ui.error(this, ex);
+                      }
+                    })));
+    Ui.field(form, 7, "Người thuê", tenancy);
+    Ui.field(form, 8, "Tiền phòng (đ)", rent);
     rent.setToolTipText(
         "Mặc định tiền tháng trong hợp đồng. Có thể điều chỉnh khi ở chưa đủ tháng; ghi lý do vào"
             + " ghi chú.");
     Ui.field(form, 9, "Phí hàng tháng", feesInfo);
-    Ui.field(form, 10, "Ghi chú / lý do giảm tiền", note);
+    Ui.field(form, 10, "Ghi chú", note);
     syncRental();
     tenancyChoice.addActionListener(
         e -> {
@@ -131,25 +156,34 @@ public final class ReadingDialog extends JDialog {
     formCard.add(Design.label("Chỉ số & kỳ ghi nhận", 18, Design.INK, true), BorderLayout.NORTH);
     JScrollPane formScroll = new JScrollPane(form);
     formScroll.setBorder(null);
+    formScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
     formScroll.getVerticalScrollBar().setUnitIncrement(18);
     formCard.add(formScroll, BorderLayout.CENTER);
-    formCard.setPreferredSize(new Dimension(410, 420));
+    formCard.setPreferredSize(new Dimension(550, 420));
     JPanel photoCard = Design.card(Design.SURFACE);
     photoCard.setLayout(new BorderLayout(0, 16));
     photoCard.add(Design.label("Đối chiếu ảnh đồng hồ", 18, Design.INK, true), BorderLayout.NORTH);
     photoCard.add(photos, BorderLayout.CENTER);
     JPanel center = Design.clear(new BorderLayout(18, 0));
     center.setBorder(BorderFactory.createEmptyBorder(0, 24, 18, 24));
-    center.add(formCard, BorderLayout.WEST);
-    center.add(photoCard, BorderLayout.CENTER);
+    JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, formCard, photoCard);
+    split.setResizeWeight(0.52);
+    split.setDividerLocation(550);
+    split.setBorder(null);
+    center.add(split, BorderLayout.CENTER);
     JPanel bottom = Ui.column();
     total.setFont(total.getFont().deriveFont(Font.BOLD, 20));
     total.setBorder(BorderFactory.createEmptyBorder(14, 16, 8, 16));
     bottom.add(total);
+    confirm.setText("Đã kiểm tra số liệu");
+    confirm.setIcon(Design.icon("empty-check", Design.MUTED));
+    confirm.setSelectedIcon(Design.icon("check", Ui.GREEN));
+    confirm.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+    confirm.setFocusPainted(false);
     bottom.add(confirm);
     JButton save =
         Ui.button(
-            "Xác nhận & lưu hóa đơn",
+            "Lưu hóa đơn",
             () -> {
               try {
                 if (!confirm.isSelected())
@@ -248,7 +282,7 @@ public final class ReadingDialog extends JDialog {
     add(contentScroll, BorderLayout.CENTER);
     add(bottom, BorderLayout.SOUTH);
     Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-    setSize(Math.min(1040, screen.width - 70), Math.min(740, screen.height - 70));
+    setSize(Math.min(1240, screen.width - 50), Math.min(800, screen.height - 50));
     setLocationRelativeTo(owner);
     update();
   }
@@ -270,13 +304,21 @@ public final class ReadingDialog extends JDialog {
             rates,
             note.getText());
     Contract contract = selectedContract();
+    if (contract == null && !utilitiesOnly.isSelected())
+      throw new IllegalArgumentException(
+          "Thiết lập người thuê để lấy tiền phòng mặc định, hoặc chọn Chỉ lập điện nước.");
     BigDecimal amount =
         contract == null ? BigDecimal.ZERO : RentalService.money(rent.getText(), "Tiền phòng");
     if (contract != null && segmented(contract)) {
       java.time.LocalDate first = first(contract), last = last(contract);
       List<Charge> fees =
           contract.fees().stream()
-              .map(f -> new Charge(f.label(), RentalService.prorated(f.amount(), first, last)))
+              .map(
+                  f ->
+                      new Charge(
+                          f.label(),
+                          RentalService.prorated(f.amount(), first, last),
+                          f.serviceId()))
               .toList();
       if (amount.compareTo(RentalService.prorated(contract.rent(), first, last)) != 0
           && note.getText().isBlank())
@@ -368,16 +410,18 @@ public final class ReadingDialog extends JDialog {
                 .toPlainString());
       }
       rent.setEnabled(contract != null);
+      utilitiesOnly.setVisible(contract == null);
+      if (contract != null) utilitiesOnly.setSelected(false);
       rent.setText(
           contract == null
-              ? "0"
+              ? ""
               : (segmented(contract)
                       ? RentalService.prorated(contract.rent(), first(contract), last(contract))
                       : contract.rent())
                   .toPlainString());
       rentalInfo.setText(
           contract == null
-              ? "Chỉ điện nước · chưa có hợp đồng"
+              ? "Chưa có thông tin thuê cho tháng này"
               : "#" + contract.id() + " · " + first(contract) + " → " + last(contract));
       feesInfo.setText(
           contract == null
@@ -407,7 +451,10 @@ public final class ReadingDialog extends JDialog {
       total.setToolTipText("Tiền phòng + điện + nước + phí. Tiền cọc được quản lý riêng.");
     } catch (Exception ex) {
       total.setForeground(new Color(155, 66, 42));
-      total.setText("Kiểm tra chỉ số hoặc kỳ nhập");
+      total.setText(
+          selectedContract() == null && !utilitiesOnly.isSelected()
+              ? "Cần thiết lập người thuê cho tháng này"
+              : "Kiểm tra chỉ số mới và tháng");
       total.setToolTipText(ex.getMessage());
     }
   }
@@ -422,6 +469,44 @@ public final class ReadingDialog extends JDialog {
       setOpaque(false);
       setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0));
       add(preview, BorderLayout.CENTER);
+      String cropKey = "crop." + room.id() + (name.equals("Ảnh điện") ? ".electricity" : ".water");
+      JCheckBox remember =
+          new JCheckBox(
+              "Nhớ khung cho phòng này",
+              Boolean.parseBoolean(
+                  vn.nhatrohomu.shared.LocalUiSettings.get(cropKey + ".enabled", "true")));
+      java.util.function.Consumer<ImagePanel.Region> store =
+          bounds -> {
+            confirm.setSelected(false);
+            if (!remember.isSelected()) return;
+            try {
+              vn.nhatrohomu.shared.LocalUiSettings.put(
+                  cropKey,
+                  bounds == null
+                      ? null
+                      : bounds.x()
+                          + ","
+                          + bounds.y()
+                          + ","
+                          + bounds.width()
+                          + ","
+                          + bounds.height());
+            } catch (Exception ex) {
+              Ui.error(ReadingDialog.this, ex);
+            }
+          };
+      preview.onRegionChanged(store);
+      remember.addActionListener(
+          e -> {
+            try {
+              vn.nhatrohomu.shared.LocalUiSettings.put(
+                  cropKey + ".enabled", Boolean.toString(remember.isSelected()));
+              if (!remember.isSelected()) vn.nhatrohomu.shared.LocalUiSettings.put(cropKey, null);
+              else store.accept(preview.region());
+            } catch (Exception ex) {
+              Ui.error(ReadingDialog.this, ex);
+            }
+          });
       JLabel status =
           Design.label(
               "Kéo chuột khoanh vùng số. OCR có thể sai, hãy kiểm tra lại.",
@@ -442,6 +527,22 @@ public final class ReadingDialog extends JDialog {
                       image -> {
                         photo = image;
                         preview.setImage(image);
+                        if (remember.isSelected()) {
+                          String value = vn.nhatrohomu.shared.LocalUiSettings.get(cropKey, "");
+                          if (!value.isBlank()) {
+                            try {
+                              String[] coordinates = value.split(",");
+                              if (coordinates.length == 4)
+                                preview.setRegion(
+                                    new ImagePanel.Region(
+                                        Double.parseDouble(coordinates[0]),
+                                        Double.parseDouble(coordinates[1]),
+                                        Double.parseDouble(coordinates[2]),
+                                        Double.parseDouble(coordinates[3])));
+                            } catch (IllegalArgumentException ignored) {
+                            }
+                          }
+                        }
                         confirm.setSelected(false);
                         status.setText("Đã chọn ảnh. Khoanh vùng rồi bấm Đọc số.");
                       });
@@ -520,9 +621,11 @@ public final class ReadingDialog extends JDialog {
                   Ui.error(ReadingDialog.this, new IllegalArgumentException("Chọn ảnh trước."));
                   return;
                 }
-                BufferedImage region = ImagePanel.chooseRegion(ReadingDialog.this, photo);
+                ImagePanel.Region region = ImagePanel.chooseRegionBounds(ReadingDialog.this, photo);
                 if (region != null) {
-                  preview.setImage(region);
+                  preview.setImage(photo);
+                  preview.setRegion(region);
+                  store.accept(region);
                   confirm.setSelected(false);
                   status.setText("Đã chọn vùng OCR; ảnh gốc vẫn được giữ khi lưu hóa đơn.");
                 }
@@ -534,6 +637,16 @@ public final class ReadingDialog extends JDialog {
       engineRow.add(new JLabel("Công cụ đọc ảnh:"));
       engineRow.add(engine);
       controls.add(engineRow);
+      JPanel cropRow = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
+      cropRow.add(remember);
+      cropRow.add(
+          Ui.button(
+              "Bỏ khung",
+              () -> {
+                preview.setRegion(null);
+                store.accept(null);
+              }));
+      controls.add(cropRow);
       controls.add(buttons);
       controls.add(status);
       add(controls, BorderLayout.SOUTH);

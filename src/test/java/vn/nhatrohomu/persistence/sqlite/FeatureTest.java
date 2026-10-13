@@ -159,6 +159,7 @@ public final class FeatureTest {
   }
 
   static void removeHardeningSchema(Statement s) throws Exception {
+    removeSchema9(s);
     s.execute("ALTER TABLE rooms DROP COLUMN default_rent");
     for (String name : Schema.triggers().keySet()) s.execute("DROP TRIGGER IF EXISTS " + name);
     for (String name :
@@ -194,5 +195,29 @@ public final class FeatureTest {
             + " FROM bills WHERE voided_at IS NULL");
     s.execute("DROP TABLE bills");
     s.execute("ALTER TABLE bills_old RENAME TO bills");
+  }
+
+  static void removeSchema9(Statement s) throws Exception {
+    s.execute("PRAGMA foreign_keys=OFF");
+    for (var name : Schema.triggers(9).keySet())
+      if (name.startsWith("advance_") || name.startsWith("collection_events_"))
+        s.execute("DROP TRIGGER IF EXISTS " + name);
+    s.execute("DROP INDEX IF EXISTS payments_advance");
+    java.util.Set<String> paymentColumns = new java.util.HashSet<>();
+    try (ResultSet r = s.executeQuery("PRAGMA table_info(payments)")) {
+      while (r.next()) paymentColumns.add(r.getString("name"));
+    }
+    if (paymentColumns.contains("advance_id"))
+      s.execute("ALTER TABLE payments DROP COLUMN advance_id");
+    if (paymentColumns.contains("collection_id"))
+      s.execute("ALTER TABLE payments DROP COLUMN collection_id");
+    s.execute("ALTER TABLE bill_charges DROP COLUMN service_id");
+    s.execute("ALTER TABLE contract_charges DROP COLUMN service_id");
+    s.execute("DROP TABLE advance_refund_reversals");
+    s.execute("DROP TABLE advance_refunds");
+    s.execute("DROP TABLE advance_reversals");
+    s.execute("DROP TABLE advance_receipts");
+    s.execute("DROP TABLE collection_events");
+    s.execute("DROP TABLE service_catalog");
   }
 }

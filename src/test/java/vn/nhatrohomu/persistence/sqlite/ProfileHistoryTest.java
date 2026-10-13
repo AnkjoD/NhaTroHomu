@@ -137,6 +137,7 @@ public final class ProfileHistoryTest {
       try (Connection c = DatabaseAccess.open(old);
           Statement s = c.createStatement()) {
         s.execute("DROP TABLE residents");
+        FeatureTest.removeSchema9(s);
         for (String col : List.of("zalo", "zalo_auto", "identity_no", "birthday", "address"))
           s.execute("ALTER TABLE tenants DROP COLUMN " + col);
         s.execute("DROP TRIGGER bills_no_rewrite");

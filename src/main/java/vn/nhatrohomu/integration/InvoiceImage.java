@@ -21,9 +21,11 @@ public final class InvoiceImage {
   private static final int WIDTH = 1200, MARGIN = 32;
   private static final int[] COLUMNS = {190, 140, 140, 160, 230, 276};
 
-  private static Font font() throws Exception {
+  private static Font font(ReceiptStyle style) throws Exception {
+    if (!style.font().equals("Be Vietnam Pro"))
+      return new Font(style.font(), Font.PLAIN, style.size());
     try (var stream = InvoiceImage.class.getResourceAsStream("/fonts/BeVietnamPro-Regular.ttf")) {
-      return Font.createFont(Font.TRUETYPE_FONT, stream).deriveFont(22f);
+      return Font.createFont(Font.TRUETYPE_FONT, stream).deriveFont((float) style.size());
     }
   }
 
@@ -75,38 +77,65 @@ public final class InvoiceImage {
     return result;
   }
 
+  public static List<String> advanceLines(List<Payment> payments) {
+    java.util.Map<String, BigDecimal> sources = new java.util.TreeMap<>();
+    for (Payment payment : payments)
+      if (payment.advanceId() != null)
+        sources.merge(payment.sourceMonth(), payment.amount(), BigDecimal::add);
+    return sources.entrySet().stream()
+        .map(e -> "Dùng trả trước từ tháng " + e.getKey() + ": " + Ui.money(e.getValue()))
+        .toList();
+  }
+
   public static BufferedImage render(Bill bill, List<Payment> payments) throws Exception {
-    Font normal = font(),
+    return render(bill, payments, ReceiptStyle.current());
+  }
+
+  public static BufferedImage render(Bill bill, List<Payment> payments, ReceiptStyle style)
+      throws Exception {
+    Font normal = font(style),
         bold = normal.deriveFont(Font.BOLD),
-        title = normal.deriveFont(Font.BOLD, 32f);
+        title = normal.deriveFont(Font.BOLD, style.size() * 1.45f);
+    int lineHeight = Math.max(30, style.size() + 8);
     List<String[]> rows = rows(bill);
     BufferedImage measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
     Graphics2D sizing = measure.createGraphics();
     FontRenderContext context = sizing.getFontRenderContext();
+    List<TextLayout> titleLines = wrap(style.title(), title, context, WIDTH - 64);
+    int titleLineHeight = title.getSize() + 10;
     List<String> headings = new ArrayList<>();
     headings.add(bill.roomName() + "  ·  Tháng " + bill.month());
-    if (!bill.tenantName().isBlank()) headings.add("Người thuê: " + bill.tenantName());
+    if (style.person() && !bill.tenantName().isBlank())
+      headings.add("Người thuê: " + bill.tenantName());
     if (!bill.periodStart().isBlank()) headings.add("Kỳ ở: " + bill.periodLabel());
-    if (!bill.dueDate().isBlank()) headings.add("Hẹn thanh toán: " + bill.dueDate());
-    int headerHeight = 94;
+    if (style.due() && !bill.dueDate().isBlank()) headings.add("Hẹn thanh toán: " + bill.dueDate());
+    int headerHeight =
+        20
+            + title.getSize()
+            + (titleLines.size() - 1) * titleLineHeight
+            + normal.getSize()
+            + 12
+            + 8;
     for (String heading : headings)
-      headerHeight += wrap(heading, normal, context, WIDTH - 64).size() * 30;
+      headerHeight += wrap(heading, normal, context, WIDTH - 64).size() * lineHeight;
     int[] heights = new int[rows.size()];
     for (int r = 0; r < rows.size(); r++) {
       int lines = 1;
       for (int c = 0; c < COLUMNS.length; c++)
         lines = Math.max(lines, wrap(rows.get(r)[c], normal, context, COLUMNS[c] - 20).size());
-      heights[r] = lines * 30 + 24;
+      heights[r] = lines * lineHeight + 24;
     }
     sizing.dispose();
     BigDecimal received =
         payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal remaining = bill.total().subtract(received);
+    List<String> advanceLines = advanceLines(payments);
     int height =
         headerHeight
             + 58
             + java.util.Arrays.stream(heights).sum()
-            + (remaining.signum() > 0 ? received.signum() > 0 ? 182 : 142 : 98);
+            + (remaining.signum() > 0 ? received.signum() > 0 ? 182 : 142 : 98)
+            + advanceLines.size() * lineHeight;
     BufferedImage image = new BufferedImage(WIDTH, height, BufferedImage.TYPE_INT_RGB);
     Graphics2D g = image.createGraphics();
     try {
@@ -117,12 +146,16 @@ public final class InvoiceImage {
       g.fillRect(0, 0, WIDTH, height);
       g.setColor(new Color(68, 45, 107));
       g.setFont(title);
-      g.drawString("PHIẾU TIỀN PHÒNG", MARGIN, 50);
-      int y = 86;
+      int titleY = 20 + title.getSize();
+      for (TextLayout line : titleLines) {
+        line.draw(g, MARGIN, titleY);
+        titleY += titleLineHeight;
+      }
+      int y = titleY - titleLineHeight + normal.getSize() + 12;
       for (String heading : headings) {
         for (TextLayout line : wrap(heading, normal, context, WIDTH - 64)) {
           line.draw(g, MARGIN, y);
-          y += 30;
+          y += lineHeight;
         }
       }
       int top = headerHeight;
@@ -154,6 +187,14 @@ public final class InvoiceImage {
         g.setColor(new Color(155, 55, 40));
         g.drawString("CÒN NỢ KỲ NÀY: " + Ui.money(remaining), MARGIN, debtY);
       }
+      g.setFont(normal);
+      g.setColor(new Color(65, 85, 100));
+      int sourceY =
+          remaining.signum() > 0 ? received.signum() > 0 ? top + 180 : top + 142 : top + 100;
+      for (String source : advanceLines) {
+        g.drawString(source, MARGIN, sourceY);
+        sourceY += lineHeight;
+      }
     } finally {
       g.dispose();
     }
@@ -175,10 +216,10 @@ public final class InvoiceImage {
       g.setColor(new Color(210, 205, 220));
       g.drawRect(x, y, COLUMNS[col], height);
       g.setColor(new Color(40, 40, 45));
-      int lineY = y + 34;
+      int lineY = y + font.getSize() + 12;
       for (TextLayout line : wrap(values[col], font, context, COLUMNS[col] - 20)) {
         line.draw(g, x + 10, lineY);
-        lineY += 30;
+        lineY += Math.max(30, font.getSize() + 8);
       }
       x += COLUMNS[col];
     }

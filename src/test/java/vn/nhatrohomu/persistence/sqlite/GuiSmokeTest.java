@@ -129,7 +129,15 @@ public final class GuiSmokeTest {
               app.setSize(980, 640);
               app.addNotify();
               app.validate();
-              java.awt.Container roomBody = app.getContentPane();
+              checkSidebar(app);
+              app.setSize(980, 1000);
+              app.validate();
+              checkSidebar(app);
+              app.setSize(980, 640);
+              app.validate();
+              var bodyField = AppWindow.class.getDeclaredField("body");
+              bodyField.setAccessible(true);
+              java.awt.Container roomBody = (java.awt.Container) bodyField.get(app);
               JScrollPane roomScroll = findScroll(roomBody);
               if (roomScroll == null || roomScroll.getViewport().getHeight() < 280)
                 throw new AssertionError("Rooms need usable height on a small window");
@@ -228,6 +236,20 @@ public final class GuiSmokeTest {
         for (Path path : files.toList()) Files.deleteIfExists(path);
       }
       Files.deleteIfExists(temp);
+    }
+  }
+
+  private static void checkSidebar(AppWindow app) throws Exception {
+    var field = AppWindow.class.getDeclaredField("navigation");
+    field.setAccessible(true);
+    var navigation = (java.util.Map<?, ?>) field.get(app);
+    for (Object value : navigation.values()) {
+      JButton button = (JButton) value;
+      JViewport viewport = (JViewport) SwingUtilities.getAncestorOfClass(JViewport.class, button);
+      if (button.getHeight() != 48
+          || viewport == null
+          || button.getX() + button.getWidth() > viewport.getWidth() - 2)
+        throw new AssertionError("Sidebar stretches or clips navigation: " + button.getText());
     }
   }
 }

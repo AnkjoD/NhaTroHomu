@@ -69,16 +69,15 @@ public final class AppWindow extends JFrame {
     branding.add(Box.createVerticalStrut(10));
     branding.add(Design.label("QUẢN LÝ PHÒNG TRỌ", 10, Design.MUTED, false));
     top.add(branding, BorderLayout.NORTH);
-    JPanel menu = new JPanel(new GridLayout(0, 1, 0, 10));
-    menu.setOpaque(false);
-    menu.add(nav("dashboard", "Tổng quan", this::showDashboard));
-    menu.add(nav("rooms", "Phòng trọ", this::showRooms));
-    menu.add(nav("contract", "Thuê phòng", this::showContracts));
-    menu.add(nav("services", "Dịch vụ & phí", this::showServices));
-    menu.add(nav("bill", "Hóa đơn", this::showHistory));
-    menu.add(nav("debt", "Công nợ", this::showDebts));
-    menu.add(nav("report", "Báo cáo", this::showReports));
-    menu.add(nav("settings", "Cài đặt", this::showSettings));
+    SidebarMenu menu = new SidebarMenu();
+    menu.addButton(nav("dashboard", "Tổng quan", this::showDashboard));
+    menu.addButton(nav("rooms", "Phòng trọ", this::showRooms));
+    menu.addButton(nav("contract", "Thuê phòng", this::showContracts));
+    menu.addButton(nav("services", "Dịch vụ & phí", this::showServices));
+    menu.addButton(nav("bill", "Hóa đơn", this::showHistory));
+    menu.addButton(nav("debt", "Công nợ", this::showDebts));
+    menu.addButton(nav("report", "Báo cáo", this::showReports));
+    menu.addButton(nav("settings", "Cài đặt", this::showSettings));
     JScrollPane menuScroll = new JScrollPane(menu);
     menuScroll.setBorder(BorderFactory.createEmptyBorder());
     menuScroll.setOpaque(false);
@@ -93,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.3", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.4", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -145,9 +144,45 @@ public final class AppWindow extends JFrame {
     b.setIconTextGap(14);
     b.setHorizontalAlignment(SwingConstants.LEFT);
     b.setPreferredSize(new Dimension(190, 48));
+    b.setMinimumSize(new Dimension(0, 48));
+    b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+    b.setAlignmentX(Component.LEFT_ALIGNMENT);
     b.putClientProperty("JButton.buttonType", "borderless");
     navigation.put(title, b);
     return b;
+  }
+
+  private static final class SidebarMenu extends JPanel implements Scrollable {
+    SidebarMenu() {
+      setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+      setOpaque(false);
+      setBorder(BorderFactory.createEmptyBorder(3, 3, 3, 3));
+    }
+
+    void addButton(JButton button) {
+      if (getComponentCount() > 0) add(Box.createVerticalStrut(8));
+      add(button);
+    }
+
+    public Dimension getPreferredScrollableViewportSize() {
+      return getPreferredSize();
+    }
+
+    public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+      return 24;
+    }
+
+    public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+      return Math.max(24, visible.height - 56);
+    }
+
+    public boolean getScrollableTracksViewportWidth() {
+      return true;
+    }
+
+    public boolean getScrollableTracksViewportHeight() {
+      return false;
+    }
   }
 
   private void selectNav(String title) {

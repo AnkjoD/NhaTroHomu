@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.4
+
+- Sửa sidebar bị kéo giãn nút khi cửa sổ cao và cắt mép khung chọn: chiều cao cố định, khoảng cách gọn, cuộn dọc khi cần.
+- Kiểm tra kích thước nút và mép hiển thị ở cửa sổ thấp/cao để tránh tái diễn.
+
 ## 0.11.3
 
 - Dịch vụ & phí là trang sidebar riêng, dùng chung danh mục với form cho thuê.

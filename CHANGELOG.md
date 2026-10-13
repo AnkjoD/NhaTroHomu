@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.3
+
+- Dịch vụ & phí là trang sidebar riêng, dùng chung danh mục với form cho thuê.
+- Người thuê/gia đình quản lý trực tiếp trong Thuê phòng; người chưa gắn phòng hiện bên dưới, bỏ cửa sổ Hồ sơ khác.
+- Sidebar có thể cuộn khi cửa sổ nhỏ để giữ các mục truy cập được.
+
 ## 0.11.2
 
 - Chọn tất cả/bỏ chọn tất cả phòng có thể lập, bộ đếm lựa chọn và khóa lưu khi chưa chọn phòng.

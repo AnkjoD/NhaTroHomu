@@ -24,7 +24,9 @@ Trong lịch sử thu, chọn khoản trả trước còn số dư rồi **Ghi n
 
 ## Danh mục phí
 
-Trong **Thuê phòng → Danh mục phí**, tạo các khoản như Internet, vệ sinh và giá mặc định. Khi cho thuê, chọn khoản phí rồi điều chỉnh giá thỏa thuận nếu cần. Mỗi lượt thuê và hóa đơn giữ tên/giá tại lúc lập. Sửa hoặc lưu trữ danh mục không đổi chứng từ cũ; khoản phí đã lưu trữ không còn được chọn cho thỏa thuận mới. Phí cũ chưa có danh mục vẫn giữ nguyên dữ liệu.
+Trong **Dịch vụ & phí** ở sidebar, tạo các khoản như Internet, vệ sinh và giá mặc định. Khi cho thuê, chọn khoản phí rồi điều chỉnh giá thỏa thuận nếu cần. Mỗi lượt thuê và hóa đơn giữ tên/giá tại lúc lập. Sửa hoặc lưu trữ danh mục không đổi chứng từ cũ; khoản phí đã lưu trữ không còn được chọn cho thỏa thuận mới. Phí cũ chưa có danh mục vẫn giữ nguyên dữ liệu.
+
+Trong **Thuê phòng**, chọn dòng thuê rồi **Thông tin & người ở cùng** để sửa liên hệ, CCCD và gia đình. Người chưa có lượt thuê hiện ở phần **Người thuê chưa gắn phòng** ngay bên dưới, với nút sửa thông tin và cho thuê phòng. Không cần chuyển sang mục hồ sơ riêng. Dữ liệu người thuê vẫn lưu riêng với lượt thuê để giữ lịch sử khi đổi phòng/trả phòng.
 
 ## Lập nhiều phòng và sửa chỉ số
 

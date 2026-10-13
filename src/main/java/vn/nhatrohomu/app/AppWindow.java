@@ -74,19 +74,26 @@ public final class AppWindow extends JFrame {
     menu.add(nav("dashboard", "Tổng quan", this::showDashboard));
     menu.add(nav("rooms", "Phòng trọ", this::showRooms));
     menu.add(nav("contract", "Thuê phòng", this::showContracts));
+    menu.add(nav("services", "Dịch vụ & phí", this::showServices));
     menu.add(nav("bill", "Hóa đơn", this::showHistory));
     menu.add(nav("debt", "Công nợ", this::showDebts));
     menu.add(nav("report", "Báo cáo", this::showReports));
     menu.add(nav("settings", "Cài đặt", this::showSettings));
-    top.add(menu, BorderLayout.CENTER);
-    sidebar.add(top, BorderLayout.NORTH);
+    JScrollPane menuScroll = new JScrollPane(menu);
+    menuScroll.setBorder(BorderFactory.createEmptyBorder());
+    menuScroll.setOpaque(false);
+    menuScroll.getViewport().setOpaque(false);
+    menuScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+    menuScroll.getVerticalScrollBar().setUnitIncrement(24);
+    top.add(menuScroll, BorderLayout.CENTER);
+    sidebar.add(top, BorderLayout.CENTER);
     JPanel bottom = Ui.column();
     bottom.setOpaque(false);
     bottom.add(Design.label("●  Dữ liệu trên thiết bị", 11, Ui.GREEN, false));
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.2", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.3", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -120,6 +127,7 @@ public final class AppWindow extends JFrame {
     javax.swing.SwingUtilities.updateComponentTreeUI(this);
     if (currentPage.equals("Hóa đơn")) showHistory();
     else if (currentPage.equals("Cài đặt")) showSettings();
+    else if (currentPage.equals("Dịch vụ & phí")) showServices();
     else if (currentPage.equals("Thuê phòng")) {
       if (rentalTab == 1) showTenants();
       else showContracts();
@@ -569,6 +577,26 @@ public final class AppWindow extends JFrame {
     selectNav("Tổng quan");
     body.removeAll();
     body.add(new DashboardPanel(repository), BorderLayout.CENTER);
+    body.revalidate();
+    body.repaint();
+  }
+
+  private void showServices() {
+    selectNav("Dịch vụ & phí");
+    body.removeAll();
+    try {
+      JPanel page = Design.clear(new BorderLayout(0, 16));
+      page.add(
+          header(
+              "Dịch vụ & phí",
+              "Các khoản phí dùng lại khi cho thuê. Thay giá ở đây không đổi hóa đơn cũ.",
+              null),
+          BorderLayout.NORTH);
+      page.add(new vn.nhatrohomu.billing.ui.ServiceCatalogPanel(repository.services()));
+      body.add(page);
+    } catch (Exception ex) {
+      Ui.error(this, ex);
+    }
     body.revalidate();
     body.repaint();
   }

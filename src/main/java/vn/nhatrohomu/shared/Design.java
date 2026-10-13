@@ -358,6 +358,17 @@ public final class Design {
             p.closePath();
             d.draw(p);
           }
+          case "services" -> {
+            Path2D tag = new Path2D.Double();
+            tag.moveTo(2, 2);
+            tag.lineTo(11, 2);
+            tag.lineTo(18, 9);
+            tag.lineTo(9, 18);
+            tag.lineTo(2, 11);
+            tag.closePath();
+            d.draw(tag);
+            d.drawOval(5, 5, 3, 3);
+          }
           case "settings" -> {
             d.drawOval(4, 4, 12, 12);
             d.drawOval(8, 8, 4, 4);

@@ -86,7 +86,7 @@ public final class RentalTest {
           () -> rentals.createContract(template(other, person, start, end)),
           "tenant overlapping room rejected");
       rejects(() -> rentals.archiveTenant(person.id()), "archive active tenant blocked");
-      rejects(() -> rentals.purgeTenant(person.id()), "purge active tenant blocked");
+      rejects(() -> rentals.deleteUnusedTenant(person.id()), "delete active tenant blocked");
       rejects(() -> repo.archiveRoom(room.id()), "archive occupied room blocked");
       Bill utility =
           BillingService.calculate(
@@ -155,26 +155,16 @@ public final class RentalTest {
       check(
           rentals.heldDeposit(contract.id()).compareTo(d("400000")) == 0,
           "closing retains deposit to settle");
-      Path purgeFile = temp.resolve("purge.db");
-      repo.backup(purgeFile);
-      SqliteRepository purgeRepo = new SqliteRepository(purgeFile);
-      purgeRepo.rentals().archiveTenant(person.id());
+      rentals.archiveTenant(person.id());
+      rejects(
+          () -> rentals.deleteUnusedTenant(person.id()),
+          "Archived tenant with history cannot be deleted");
       check(
-          purgeRepo.billCount() == 1 && purgeRepo.payments(saved.id()).size() == 1,
-          "Archive preserves financial history");
-      purgeRepo.rentals().purgeTenant(person.id());
-      check(
-          purgeRepo.rentals().tenant(person.id()) == null
-              && purgeRepo.billCount() == 0
-              && purgeRepo.rentals().contracts().isEmpty()
-              && purgeRepo.payments(saved.id()).isEmpty(),
-          "Purge removes linked profile and transactions");
-      check(
-          purgeRepo.rooms().size() == 2
-              && purgeRepo.previous(purgeRepo.rooms().getFirst()).electricity().compareTo(d("10"))
-                  == 0,
-          "Purge keeps room and meter baseline");
-      DatabaseValidator.checkSafeSchema(purgeFile);
+          !rentals.tenant(person.id()).active()
+              && repo.billCount() == 1
+              && repo.payments(saved.id()).size() == 1
+              && rentals.heldDeposit(contract.id()).compareTo(d("400000")) == 0,
+          "Archive and rejected deletion preserve financial history");
       rentals.saveTenant(new Tenant(0, "Người thuê tiếp theo", "", "", true));
       Tenant next =
           rentals.tenants().stream().filter(t -> t.id() != person.id()).findFirst().orElseThrow();
@@ -243,8 +233,8 @@ public final class RentalTest {
           contract.id(), "REFUND", d("400000"), LocalDate.now().toString(), "Trả hết");
       repo.restore(backup);
       rejects(
-          () -> repo.rentals().purgeTenant(person.id()),
-          "Purge with another tenancy must be blocked");
+          () -> repo.rentals().deleteUnusedTenant(person.id()),
+          "Delete with another tenancy must be blocked");
       check(
           rentals.heldDeposit(contract.id()).compareTo(d("400000")) == 0
               && rentals.contracts().size() == 2

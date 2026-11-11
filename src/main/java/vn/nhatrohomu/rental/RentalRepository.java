@@ -18,10 +18,6 @@ public interface RentalRepository {
 
   void archiveTenant(long id) throws SQLException;
 
-  default void purgeTenant(long id) throws SQLException {
-    throw new UnsupportedOperationException();
-  }
-
   default void deleteUnusedTenant(long id) throws SQLException {
     throw new UnsupportedOperationException();
   }

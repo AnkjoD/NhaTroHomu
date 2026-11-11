@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.13
+
+- Chỉ cho xóa hồ sơ chưa có lượt thuê hay giao dịch. Lưu trữ giữ nguyên toàn bộ lịch sử.
+
 ## 0.11.12
 
 - Lưu trữ phí đồng thời ngừng tính trên các lượt thuê đang mở, giữ nguyên hóa đơn đã lập.

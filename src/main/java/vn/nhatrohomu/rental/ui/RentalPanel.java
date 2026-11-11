@@ -244,12 +244,20 @@ public final class RentalPanel extends JPanel {
                       })));
       actions.add(
           Ui.button(
-              "Xóa vĩnh viễn người thuê",
+              "Lưu trữ người thuê",
               () ->
                   safe(
                       () -> {
                         Tenant person = rentals.tenant(contracts.get(selected()).tenantId());
-                        if (person != null) purgePerson(person);
+                        if (person == null || !person.active()) return;
+                        if (Ui.confirm(
+                            owner,
+                            "Lưu trữ "
+                                + person.name()
+                                + "? Lịch sử thuê, hóa đơn và khoản thu vẫn được giữ.")) {
+                          rentals.archiveTenant(person.id());
+                          refresh();
+                        }
                       })));
       Object[][] rows = new Object[contracts.size()][];
       for (int i = 0; i < contracts.size(); i++) {
@@ -479,7 +487,8 @@ public final class RentalPanel extends JPanel {
                           }
                         })));
       }
-      buttons.add(Ui.button("Xóa vĩnh viễn", () -> purgePerson(person)));
+      if (contracts.stream().noneMatch(k -> k.tenantId() == person.id()))
+        buttons.add(Ui.button("Xóa hồ sơ", () -> deleteUnusedPerson(person)));
       row.add(buttons, BorderLayout.EAST);
       rows.add(row);
       rows.add(Box.createVerticalStrut(6));
@@ -492,21 +501,17 @@ public final class RentalPanel extends JPanel {
     return section;
   }
 
-  private void purgePerson(Tenant person) {
-    String reply =
-        JOptionPane.showInputDialog(
-            owner,
-            "Xóa vĩnh viễn "
-                + person.name()
-                + " cùng người ở cùng, lượt thuê, hóa đơn, khoản thu, cọc và ảnh liên quan?\n"
-                + "Báo cáo sẽ thay đổi. Không thể khôi phục trong app; bản sao lưu cũ vẫn còn dữ"
-                + " liệu.\n"
-                + "Nếu chỉ muốn ẩn người thuê, hãy dùng Lưu trữ. Nhập XOA để xác nhận.");
-    if (!"XOA".equals(reply)) return;
+  private void deleteUnusedPerson(Tenant person) {
+    if (!Ui.confirm(
+        owner,
+        "Xóa vĩnh viễn hồ sơ "
+            + person.name()
+            + " và thông tin người ở cùng? Chỉ xóa được nếu chưa có lượt thuê hay giao dịch."))
+      return;
     Ui.background(
         owner,
         () -> {
-          rentals.purgeTenant(person.id());
+          rentals.deleteUnusedTenant(person.id());
           return true;
         },
         ignored -> refresh());

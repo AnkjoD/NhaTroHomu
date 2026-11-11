@@ -259,12 +259,6 @@ public final class RentalStore implements RentalRepository {
     }
   }
 
-  public void purgeTenant(long id) throws SQLException {
-    try (Connection c = connection()) {
-      TenantPurge.execute(c, id);
-    }
-  }
-
   static List<Charge> charges(Connection c, String table, String key, long id) throws SQLException {
     if (!((table.equals("bill_charges") && key.equals("bill_id"))
         || (table.equals("contract_charges") && key.equals("contract_id"))))

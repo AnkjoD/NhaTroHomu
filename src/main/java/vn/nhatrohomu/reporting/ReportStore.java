@@ -198,9 +198,10 @@ public final class ReportStore {
       try (Statement s = c.createStatement();
           ResultSet r =
               s.executeQuery(
-                  "SELECT"
-                      + " id,room_id,room_name,tenant_name,month,due_date,total,voided_at,void_reason,contract_id"
-                      + " FROM bills ORDER BY month,room_name,id")) {
+                  "SELECT b.id,room_id,room_name,coalesce(nullif(tenant_name,''),t.name,'') AS"
+                      + " tenant_name,month,due_date,total,voided_at,void_reason,contract_id FROM"
+                      + " bills b LEFT JOIN historical_bill_people h ON h.id=b.id LEFT JOIN tenants"
+                      + " t ON t.id=h.tenant_id ORDER BY month,room_name,b.id")) {
         while (r.next()) {
           if (roomFilter != null && roomFilter != r.getLong("room_id")) continue;
           long id = r.getLong("id");

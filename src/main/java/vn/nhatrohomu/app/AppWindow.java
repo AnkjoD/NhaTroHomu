@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.13", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.14", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -966,9 +966,10 @@ public final class AppWindow extends JFrame {
         + "\nKhoảng ngày tính tiền: "
         + b.periodLabel()
         + (b.contractId() == null
-            ? (b.rent().signum() > 0
-                ? "\nTiền phòng (chưa gắn lượt thuê): " + Ui.money(b.rent())
-                : "\nLoại: điện nước (chưa có hợp đồng)")
+            ? (b.tenantName().isBlank() ? "" : "\nNgười thuê (gắn sau): " + b.tenantName())
+                + (b.rent().signum() > 0
+                    ? "\nTiền phòng (chưa gắn lượt thuê): " + Ui.money(b.rent())
+                    : "\nLoại: điện nước (chưa có hợp đồng)")
             : "\nNgười thuê: "
                 + b.tenantName()
                 + "\nHợp đồng: #"

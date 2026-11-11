@@ -36,7 +36,8 @@ public final class DatabaseValidator {
           "advance_receipts",
           "advance_reversals",
           "advance_refunds",
-          "advance_refund_reversals");
+          "advance_refund_reversals",
+          "historical_bill_people");
 
   public static void checkSafeSchema(Path file) throws SQLException {
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + file);

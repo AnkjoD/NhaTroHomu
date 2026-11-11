@@ -411,6 +411,18 @@ public final class SqliteRepository implements Repository {
   }
 
   private static Bill bill(Connection c, ResultSet r) throws SQLException {
+    String person = r.getString("tenant_name");
+    if (r.getObject("contract_id") == null && person.isBlank()) {
+      try (PreparedStatement p =
+          c.prepareStatement(
+              "SELECT t.name FROM historical_bill_people h JOIN tenants t ON t.id=h.tenant_id WHERE"
+                  + " h.id=?")) {
+        p.setLong(1, r.getLong("id"));
+        try (ResultSet linked = p.executeQuery()) {
+          if (linked.next()) person = linked.getString(1);
+        }
+      }
+    }
     return new Bill(
         r.getLong("id"),
         r.getLong("room_id"),
@@ -428,7 +440,7 @@ public final class SqliteRepository implements Repository {
         r.getBoolean("paid"),
         r.getString("note"),
         r.getObject("contract_id") == null ? null : r.getLong("contract_id"),
-        r.getString("tenant_name"),
+        person,
         decimal(r, "rent"),
         RentalStore.charges(c, "bill_charges", "bill_id", r.getLong("id")),
         r.getString("due_date"),

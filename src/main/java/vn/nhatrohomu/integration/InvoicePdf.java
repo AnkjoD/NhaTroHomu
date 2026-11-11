@@ -46,6 +46,8 @@ public final class InvoicePdf {
             document.add(
                 new Paragraph(
                     "Người thuê: " + bill.tenantName() + "\nHạn thu: " + bill.dueDate(), normal));
+          else if (!bill.tenantName().isBlank())
+            document.add(new Paragraph("Người thuê (gắn sau): " + bill.tenantName(), normal));
 
           document.add(new Paragraph(" ", normal));
           PdfPTable table = new PdfPTable(new float[] {2.1f, 2.4f, 1.5f, 1.7f, 2f});

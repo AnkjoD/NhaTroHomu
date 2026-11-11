@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.14
+
+- Cho hiển thị người thuê được gắn sau trên hóa đơn lịch sử, giữ nguyên dữ liệu tài chính gốc.
+
 ## 0.11.13
 
 - Chỉ cho xóa hồ sơ chưa có lượt thuê hay giao dịch. Lưu trữ giữ nguyên toàn bộ lịch sử.

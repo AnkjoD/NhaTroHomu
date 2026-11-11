@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Atomic schema upgrades; preserve released v1/v2/v3 books. */
 final class Schema {
-  static final int VERSION = 10;
+  static final int VERSION = 11;
   static final String BILL_COLUMNS =
       "id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,e_photo,w_photo,contract_id,tenant_name,rent,due_date";
 
@@ -219,6 +219,11 @@ final class Schema {
                       || trigger.getKey().startsWith("collection_events_"))
                     s.execute(trigger.getValue());
               }
+              if (version < 11)
+                s.execute(
+                    "CREATE TABLE IF NOT EXISTS historical_bill_people(id INTEGER PRIMARY KEY"
+                        + " REFERENCES bills(id), tenant_id INTEGER NOT NULL REFERENCES"
+                        + " tenants(id))");
               try (ResultSet r = s.executeQuery("PRAGMA foreign_key_check")) {
                 if (r.next()) throw new SQLException("Migration có quan hệ dữ liệu không hợp lệ.");
               }

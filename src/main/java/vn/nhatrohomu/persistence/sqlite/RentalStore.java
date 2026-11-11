@@ -242,8 +242,9 @@ public final class RentalStore implements RentalRepository {
                 "DELETE FROM tenants WHERE id=? AND NOT EXISTS(SELECT 1 FROM contracts WHERE"
                     + " tenant_id=?) AND NOT EXISTS(SELECT 1 FROM collection_events WHERE"
                     + " owner_tenant_id=?) AND NOT EXISTS(SELECT 1 FROM advance_receipts WHERE"
-                    + " owner_tenant_id=?)")) {
-          for (int i = 1; i <= 4; i++) p.setLong(i, id);
+                    + " owner_tenant_id=?) AND NOT EXISTS(SELECT 1 FROM historical_bill_people"
+                    + " WHERE tenant_id=?)")) {
+          for (int i = 1; i <= 5; i++) p.setLong(i, id);
           if (p.executeUpdate() != 1)
             throw new IllegalArgumentException(
                 "Chỉ xóa người chưa có lịch sử thuê hoặc giao dịch. Với người đã có lịch sử, dùng"

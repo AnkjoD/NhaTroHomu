@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.9
+
+- Dịch vụ & phí: xem phí đã lưu trữ, xóa phí chưa dùng, và ngừng tính phí cho hóa đơn chưa lập. Hóa đơn đã chốt giữ nguyên.
+
 ## 0.11.8
 
 - Thuê phòng: xóa vĩnh viễn hồ sơ và lịch sử độc lập sau khi xác nhận. Lưu trữ vẫn giữ lịch sử. Chặn xóa nếu người còn lượt thuê hoặc dữ liệu có liên kết với hồ sơ khác.

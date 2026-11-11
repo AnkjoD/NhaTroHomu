@@ -19,6 +19,7 @@ public final class ServiceCatalogPanel extends JPanel {
       };
   private final JTable table = new JTable(model);
   private List<ServiceItem> items = List.of();
+  private final JCheckBox archived = new JCheckBox("Xem phí đã lưu trữ");
 
   public ServiceCatalogPanel(ServiceCatalog catalog) throws Exception {
     super(new BorderLayout());
@@ -40,16 +41,19 @@ public final class ServiceCatalogPanel extends JPanel {
             "Sửa",
             () -> {
               int row = table.getSelectedRow();
-              if (row >= 0) edit(items.get(row));
+              if (row >= 0 && !archived.isSelected()) edit(items.get(row));
             });
     JButton archive =
         Ui.button(
             "Lưu trữ",
             () -> {
               int row = table.getSelectedRow();
-              if (row < 0) return;
+              if (row < 0 || archived.isSelected()) return;
               try {
-                if (Ui.confirm(this, "Lưu trữ khoản phí này? Hợp đồng/hóa đơn cũ giữ nguyên.")) {
+                if (Ui.confirm(
+                    this,
+                    "Ẩn khoản phí khỏi danh mục chọn mới? Phí đã gắn vào lượt thuê vẫn tiếp tục"
+                        + " tính.")) {
                   catalog.archive(items.get(row).id());
                   refresh();
                 }
@@ -57,9 +61,48 @@ public final class ServiceCatalogPanel extends JPanel {
                 Ui.error(this, ex);
               }
             });
-    RowActions.install(table, List.of(edit, archive));
+    JButton stop =
+        Ui.button(
+            "Ngừng tính phí",
+            () ->
+                applySelected(
+                    "Gỡ khoản phí này khỏi tất cả lượt thuê đang mở và lưu trữ khỏi danh mục? Hóa"
+                        + " đơn đã lập và khoản thu giữ nguyên. Phí nhập tay không liên kết sẽ"
+                        + " không đổi.",
+                    id ->
+                        JOptionPane.showMessageDialog(
+                            this,
+                            "Đã ngừng tính phí trên " + catalog.stopBilling(id) + " lượt thuê.")));
+    JButton delete =
+        Ui.button(
+            "Xóa phí",
+            () ->
+                applySelected(
+                    "Xóa khoản phí tạo nhầm? Chỉ xóa được nếu chưa gắn vào lượt thuê hoặc hóa đơn.",
+                    catalog::deleteUnused));
+    RowActions.install(table, List.of(edit, archive, stop, delete));
+    table
+        .getSelectionModel()
+        .addListSelectionListener(
+            e -> {
+              if (archived.isSelected()) {
+                edit.setVisible(false);
+                archive.setVisible(false);
+              }
+            });
     actions.add(edit);
     actions.add(archive);
+    actions.add(stop);
+    actions.add(delete);
+    actions.add(archived);
+    archived.addActionListener(
+        e -> {
+          try {
+            refresh();
+          } catch (Exception ex) {
+            Ui.error(this, ex);
+          }
+        });
     heading.add(actions, BorderLayout.SOUTH);
     root.add(heading, BorderLayout.NORTH);
     add(root);
@@ -67,10 +110,27 @@ public final class ServiceCatalogPanel extends JPanel {
   }
 
   private void refresh() throws Exception {
-    items = catalog.items();
+    table.clearSelection();
+    items = archived.isSelected() ? catalog.archivedItems() : catalog.items();
     model.setRowCount(0);
     for (ServiceItem item : items)
       model.addRow(new Object[] {item.name(), Ui.money(item.amount())});
+  }
+
+  @FunctionalInterface
+  private interface FeeAction {
+    void run(long id) throws Exception;
+  }
+
+  private void applySelected(String message, FeeAction action) {
+    int row = table.getSelectedRow();
+    if (row < 0 || !Ui.confirm(this, items.get(row).name() + "\n" + message)) return;
+    try {
+      action.run(items.get(row).id());
+      refresh();
+    } catch (Exception ex) {
+      Ui.error(this, ex);
+    }
   }
 
   private void edit(ServiceItem value) {

@@ -96,6 +96,24 @@ public final class PresentationCatalogTest {
       check(
           repo.rentals().contracts().getFirst().fees().getFirst().label().equals("Internet"),
           "Catalog edit changed agreement");
+      check(
+          repo.services().archivedItems().getFirst().id() == fee.id(),
+          "Archived fee cannot be found");
+      try {
+        repo.services().deleteUnused(fee.id());
+        throw new AssertionError("Linked fee was deleted");
+      } catch (IllegalArgumentException expected) {
+      }
+      check(repo.services().stopBilling(fee.id()) == 1, "Stop did not detach active fee");
+      check(
+          BillingDraft.prepare(repo, room, YearMonth.now().plusMonths(1)).fees().isEmpty(),
+          "Fee still applied to next draft");
+      check(
+          repo.roomBills(room.id(), bill.month(), bill.month()).getFirst().equals(bill),
+          "Stop rewrote issued invoice");
+      repo.services().save(new ServiceItem(0, "Unused", BigDecimal.ONE));
+      repo.services().deleteUnused(repo.services().items().getFirst().id());
+      check(repo.services().items().isEmpty(), "Unused fee was not deleted");
       LocalUiSettings.load(dir);
       var style = new ReceiptStyle("SansSerif", 26, "CUSTOM SLIP", false, false);
       style.save();

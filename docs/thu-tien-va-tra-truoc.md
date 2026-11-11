@@ -54,3 +54,5 @@ Form lập một phòng ưu tiên giá thỏa thuận nếu có lượt thuê; n
 Mở hóa đơn để xem phiếu, chọn **Chỉnh mẫu ảnh** để đổi font, cỡ chữ, tiêu đề, hiện tên người thuê/hạn thanh toán; xem trước rồi lưu. Mẫu dùng cho PNG và sao chép ảnh, được nhớ trên máy. PDF giữ font nhúng riêng. Chưa có trình kéo thả tự do.
 
 **Chi tiết nội bộ** hiển thị ghi chú và số liệu quản lý; phiếu gửi khách giữ gọn. **Sao chép ảnh** rồi Ctrl+V vào Zalo; hoặc xuất PNG/PDF. Khung nhận diện ảnh được nhớ riêng cho điện/nước của từng phòng nếu bật **Nhớ khung cho phòng này**. Kiểm tra lại khi đổi vị trí chụp hoặc thay đồng hồ.
+
+**Xóa vĩnh viễn người thuê** là lựa chọn riêng với **Lưu trữ**. Sau khi kết thúc lượt thuê, thao tác này xóa hồ sơ, người ở cùng và lịch sử liên kết trực tiếp: lượt thuê, hóa đơn/ảnh, tiền cọc, khoản thu và các dòng trả trước liên quan. Hóa đơn nhập từ Excel chưa gắn người thuê không bị xóa theo tên/phòng. App giữ phòng và mốc đồng hồ cần cho các kỳ sau; nếu có lịch sử khác phụ thuộc, app chặn xóa. Báo cáo thay đổi và bản sao lưu cũ vẫn chứa dữ liệu.

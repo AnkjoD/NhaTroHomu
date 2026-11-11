@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.8
+
+- Thuê phòng: xóa vĩnh viễn hồ sơ và lịch sử độc lập sau khi xác nhận. Lưu trữ vẫn giữ lịch sử. Chặn xóa nếu người còn lượt thuê hoặc dữ liệu có liên kết với hồ sơ khác.
+
 ## 0.11.7
 
 - Lập hóa đơn dùng giá phòng mặc định nếu chưa gắn lượt thuê. Schema 10 ghi rõ nguồn của hóa đơn loại này.

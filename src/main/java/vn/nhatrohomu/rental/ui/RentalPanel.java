@@ -242,6 +242,15 @@ public final class RentalPanel extends JPanel {
                           refresh();
                         }
                       })));
+      actions.add(
+          Ui.button(
+              "Xóa vĩnh viễn người thuê",
+              () ->
+                  safe(
+                      () -> {
+                        Tenant person = rentals.tenant(contracts.get(selected()).tenantId());
+                        if (person != null) purgePerson(person);
+                      })));
       Object[][] rows = new Object[contracts.size()][];
       for (int i = 0; i < contracts.size(); i++) {
         Contract k = contracts.get(i);
@@ -470,22 +479,7 @@ public final class RentalPanel extends JPanel {
                           }
                         })));
       }
-      if (contracts.stream().noneMatch(k -> k.tenantId() == person.id()))
-        buttons.add(
-            Ui.button(
-                "Xóa",
-                () ->
-                    safe(
-                        () -> {
-                          if (Ui.confirm(
-                              owner,
-                              "Xóa vĩnh viễn người thuê "
-                                  + person.name()
-                                  + " và thông tin người ở cùng?")) {
-                            rentals.deleteUnusedTenant(person.id());
-                            refresh();
-                          }
-                        })));
+      buttons.add(Ui.button("Xóa vĩnh viễn", () -> purgePerson(person)));
       row.add(buttons, BorderLayout.EAST);
       rows.add(row);
       rows.add(Box.createVerticalStrut(6));
@@ -496,6 +490,26 @@ public final class RentalPanel extends JPanel {
     scroll.getVerticalScrollBar().setUnitIncrement(20);
     section.add(scroll);
     return section;
+  }
+
+  private void purgePerson(Tenant person) {
+    String reply =
+        JOptionPane.showInputDialog(
+            owner,
+            "Xóa vĩnh viễn "
+                + person.name()
+                + " cùng người ở cùng, lượt thuê, hóa đơn, khoản thu, cọc và ảnh liên quan?\n"
+                + "Báo cáo sẽ thay đổi. Không thể khôi phục trong app; bản sao lưu cũ vẫn còn dữ"
+                + " liệu.\n"
+                + "Nếu chỉ muốn ẩn người thuê, hãy dùng Lưu trữ. Nhập XOA để xác nhận.");
+    if (!"XOA".equals(reply)) return;
+    Ui.background(
+        owner,
+        () -> {
+          rentals.purgeTenant(person.id());
+          return true;
+        },
+        ignored -> refresh());
   }
 
   private JTable table(String[] columns, Object[][] rows) {

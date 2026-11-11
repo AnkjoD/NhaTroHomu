@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.7
+
+- Lập hóa đơn dùng giá phòng mặc định nếu chưa gắn lượt thuê. Schema 10 ghi rõ nguồn của hóa đơn loại này.
+- OCR ưu tiên khung số lớn, vẫn chờ người dùng xác nhận.
+- Cho xóa hồ sơ chưa có lịch sử thuê hoặc giao dịch; có xác nhận trước khi xóa.
+
 ## 0.11.6
 
 - Các nút Dịch vụ & phí chuyển lên trên danh sách.

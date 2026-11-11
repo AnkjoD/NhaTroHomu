@@ -53,11 +53,44 @@ public final class PresentationCatalogTest {
       repo.saveBill(draft.calculate("0", "0", "1000000", ""), null, null);
       Bill bill = repo.bills(1, 0).getFirst();
       check(bill.fees().getFirst().serviceId().equals(fee.id()), "Bill lost catalog relationship");
+      repo.saveRoom(
+          new Room(
+              0,
+              "Room only",
+              "",
+              BigDecimal.ZERO,
+              BigDecimal.ZERO,
+              "METER",
+              null,
+              true,
+              new BigDecimal("1300000")));
+      Room roomOnly =
+          repo.rooms().stream().filter(x -> x.name().equals("Room only")).findFirst().orElseThrow();
+      var noTenant = BillingDraft.prepare(repo, roomOnly, YearMonth.now());
+      check(noTenant.rent().equals(new BigDecimal("1300000")), "Batch did not pick room price");
+      var standalone = noTenant.calculate("0", "0", "", "");
+      check(
+          standalone.total().equals(new BigDecimal("1300000"))
+              && standalone.contractId() == null
+              && standalone.fees().isEmpty(),
+          "Room price missing or invented tenancy");
+      check(
+          noTenant.calculate("0", "0", "0", "").rent().signum() == 0,
+          "Utility-only override failed");
+      repo.saveBill(standalone, null, null);
+      try (var connection = DatabaseAccess.open(repo.database)) {
+        DatabaseValidator.validate(connection);
+      }
       repo.services().save(new ServiceItem(fee.id(), "Network", new BigDecimal("200000")));
       repo.services().archive(fee.id());
       check(repo.services().items().isEmpty(), "Archived fee still selectable");
       check(
-          repo.bills(1, 0).getFirst().fees().getFirst().amount().compareTo(new BigDecimal("100000"))
+          repo.roomBills(room.id(), bill.month(), bill.month())
+                  .getFirst()
+                  .fees()
+                  .getFirst()
+                  .amount()
+                  .compareTo(new BigDecimal("100000"))
               == 0,
           "Catalog edit changed bill");
       check(

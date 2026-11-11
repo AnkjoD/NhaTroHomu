@@ -130,7 +130,8 @@ public class MeterPhotoPanel extends JPanel {
                 raw.setEditable(false);
                 raw.setLineWrap(true);
                 JPanel panel = Ui.column();
-                panel.add(new JLabel("Số tìm thấy (có thể là số seri/đơn vị, cần kiểm tra):"));
+                panel.add(
+                    new JLabel("Ưu tiên khung số lớn; hãy đối chiếu ảnh để tránh chọn số seri."));
                 panel.add(candidates);
                 panel.add(new JScrollPane(raw));
                 if (JOptionPane.showConfirmDialog(

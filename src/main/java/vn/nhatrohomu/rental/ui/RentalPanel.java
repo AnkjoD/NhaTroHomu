@@ -470,6 +470,22 @@ public final class RentalPanel extends JPanel {
                           }
                         })));
       }
+      if (contracts.stream().noneMatch(k -> k.tenantId() == person.id()))
+        buttons.add(
+            Ui.button(
+                "Xóa",
+                () ->
+                    safe(
+                        () -> {
+                          if (Ui.confirm(
+                              owner,
+                              "Xóa vĩnh viễn người thuê "
+                                  + person.name()
+                                  + " và thông tin người ở cùng?")) {
+                            rentals.deleteUnusedTenant(person.id());
+                            refresh();
+                          }
+                        })));
       row.add(buttons, BorderLayout.EAST);
       rows.add(row);
       rows.add(Box.createVerticalStrut(6));

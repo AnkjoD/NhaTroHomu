@@ -524,7 +524,8 @@ public final class SqliteRepository implements Repository {
       new TurnoverStore(database).issue(b, ep, wp);
       return;
     }
-    DataRules.bill(b);
+    boolean roomRent = b.contractId() == null && b.rent() != null && b.rent().signum() > 0;
+    DataRules.bill(b, false, roomRent);
     if ((ep != null && ep.length > 12_000_000) || (wp != null && wp.length > 12_000_000))
       throw new IllegalArgumentException("Ảnh quá lớn, tối đa 12 MB mỗi ảnh.");
     try (Connection c = connection()) {
@@ -537,6 +538,7 @@ public final class SqliteRepository implements Repository {
             throw new IllegalArgumentException("Phòng không còn được quản lý.");
         }
         Readings opening;
+        String defaultRent;
         try (PreparedStatement p = c.prepareStatement("SELECT * FROM rooms WHERE id=?")) {
           p.setLong(1, b.roomId());
           try (ResultSet r = p.executeQuery()) {
@@ -545,13 +547,19 @@ public final class SqliteRepository implements Repository {
                 || !b.waterMode().equals(r.getString("water_mode")))
               throw new IllegalArgumentException("Thông tin phòng đã đổi. Đóng form và mở lại.");
             opening = new Readings(decimal(r, "e_start"), decimal(r, "w_start"));
+            defaultRent = r.getString("default_rent");
           }
         }
         Contract rental =
             new RentalStore(database).forMonth(c, b.roomId(), java.time.YearMonth.parse(b.month()));
         if (rental == null) {
-          if (b.contractId() != null || b.rent().signum() != 0 || !b.fees().isEmpty())
+          if (b.contractId() != null || !b.fees().isEmpty())
             throw new IllegalArgumentException("Kỳ này không có hợp đồng thuê.");
+          if (roomRent
+              && (defaultRent == null
+                  || (b.rent().compareTo(new BigDecimal(defaultRent)) != 0 && b.note().isBlank())))
+            throw new IllegalArgumentException(
+                "Cần giá mặc định của phòng. Nếu điều chỉnh, ghi lý do vào ghi chú.");
         } else {
           if (b.rent().compareTo(rental.rent()) != 0 && b.note().isBlank())
             throw new IllegalArgumentException("Ghi lý do điều chỉnh tiền phòng.");
@@ -635,6 +643,7 @@ public final class SqliteRepository implements Repository {
           long id = key.getLong(1);
           RentalStore.saveCharges(c, "bill_charges", "bill_id", id, b.fees());
           updatePaid(c, id);
+          if (roomRent) AuditLog.record(c, "ISSUE_ROOM_RENT", "bill", id, "Tiền phòng " + b.rent());
           AuditLog.record(
               c,
               "ISSUE",

@@ -296,17 +296,20 @@ public final class DatabaseValidator {
                 r.getString("period_start"),
                 r.getString("period_end"));
         try {
-          boolean imported;
+          boolean imported = false, roomRent = false;
           try (PreparedStatement source =
               c.prepareStatement(
-                  "SELECT 1 FROM audit_events WHERE action='IMPORT' AND entity_type='bill' AND"
-                      + " entity_id=? LIMIT 1")) {
+                  "SELECT action FROM audit_events WHERE action IN ('IMPORT','ISSUE_ROOM_RENT') AND"
+                      + " entity_type='bill' AND entity_id=?")) {
             source.setLong(1, b.id());
             try (ResultSet proof = source.executeQuery()) {
-              imported = proof.next();
+              while (proof.next()) {
+                if (proof.getString(1).equals("IMPORT")) imported = true;
+                else roomRent = true;
+              }
             }
           }
-          DataRules.bill(b, imported);
+          DataRules.bill(b, imported, roomRent);
         } catch (IllegalArgumentException ex) {
           throw new IllegalArgumentException("Hóa đơn #" + b.id() + ": " + ex.getMessage(), ex);
         }

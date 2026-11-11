@@ -196,6 +196,9 @@ public final class ProfileHistoryTest {
       check(
           repo.rentals().tenant(restored.id()).name().endsWith(" corrected"),
           "Restored person can be edited without creating a duplicate");
+      System.out.println("PASS: " + checks + " profile checks before permanent deletion.");
+      repo.rentals().deleteUnusedTenant(saved.id());
+      check(repo.rentals().tenant(saved.id()) == null, "Unused tenant was not deleted");
       System.out.println(
           "PASS: "
               + checks

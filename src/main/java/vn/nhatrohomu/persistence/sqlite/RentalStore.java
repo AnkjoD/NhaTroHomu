@@ -229,6 +229,36 @@ public final class RentalStore implements RentalRepository {
     }
   }
 
+  public void deleteUnusedTenant(long id) throws SQLException {
+    try (Connection c = connection()) {
+      c.setAutoCommit(false);
+      try {
+        try (PreparedStatement p = c.prepareStatement("DELETE FROM residents WHERE tenant_id=?")) {
+          p.setLong(1, id);
+          p.executeUpdate();
+        }
+        try (PreparedStatement p =
+            c.prepareStatement(
+                "DELETE FROM tenants WHERE id=? AND NOT EXISTS(SELECT 1 FROM contracts WHERE"
+                    + " tenant_id=?) AND NOT EXISTS(SELECT 1 FROM collection_events WHERE"
+                    + " owner_tenant_id=?) AND NOT EXISTS(SELECT 1 FROM advance_receipts WHERE"
+                    + " owner_tenant_id=?)")) {
+          for (int i = 1; i <= 4; i++) p.setLong(i, id);
+          if (p.executeUpdate() != 1)
+            throw new IllegalArgumentException(
+                "Chỉ xóa người chưa có lịch sử thuê hoặc giao dịch. Với người đã có lịch sử, dùng"
+                    + " Lưu trữ.");
+        }
+        AuditLog.record(
+            c, "DELETE_UNUSED", "tenant", id, "Xóa hồ sơ chưa có lịch sử thuê hoặc giao dịch.");
+        c.commit();
+      } catch (Exception ex) {
+        c.rollback();
+        throw ex;
+      }
+    }
+  }
+
   static List<Charge> charges(Connection c, String table, String key, long id) throws SQLException {
     if (!((table.equals("bill_charges") && key.equals("bill_id"))
         || (table.equals("contract_charges") && key.equals("contract_id"))))

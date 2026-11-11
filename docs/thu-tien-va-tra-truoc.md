@@ -30,9 +30,9 @@ Trong **Thuê phòng**, chọn dòng thuê rồi **Sửa thông tin & người �
 
 **Lưu trữ người thuê** chỉ ẩn khỏi danh sách đang dùng, không xóa người ở cùng, lượt thuê, hóa đơn hay khoản thu. Bật **Hiện người đã lưu trữ** để xem hoặc **Khôi phục**. Sau khi khôi phục, dùng **Sửa thông tin & người ở cùng** như bình thường. Khôi phục người thuê không tự mở lại lượt thuê đã kết thúc. Không được lưu trữ người đang có lượt thuê hiện tại/sắp tới; phải trả phòng đúng quy trình.
 
-## Lập nhiều phòng và sửa chỉ số
+## Lập hóa đơn nhiều phòng và sửa chỉ số
 
-Trong **Phòng trọ → Lập nhiều phòng** hoặc **Hóa đơn → Lập nhiều phòng**, chọn tháng, nhập số mới theo từng phòng và kiểm tra tổng trước khi lưu. Phòng có lượt thuê lấy sẵn tiền phòng thỏa thuận. Phòng thiếu hồ sơ thuê không được chọn sẵn; chọn rõ nếu chỉ lập điện nước. Nhiều lượt thuê chưa chốt cùng tháng cần lập riêng để chọn đúng người.
+Trong **Phòng trọ → Lập hóa đơn nhiều phòng** hoặc **Hóa đơn → Lập hóa đơn nhiều phòng**, chọn tháng, nhập số mới theo từng phòng và kiểm tra tổng trước khi lưu. Phòng có lượt thuê lấy sẵn tiền phòng thỏa thuận. Phòng chưa có lượt thuê không được chọn sẵn. Nếu chọn, app dùng giá mặc định của phòng nếu đã cài; nhập 0 để chỉ thu điện nước. Phí dịch vụ cần lượt thuê. Nhiều lượt thuê chưa chốt cùng tháng cần lập riêng để chọn đúng người.
 
 Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu được khóa lại; phòng lỗi giữ phần nhập để sửa và thử lại, tránh lập trùng.
 
@@ -47,7 +47,7 @@ Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu đư�
 
 Số cũ là mốc lấy từ kỳ trước hoặc bàn giao, không sửa tự do trong hóa đơn mới. Chỉ hủy để lập lại hóa đơn cuối đủ điều kiện, không còn thanh toán/trả trước hiệu lực và không làm sai bàn giao/kỳ sau. Sai kỳ cũ có chứng từ nối tiếp cần quy trình điều chỉnh; không tự tính lại tiền hay sửa lịch sử đã thu.
 
-Form lập một phòng hiện giá mặc định dù chưa có lượt thuê, để bạn thấy giá sẵn có. Đây là giá gợi ý; bấm **Thiết lập thuê phòng** để chọn người, ghi thỏa thuận và khoản phí trước khi chốt cả tiền phòng. Khi đã có thỏa thuận riêng, giá thỏa thuận được ưu tiên. Chọn **Chỉ lập điện nước** thì tiền phòng hiển thị 0 và không được thu trong hóa đơn đó.
+Form lập một phòng ưu tiên giá thỏa thuận nếu có lượt thuê; nếu chưa có, app dùng giá mặc định của phòng và không tự thêm phí dịch vụ. Chọn **Chỉ lập điện nước** để bỏ tiền phòng.
 
 ## Mẫu ảnh gửi khách
 

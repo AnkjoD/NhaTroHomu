@@ -105,6 +105,10 @@ public final class DataRules {
   }
 
   public static void bill(Bill b, boolean historicalImport) {
+    bill(b, historicalImport, false);
+  }
+
+  public static void bill(Bill b, boolean historicalImport, boolean roomRent) {
     if (b.importedWaterAmount() != null) {
       if (!historicalImport)
         throw new IllegalArgumentException(
@@ -161,7 +165,7 @@ public final class DataRules {
         || b.total().compareTo(new BigDecimal("1000000000000")) > 0)
       throw new IllegalArgumentException("Tổng hóa đơn không khớp các khoản hoặc vượt giới hạn.");
     if (b.contractId() == null
-        && ((!historicalImport && b.rent().signum() != 0)
+        && ((!historicalImport && !roomRent && b.rent().signum() != 0)
             || !b.fees().isEmpty()
             || !b.tenantName().isBlank()
             || !b.dueDate().isBlank()))

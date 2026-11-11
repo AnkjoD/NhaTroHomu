@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Atomic schema upgrades; preserve released v1/v2/v3 books. */
 final class Schema {
-  static final int VERSION = 9;
+  static final int VERSION = 10;
   static final String BILL_COLUMNS =
       "id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,e_photo,w_photo,contract_id,tenant_name,rent,due_date";
 

@@ -67,6 +67,31 @@ public final class RentalService {
         due);
   }
 
+  public static Bill withRoomRent(Bill b, BigDecimal rent) {
+    requireMoney(rent, "Tiền phòng");
+    return new Bill(
+        b.id(),
+        b.roomId(),
+        b.roomName(),
+        b.month(),
+        b.electricityOld(),
+        b.electricityNew(),
+        b.waterOld(),
+        b.waterNew(),
+        b.waterMode(),
+        b.waterUsed(),
+        b.electricityRate(),
+        b.waterRate(),
+        b.total().add(rent),
+        b.paid(),
+        b.note(),
+        null,
+        "",
+        rent,
+        java.util.List.of(),
+        "");
+  }
+
   public static BigDecimal prorated(BigDecimal monthly, LocalDate first, LocalDate last) {
     if (last.isBefore(first) || !YearMonth.from(first).equals(YearMonth.from(last)))
       throw new IllegalArgumentException("Khoảng ngày cần nằm trong cùng tháng.");

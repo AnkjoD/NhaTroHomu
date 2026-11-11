@@ -305,10 +305,12 @@ public final class ReadingDialog extends JDialog {
             rates,
             note.getText());
     Contract contract = selectedContract();
-    if (contract == null && !utilitiesOnly.isSelected())
-      throw new IllegalArgumentException(
-          "Giá mặc định đã được gợi ý. Thiết lập thuê phòng để chốt tiền phòng và phí, hoặc chọn"
-              + " Chỉ lập điện nước.");
+    if (contract == null) {
+      if (utilitiesOnly.isSelected()) return utility;
+      if (room.defaultRent() == null)
+        throw new IllegalArgumentException("Cài giá phòng hoặc chọn Chỉ lập điện nước.");
+      return RentalService.withRoomRent(utility, room.defaultRent());
+    }
     BigDecimal amount =
         contract == null ? BigDecimal.ZERO : RentalService.money(rent.getText(), "Tiền phòng");
     if (contract != null && segmented(contract)) {
@@ -416,7 +418,7 @@ public final class ReadingDialog extends JDialog {
       syncRentDisplay();
       rentalInfo.setText(
           contract == null
-              ? "Chưa gắn người thuê cho tháng này · giá gợi ý lấy từ phòng"
+              ? "Chưa gắn người thuê · không tự thêm phí dịch vụ"
               : "#" + contract.id() + " · " + first(contract) + " → " + last(contract));
       feesInfo.setText(
           contract == null
@@ -448,7 +450,7 @@ public final class ReadingDialog extends JDialog {
       total.setForeground(new Color(155, 66, 42));
       total.setText(
           selectedContract() == null && !utilitiesOnly.isSelected()
-              ? "Cần thiết lập người thuê cho tháng này"
+              ? "Kiểm tra giá phòng, chỉ số mới và tháng"
               : "Kiểm tra chỉ số mới và tháng");
       total.setToolTipText(ex.getMessage());
     }

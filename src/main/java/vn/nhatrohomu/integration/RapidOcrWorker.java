@@ -30,6 +30,22 @@ public final class RapidOcrWorker {
     Object result =
         engineType.getMethod("run", java.awt.image.BufferedImage.class).invoke(engine, image);
     String text = (String) result.getClass().getMethod("getStrRes").invoke(result);
-    Files.writeString(Path.of(args[1]), text == null ? "" : text, StandardCharsets.UTF_8);
+    StringBuilder output = new StringBuilder(text == null ? "" : text).append('\n');
+    var entries = (java.util.List<?>) result.getClass().getMethod("getRecRes").invoke(result);
+    if (entries != null)
+      for (Object entry : entries) {
+        String value = (String) entry.getClass().getMethod("getText").invoke(entry);
+        Object[] points = (Object[]) entry.getClass().getMethod("getDtBoxes").invoke(entry);
+        if (value == null || points == null || points.length != 4) continue;
+        double[] x = new double[4], y = new double[4];
+        for (int i = 0; i < 4; i++) {
+          x[i] = points[i].getClass().getField("x").getDouble(points[i]);
+          y[i] = points[i].getClass().getField("y").getDouble(points[i]);
+        }
+        output.append(
+            OcrService.numericBox(
+                value, Math.hypot(x[1] - x[0], y[1] - y[0]), Math.hypot(x[2] - x[1], y[2] - y[1])));
+      }
+    Files.writeString(Path.of(args[1]), output, StandardCharsets.UTF_8);
   }
 }

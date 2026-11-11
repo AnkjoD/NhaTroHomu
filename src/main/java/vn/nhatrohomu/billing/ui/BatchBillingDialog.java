@@ -160,9 +160,9 @@ public final class BatchBillingDialog extends JDialog {
             .map(Bill::total)
             .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
     String utilityRooms =
-        selected.stream()
-            .filter(e -> e.plan.draft().contract() == null)
-            .map(e -> e.plan.room().name())
+        bills.stream()
+            .filter(b -> b.contractId() == null && b.rent().signum() == 0)
+            .map(Bill::roomName)
             .collect(java.util.stream.Collectors.joining(", "));
     if (!Ui.confirm(
         this,
@@ -430,7 +430,7 @@ public final class BatchBillingDialog extends JDialog {
           "Người thuê",
           new JLabel(
               draft.contract() == null
-                  ? "Chưa có thông tin thuê. Chọn Lập phòng này nếu chỉ ghi điện nước."
+                  ? "Chưa gắn người thuê · không tự thêm phí dịch vụ."
                   : draft.contract().tenantName()));
       Ui.field(fields, 1, "Số điện cũ", new JLabel(Ui.n(draft.opening().electricity())));
       Ui.field(fields, 2, "Số điện mới", electricity);
@@ -441,8 +441,12 @@ public final class BatchBillingDialog extends JDialog {
           draft.room().waterMode().equals("METER") ? "Số nước mới" : "Nước khoán (m³)",
           water);
       if (draft.room().waterMode().equals("FIXED")) water.setText(Ui.n(draft.water()));
-      rent.setText(draft.contract() == null ? "" : draft.rent().toPlainString());
-      rent.setEditable(draft.contract() != null);
+      rent.setText(draft.rent() == null ? "" : draft.rent().toPlainString());
+      rent.setEditable(draft.rent() != null);
+      rent.setToolTipText(
+          draft.contract() == null
+              ? "Dùng giá phòng mặc định; nhập 0 nếu chỉ thu điện nước."
+              : "Dùng giá thỏa thuận của lượt thuê.");
       Ui.field(fields, 5, "Tiền phòng (đ)", rent);
       Ui.field(fields, 6, "Ghi chú", note);
       electricityPhoto =

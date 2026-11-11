@@ -31,6 +31,17 @@ try {
         try {
             $result = Wait-WinRt ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
             [Console]::WriteLine($result.Text)
+            foreach ($line in $result.Lines) {
+                $digits = $line.Text -replace '\s+', ''
+                if ($digits -notmatch '^\d{3,9}(?:[.,]\d{1,3})?$') { continue }
+                $words = @($line.Words | ForEach-Object { $_.BoundingRect })
+                if ($words.Count -eq 0) { continue }
+                $left = ($words | ForEach-Object { $_.X } | Measure-Object -Minimum).Minimum
+                $top = ($words | ForEach-Object { $_.Y } | Measure-Object -Minimum).Minimum
+                $right = ($words | ForEach-Object { $_.X + $_.Width } | Measure-Object -Maximum).Maximum
+                $bottom = ($words | ForEach-Object { $_.Y + $_.Height } | Measure-Object -Maximum).Maximum
+                [Console]::WriteLine(("NHATROHOMU_BOX`t{0}`t{1}`t{2}" -f [int]($right-$left), [int]($bottom-$top), $digits))
+            }
         } finally { $bitmap.Dispose() }
     } finally { $stream.Dispose() }
 } catch {

@@ -75,6 +75,42 @@ public final class OcrService {
 
   public record Result(String text, List<String> candidates) {}
 
+  static final String BOX_PREFIX = "NHATROHOMU_BOX\t";
+  private static final Pattern METER_NUMBER = Pattern.compile("\\d{3,9}(?:[.,]\\d{1,3})?");
+
+  static String numericBox(String text, double width, double height) {
+    String value = text.strip().replaceAll("\\s+", "");
+    return METER_NUMBER.matcher(value).matches() && width > 0 && height > 0
+        ? BOX_PREFIX + width + "\t" + height + "\t" + value + "\n"
+        : "";
+  }
+
+  static Result rankedResult(String output) {
+    record Box(String number, double area) {}
+    List<Box> boxes = new ArrayList<>();
+    List<String> raw = new ArrayList<>();
+    for (String line : output.lines().toList()) {
+      if (!line.startsWith(BOX_PREFIX)) {
+        raw.add(line);
+        continue;
+      }
+      String[] parts = line.split("\t");
+      if (parts.length != 4 || !METER_NUMBER.matcher(parts[3]).matches()) continue;
+      try {
+        double w = Double.parseDouble(parts[1]), h = Double.parseDouble(parts[2]);
+        if (w > 0 && h > 0 && Double.isFinite(w * h))
+          boxes.add(new Box(parts[3].replace(',', '.'), w * h));
+      } catch (NumberFormatException ignored) {
+      }
+    }
+    String text = String.join("\n", raw).strip();
+    boxes.sort(Comparator.comparingDouble(Box::area).reversed());
+    LinkedHashSet<String> ranked = new LinkedHashSet<>();
+    boxes.forEach(box -> ranked.add(box.number()));
+    ranked.addAll(candidates(text));
+    return new Result(text, ranked.stream().limit(30).toList());
+  }
+
   public static List<String> candidates(String text) {
     // Không tự đoán số nào là chỉ số đồng hồ; cho người dùng chọn giữa các ứng viên.
     LinkedHashSet<String> values = new LinkedHashSet<>();
@@ -130,7 +166,7 @@ public final class OcrService {
               "RapidOCR không chạy được. Thử Windows hoặc nhập tay; kiểm tra gói OCR và Windows"
                   + " x64.");
         String text = Files.readString(result, StandardCharsets.UTF_8).trim();
-        return new Result(text, candidates(text));
+        return rankedResult(text);
       }
       String windows = System.getenv("SystemRoot");
       if (windows == null) throw new IOException("OCR bản này cần Windows 10/11.");
@@ -157,7 +193,7 @@ public final class OcrService {
             text.isEmpty()
                 ? "Không chạy được OCR của Windows. Bạn vẫn có thể nhập số thủ công."
                 : text);
-      return new Result(text, candidates(text));
+      return rankedResult(text);
     } finally {
       if (process != null && process.isAlive()) {
         process.destroyForcibly();

@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.6", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.7", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -298,7 +298,7 @@ public final class AppWindow extends JFrame {
       billingActions.add(
           Design.primary(
               Ui.button(
-                  "Lập nhiều phòng",
+                  "Lập hóa đơn nhiều phòng",
                   () -> {
                     try {
                       new vn.nhatrohomu.billing.ui.BatchBillingDialog(
@@ -507,8 +507,8 @@ public final class AppWindow extends JFrame {
             contract != null
                 ? "Giá thuê / tháng"
                 : r.defaultRent() != null
-                    ? "Giá mặc định / tháng"
-                    : historicalRental ? "Tiền phòng kỳ " + latest : "Giá mặc định / tháng",
+                    ? "Tiền phòng / tháng"
+                    : historicalRental ? "Tiền phòng kỳ " + latest : "Tiền phòng / tháng",
             contract != null
                 ? Ui.money(contract.rent())
                 : r.defaultRent() != null
@@ -728,7 +728,7 @@ public final class AppWindow extends JFrame {
       filterBar.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
       filterBar.add(
           Ui.button(
-              "Lập nhiều phòng",
+              "Lập hóa đơn nhiều phòng",
               () -> {
                 try {
                   new vn.nhatrohomu.billing.ui.BatchBillingDialog(
@@ -958,7 +958,7 @@ public final class AppWindow extends JFrame {
         + b.periodLabel()
         + (b.contractId() == null
             ? (b.rent().signum() > 0
-                ? "\nLoại: hóa đơn lịch sử nhập từ sổ cũ\nTiền phòng: " + Ui.money(b.rent())
+                ? "\nTiền phòng (chưa gắn lượt thuê): " + Ui.money(b.rent())
                 : "\nLoại: điện nước (chưa có hợp đồng)")
             : "\nNgười thuê: "
                 + b.tenantName()

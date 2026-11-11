@@ -66,22 +66,6 @@ public final class ServiceCatalogStore implements ServiceCatalog {
     }
   }
 
-  public void archive(long id) throws Exception {
-    try (Connection c = DatabaseAccess.open(database)) {
-      c.setAutoCommit(false);
-      try (PreparedStatement p =
-          c.prepareStatement("UPDATE service_catalog SET active=0 WHERE id=? AND active=1")) {
-        p.setLong(1, id);
-        if (p.executeUpdate() != 1) throw new IllegalArgumentException("Khoản phí không tồn tại.");
-        AuditLog.record(c, "ARCHIVE", "service", id, "Giữ giá đã lưu trong hợp đồng/hóa đơn.");
-        c.commit();
-      } catch (Exception ex) {
-        c.rollback();
-        throw ex;
-      }
-    }
-  }
-
   public void deleteUnused(long id) throws Exception {
     try (Connection c = DatabaseAccess.open(database);
         PreparedStatement p =
@@ -93,11 +77,11 @@ public final class ServiceCatalogStore implements ServiceCatalog {
       if (p.executeUpdate() != 1)
         throw new IllegalArgumentException(
             "Phí đã được dùng hoặc không còn tồn tại. Nếu muốn bỏ phí khỏi các hóa đơn chưa lập,"
-                + " chọn Ngừng tính phí.");
+                + " chọn Lưu trữ phí.");
     }
   }
 
-  public int stopBilling(long id) throws Exception {
+  public int archive(long id) throws Exception {
     try (Connection c = DatabaseAccess.open(database)) {
       c.setAutoCommit(false);
       try (PreparedStatement archive =

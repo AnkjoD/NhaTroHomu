@@ -8,11 +8,9 @@ public interface ServiceCatalog {
 
   void save(ServiceItem item) throws Exception;
 
-  void archive(long id) throws Exception;
+  int archive(long id) throws Exception;
 
   List<ServiceItem> archivedItems() throws Exception;
 
   void deleteUnused(long id) throws Exception;
-
-  int stopBilling(long id) throws Exception;
 }

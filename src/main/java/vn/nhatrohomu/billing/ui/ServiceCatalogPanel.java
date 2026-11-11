@@ -98,39 +98,15 @@ public final class ServiceCatalogPanel extends JPanel {
     int row = table.getSelectedRow();
     if (row < 0) return;
     ServiceItem item = items.get(table.convertRowIndexToModel(row));
-    boolean alreadyArchived = archived.isSelected();
-    String hide = "Chỉ lưu trữ", stop = "Lưu trữ và ngừng tính", cancel = "Hủy";
-    Object[] options = {hide, stop, cancel};
+    if (!Ui.confirm(
+        this,
+        item.name()
+            + "\n"
+            + "Lưu trữ và ngừng tính phí này trên tất cả lượt thuê đang mở? Hóa đơn đã lập và khoản"
+            + " thu giữ nguyên."))
+      return;
     try {
-      if (alreadyArchived) {
-        if (!Ui.confirm(
-            this,
-            item.name()
-                + " đã lưu trữ. Ngừng tính khoản này trên tất cả lượt thuê đang mở? Hóa đơn đã lập"
-                + " giữ nguyên."))
-          return;
-      } else {
-        int choice =
-            JOptionPane.showOptionDialog(
-                this,
-                item.name()
-                    + "\nChỉ lưu trữ: ẩn khỏi danh mục, phòng đã gắn vẫn tính.\n"
-                    + "Lưu trữ và ngừng tính: gỡ khỏi tất cả lượt thuê đang mở.\n"
-                    + "Hóa đơn đã lập và khoản thu giữ nguyên.",
-                "Lưu trữ phí",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                options,
-                cancel);
-        if (choice == 0) {
-          catalog.archive(item.id());
-          refresh();
-          return;
-        }
-        if (choice != 1) return;
-      }
-      int count = catalog.stopBilling(item.id());
+      int count = catalog.archive(item.id());
       refresh();
       JOptionPane.showMessageDialog(this, "Đã ngừng tính phí trên " + count + " lượt thuê.");
     } catch (Exception ex) {

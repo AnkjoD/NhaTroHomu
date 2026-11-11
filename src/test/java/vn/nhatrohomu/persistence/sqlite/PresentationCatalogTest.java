@@ -82,8 +82,6 @@ public final class PresentationCatalogTest {
         DatabaseValidator.validate(connection);
       }
       repo.services().save(new ServiceItem(fee.id(), "Network", new BigDecimal("200000")));
-      repo.services().archive(fee.id());
-      check(repo.services().items().isEmpty(), "Archived fee still selectable");
       check(
           repo.roomBills(room.id(), bill.month(), bill.month())
                   .getFirst()
@@ -96,15 +94,22 @@ public final class PresentationCatalogTest {
       check(
           repo.rentals().contracts().getFirst().fees().getFirst().label().equals("Internet"),
           "Catalog edit changed agreement");
-      check(
-          repo.services().archivedItems().getFirst().id() == fee.id(),
-          "Archived fee cannot be found");
       try {
         repo.services().deleteUnused(fee.id());
         throw new AssertionError("Linked fee was deleted");
       } catch (IllegalArgumentException expected) {
       }
-      check(repo.services().stopBilling(fee.id()) == 1, "Stop did not detach active fee");
+      check(repo.services().archive(fee.id()) == 1, "Archive did not detach active fee");
+      check(repo.services().items().isEmpty(), "Archived fee still selectable");
+      check(
+          repo.services().archivedItems().getFirst().id() == fee.id(),
+          "Archived fee cannot be found");
+      check(repo.services().archive(fee.id()) == 0, "Reapplying archive must be safe");
+      try {
+        repo.services().deleteUnused(fee.id());
+        throw new AssertionError("A fee used only by issued invoices was deleted");
+      } catch (IllegalArgumentException expected) {
+      }
       check(
           BillingDraft.prepare(repo, room, YearMonth.now().plusMonths(1)).fees().isEmpty(),
           "Fee still applied to next draft");

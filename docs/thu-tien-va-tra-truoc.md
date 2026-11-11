@@ -26,7 +26,7 @@ Trong lịch sử thu, chọn khoản trả trước còn số dư rồi **Ghi n
 
 Trong **Dịch vụ & phí** ở sidebar, tạo các khoản như Internet, vệ sinh và giá mặc định. Khi cho thuê, chọn khoản phí rồi điều chỉnh giá thỏa thuận nếu cần. Mỗi lượt thuê và hóa đơn giữ tên/giá tại lúc lập. Sửa hoặc lưu trữ danh mục không đổi chứng từ cũ; khoản phí đã lưu trữ không còn được chọn cho thỏa thuận mới. Phí cũ chưa có danh mục vẫn giữ nguyên dữ liệu.
 
-Nút **Lưu trữ phí** cho chọn **Chỉ lưu trữ** để ẩn phí khỏi danh mục chọn mới, hoặc **Lưu trữ và ngừng tính** để ẩn và gỡ liên kết khỏi các lượt thuê đang mở, nên hóa đơn chưa lập sẽ bớt khoản đó. Hóa đơn đã lập, khoản thu và phí nhập tay không liên kết giữ nguyên. **Xóa phí** dành cho khoản chưa có liên kết với lượt thuê hoặc hóa đơn. Bật **Xem phí đã lưu trữ** để thao tác với khoản đã ẩn.
+**Lưu trữ phí** ẩn phí khỏi danh mục và ngừng tính ngay trên các lượt thuê đang mở đã gắn phí. Hóa đơn chưa lập sẽ bỏ khoản đó; hóa đơn đã lập, khoản thu và phí nhập tay không liên kết giữ nguyên. **Xóa phí** dùng cho khoản chưa có liên kết. Nếu khoản phí đã lưu trữ ở phiên bản cũ nhưng vẫn còn tính, bật **Xem phí đã lưu trữ** rồi chọn **Ngừng tính phí**.
 
 Trong **Thuê phòng**, chọn dòng thuê rồi **Sửa thông tin & người ở cùng** để sửa liên hệ, CCCD và gia đình. Người chưa có lượt thuê hiện ở phần **Người thuê chưa gắn phòng** ngay bên dưới, với nút sửa thông tin và cho thuê phòng. Không cần chuyển sang mục hồ sơ riêng. Dữ liệu người thuê vẫn lưu riêng với lượt thuê để giữ lịch sử khi đổi phòng/trả phòng.
 

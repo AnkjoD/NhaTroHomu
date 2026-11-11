@@ -74,7 +74,7 @@ public final class AppWindow extends JFrame {
     menu.addButton(nav("rooms", "Phòng trọ", this::showRooms));
     menu.addButton(nav("contract", "Thuê phòng", this::showContracts));
     menu.addButton(nav("services", "Dịch vụ & phí", this::showServices));
-    menu.addButton(nav("bill", "Hóa đơn", this::showHistory));
+    menu.addButton(nav("bill", "Hóa đơn", this::openCurrentInvoices));
     menu.addButton(nav("debt", "Công nợ", this::showDebts));
     menu.addButton(nav("report", "Báo cáo", this::showReports));
     menu.addButton(nav("settings", "Cài đặt", this::showSettings));
@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.9", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.11", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -636,6 +636,12 @@ public final class AppWindow extends JFrame {
     body.repaint();
   }
 
+  private void openCurrentInvoices() {
+    invoiceMonth = null;
+    historyPage = 0;
+    showHistory();
+  }
+
   private void showHistory() {
     selectNav("Hóa đơn");
     try {
@@ -646,15 +652,16 @@ public final class AppWindow extends JFrame {
                       .reversed()
                       .thenComparing(Bill::roomName))
               .toList();
+      String currentMonth = java.time.YearMonth.now().toString();
       List<String> months =
-          all.stream()
-              .map(Bill::month)
+          java.util.stream.Stream.concat(
+                  java.util.stream.Stream.of(currentMonth, invoiceMonth)
+                      .filter(m -> m != null && !m.isBlank()),
+                  all.stream().map(Bill::month))
               .distinct()
               .sorted(java.util.Comparator.reverseOrder())
               .toList();
-      if (invoiceMonth != null && !invoiceMonth.isBlank() && !months.contains(invoiceMonth))
-        invoiceMonth = null;
-      if (invoiceMonth == null && !months.isEmpty()) invoiceMonth = months.getFirst();
+      if (invoiceMonth == null) invoiceMonth = currentMonth;
       List<Bill> filtered =
           invoiceMonth == null || invoiceMonth.isBlank()
               ? all
@@ -865,7 +872,9 @@ public final class AppWindow extends JFrame {
                   + Ui.money(sum)
                   + " · "
                   + count
-                  + " hóa đơn · Trang "
+                  + (count == 0
+                      ? " hóa đơn (chưa có hóa đơn trong tháng đã chọn) · Trang "
+                      : " hóa đơn · Trang ")
                   + (historyPage + 1)));
       paging.add(back);
       paging.add(next);

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.11
+
+- Mở Hóa đơn ở tháng hiện tại kể cả khi chưa có hóa đơn; vẫn chọn được tháng cũ.
+- Gộp lựa chọn lưu trữ và ngừng tính vào một hộp thoại; căn giữa bảng phí.
+
 ## 0.11.9
 
 - Dịch vụ & phí: xem phí đã lưu trữ, xóa phí chưa dùng, và ngừng tính phí cho hóa đơn chưa lập. Hóa đơn đã chốt giữ nguyên.

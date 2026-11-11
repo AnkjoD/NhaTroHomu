@@ -96,11 +96,15 @@ public final class InvoiceWorkflowTest {
             var history = AppWindow.class.getDeclaredMethod("showHistory");
             history.setAccessible(true);
             history.invoke(app);
-            JTable latest = table(app.getContentPane());
-            check(
-                latest.getRowCount() == 1 && latest.getValueAt(0, 0).equals("2026-10"),
-                "Invoices open on the newest month only");
             JComboBox<?> period = (JComboBox<?>) named(app.getContentPane(), "invoice-period");
+            String currentMonth = java.time.YearMonth.now().toString();
+            check(
+                currentMonth.equals(period.getSelectedItem()),
+                "Invoices open on the calendar month, even when empty");
+            check(
+                table(app.getContentPane()).getRowCount()
+                    == repository.billsBetween(currentMonth, currentMonth).size(),
+                "Current month does not show old invoices");
             period.setSelectedItem("2026-08");
             check(
                 table(app.getContentPane()).getRowCount() == 1

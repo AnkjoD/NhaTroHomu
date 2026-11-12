@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.31
+
+- Ghi rõ kỳ hóa đơn trong lịch sử thu và phân biệt với phần xem trước khoản thu.
+
 ## 0.11.30
 
 - Điền nhanh số tiền theo từng kỳ hoặc thu nhiều kỳ trong cùng một lần.

@@ -34,6 +34,8 @@ public final class PaymentDialog extends JDialog {
         }
       };
   private final JTable table = new JTable(model);
+  private final JScrollPane historyTable = new JScrollPane(table);
+  private final JLabel emptyHistory = new JLabel("Chưa ghi nhận khoản thu cho hóa đơn này.");
   private String requestKey = java.util.UUID.randomUUID().toString();
   private List<Payment> payments = List.of();
   private List<vn.nhatrohomu.billing.CollectionRepository.Advance> advances = List.of();
@@ -56,7 +58,14 @@ public final class PaymentDialog extends JDialog {
     root.add(summary, BorderLayout.NORTH);
     table.setRowHeight(34);
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    root.add(new JScrollPane(table), BorderLayout.CENTER);
+    JPanel history = new JPanel(new BorderLayout(0, 8));
+    JPanel historyHeading = Ui.column();
+    historyHeading.add(
+        Design.label("Lịch sử thu tiền · " + monthLabel(bill.month()), 13, Design.INK, true));
+    emptyHistory.setForeground(Design.MUTED);
+    historyHeading.add(emptyHistory);
+    history.add(historyHeading, BorderLayout.NORTH);
+    history.add(historyTable);
     JPanel form = new JPanel(new GridLayout(0, 2, 12, 10));
     form.add(new JLabel("Số tiền khách vừa đưa (đ)"));
     amount.putClientProperty("JTextField.placeholderText", "Nhập số tiền khách vừa trả");
@@ -153,7 +162,7 @@ public final class PaymentDialog extends JDialog {
     credit.add(advanceInfo);
     form.add(new JLabel("Tiền trả trước từ kỳ trước"));
     form.add(credit);
-    form.add(new JLabel("Sau khi ghi nhận"));
+    form.add(new JLabel("Xem trước khoản thu"));
     form.add(preview);
     useAdvance.addActionListener(e -> validateAmount());
     JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -189,6 +198,7 @@ public final class PaymentDialog extends JDialog {
               }
             });
     actions.add(reverse);
+    reverse.setEnabled(false);
     JButton refund =
         Ui.button(
             "Ghi nhận hoàn trả trước",
@@ -236,6 +246,7 @@ public final class PaymentDialog extends JDialog {
             e -> {
               int row = table.getSelectedRow(),
                   index = row < 0 ? -1 : table.convertRowIndexToModel(row) - payments.size();
+              reverse.setEnabled(row >= 0);
               refund.setVisible(
                   index >= 0
                       && index < issued.size()
@@ -323,7 +334,7 @@ public final class PaymentDialog extends JDialog {
         });
     actions.add(addReceipt);
     actions.add(Ui.button("Đóng", this::dispose));
-    JPanel bottom = new JPanel(new BorderLayout(0, 12));
+    JPanel body = new JPanel(new BorderLayout(0, 16));
     JPanel entry = new JPanel(new BorderLayout(0, 10));
     entry.add(form);
     JTextArea help =
@@ -336,13 +347,20 @@ public final class PaymentDialog extends JDialog {
     help.setOpaque(false);
     help.setRows(2);
     entry.add(help, BorderLayout.SOUTH);
-    bottom.add(entry, BorderLayout.CENTER);
-    bottom.add(actions, BorderLayout.SOUTH);
-    root.add(bottom, BorderLayout.SOUTH);
+    body.add(entry, BorderLayout.NORTH);
+    body.add(history, BorderLayout.CENTER);
+    root.add(body, BorderLayout.CENTER);
+    root.add(actions, BorderLayout.SOUTH);
     setContentPane(root);
     refresh();
     setSize(980, 650);
     setLocationRelativeTo(owner);
+  }
+
+  private static String monthLabel(String period) {
+    return "Tháng "
+        + java.time.YearMonth.parse(period)
+            .format(java.time.format.DateTimeFormatter.ofPattern("MM/yyyy"));
   }
 
   private void choosePaymentScope() {
@@ -416,7 +434,7 @@ public final class PaymentDialog extends JDialog {
         addReceipt.setEnabled(valid);
         String lines =
             allocate(value).stream()
-                .map(p -> p.debt().month() + ": " + Ui.money(p.cash()))
+                .map(p -> monthLabel(p.debt().month()) + " nhận " + Ui.money(p.cash()))
                 .collect(java.util.stream.Collectors.joining(" · "));
         preview.setText(
             value.compareTo(balance) > 0
@@ -440,7 +458,13 @@ public final class PaymentDialog extends JDialog {
       preview.setText(
           surplus.signum() > 0
               ? "Giữ cho kỳ sau: " + Ui.money(surplus)
-              : "Còn nợ: " + Ui.money(remaining.subtract(used).subtract(applied)));
+              : value.signum() == 0 && used.signum() == 0
+                  ? remaining.signum() == 0
+                      ? "Hóa đơn này đã trả đủ."
+                      : "Nhập số tiền để xem trước."
+                  : monthLabel(bill.month())
+                      + " còn phải trả: "
+                      + Ui.money(remaining.subtract(used).subtract(applied)));
     } catch (IllegalArgumentException ex) {
       addReceipt.setEnabled(false);
     }
@@ -537,6 +561,9 @@ public final class PaymentDialog extends JDialog {
             Ui.money(refund.amount().negate()),
             "Đã hoàn trả trước · " + refund.note()
           });
+    boolean hasHistory = model.getRowCount() > 0;
+    historyTable.setVisible(hasHistory);
+    emptyHistory.setVisible(!hasHistory);
     validateAmount();
   }
 }

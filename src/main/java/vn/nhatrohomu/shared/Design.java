@@ -184,6 +184,10 @@ public final class Design {
   }
 
   public static JPanel card(Color fill, boolean fitHeight) {
+    return card(fill, fitHeight, null);
+  }
+
+  public static JPanel card(Color fill, boolean fitHeight, Color outline) {
     return new JPanel() {
       {
         setOpaque(false);
@@ -202,12 +206,37 @@ public final class Design {
         d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         d.setColor(fill);
         d.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
-        d.setColor(LINE);
-        d.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
+        d.setColor(outline == null ? LINE : outline);
+        if (outline != null) d.setStroke(new BasicStroke(1.5f));
+        int inset = outline == null ? 0 : 1;
+        d.drawRoundRect(
+            inset, inset, getWidth() - 1 - 2 * inset, getHeight() - 1 - 2 * inset, 20, 20);
         d.dispose();
         super.paintComponent(g);
       }
     };
+  }
+
+  public static JLabel statusChip(String text, Color ink, Color fill) {
+    JLabel chip =
+        new JLabel(text) {
+          @Override
+          protected void paintComponent(Graphics g) {
+            Graphics2D brush = (Graphics2D) g.create();
+            brush.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            brush.setColor(fill);
+            brush.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+            brush.setColor(ink);
+            brush.fillOval(8, (getHeight() - 6) / 2, 6, 6);
+            brush.dispose();
+            super.paintComponent(g);
+          }
+        };
+    chip.setFont(chip.getFont().deriveFont(Font.BOLD, 11f));
+    chip.setForeground(ink);
+    chip.setBorder(BorderFactory.createEmptyBorder(4, 19, 4, 9));
+    return chip;
   }
 
   public static JButton primary(JButton b) {

@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.15", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.16", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -450,42 +450,42 @@ public final class AppWindow extends JFrame {
         && (latestBill == null
             || !java.util.Objects.equals(latestBill.contractId(), contract.id())))
       previous = repository.rentals().opening(contract.id(), java.time.YearMonth.now());
-    JPanel card = Design.card(Design.SURFACE);
+    boolean dark = Design.mode == Design.Mode.HOMURA;
+    boolean occupied = contract != null;
+    Color greenOutline = dark ? new Color(0x4C9B77) : new Color(0x5B9C74);
+    JPanel card = Design.card(Design.SURFACE, false, occupied ? greenOutline : null);
     card.setLayout(new BorderLayout(0, 18));
     card.setPreferredSize(new Dimension(360, 300));
-    JPanel top = Design.clear(new BorderLayout());
-    JPanel identity = Ui.column();
-    identity.setOpaque(false);
-    identity.add(Design.label(r.name(), 22, Design.INK, true));
-    identity.add(Box.createVerticalStrut(5));
-    String state = contract != null ? "Đang thuê" : reserved != null ? "Đã đặt" : "Phòng trống";
-    JLabel badge =
-        Design.label(
-            state,
-            11,
-            contract != null
-                ? new Color(35, 104, 63)
-                : reserved != null ? new Color(123, 76, 18) : new Color(42, 85, 127),
-            true);
-    badge.setOpaque(true);
-    badge.setBackground(
-        contract != null
-            ? new Color(210, 240, 219)
-            : reserved != null ? new Color(255, 233, 195) : new Color(221, 236, 252));
-    badge.setBorder(BorderFactory.createEmptyBorder(3, 7, 3, 7));
-    JPanel status = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
-    status.add(badge);
-    if (contract != null || reserved != null)
-      status.add(
-          Design.label(
-              contract != null
-                  ? contract.tenantName()
-                  : reserved.tenantName() + " · " + reserved.startDate(),
-              11,
-              Design.MUTED,
-              false));
-    identity.add(status);
-    top.add(identity, BorderLayout.CENTER);
+    JPanel top = Design.clear(new BorderLayout(0, 8));
+    JPanel title = Design.clear(new BorderLayout(8, 0));
+    title.add(Design.label(r.name(), 22, Design.INK, true));
+    JPanel actions = Design.clear(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+    String state = occupied ? "Đang thuê" : reserved != null ? "Đã đặt" : "Phòng trống";
+    Color chipInk =
+        occupied
+            ? new Color(dark ? 0xA0E7BD : 0x246542)
+            : reserved != null
+                ? new Color(dark ? 0xF4CB87 : 0x784B19)
+                : new Color(dark ? 0xB5D2F0 : 0x355A80);
+    Color chipFill =
+        occupied
+            ? new Color(dark ? 0x244638 : 0xDDF4E6)
+            : reserved != null
+                ? new Color(dark ? 0x473722 : 0xFFF0D6)
+                : new Color(dark ? 0x303F55 : 0xEAF2FC);
+    actions.add(Design.statusChip(state, chipInk, chipFill));
+    Contract person = occupied ? contract : reserved;
+    if (person != null) {
+      String name = person.tenantName();
+      JLabel renter = Design.label(name, 12, Design.INK, false);
+      renter.putClientProperty("html.disable", true);
+      renter.setIcon(Design.icon("tenant", Design.MUTED));
+      renter.setIconTextGap(8);
+      renter.setToolTipText(
+          reserved == null || occupied ? name : name + " · Nhận phòng " + reserved.startDate());
+      top.add(renter, BorderLayout.SOUTH);
+    }
+    top.add(title, BorderLayout.NORTH);
     JButton menu = Ui.button("•••", () -> {});
     menu.putClientProperty("JButton.buttonType", "borderless");
     menu.setToolTipText("Tùy chọn phòng");
@@ -525,7 +525,8 @@ public final class AppWindow extends JFrame {
         });
     popup.add(archive);
     menu.addActionListener(e -> popup.show(menu, 0, menu.getHeight()));
-    top.add(menu, BorderLayout.EAST);
+    actions.add(menu);
+    title.add(actions, BorderLayout.EAST);
     card.add(top, BorderLayout.NORTH);
     JPanel info = Design.clear(new GridLayout(3, 1, 0, 12));
     JPanel rentInfo =

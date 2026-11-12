@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.16
+
+- Thẻ phòng đang thuê có viền xanh, nhãn bo góc và dòng người thuê riêng.
+
 ## 0.11.15
 
 - Hiện rõ phòng đang thuê, phòng trống và phòng đã đặt; chặn mở form cho thuê khi hết phòng.

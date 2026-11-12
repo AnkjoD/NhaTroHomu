@@ -309,6 +309,7 @@ public final class ReadingDialog extends JDialog {
       if (utilitiesOnly.isSelected()) return utility;
       if (room.defaultRent() == null)
         throw new IllegalArgumentException("Cài giá phòng hoặc chọn Chỉ lập điện nước.");
+      RentalService.requirePositiveRent(room.defaultRent());
       return RentalService.withRoomRent(utility, room.defaultRent());
     }
     BigDecimal amount =
@@ -413,8 +414,16 @@ public final class ReadingDialog extends JDialog {
                 .stripTrailingZeros()
                 .toPlainString());
       }
-      utilitiesOnly.setVisible(contract == null);
-      if (contract != null) utilitiesOnly.setSelected(false);
+      var continuing =
+          repository
+              .rentals()
+              .occupancyContinuations(YearMonth.parse(month.getText().trim()).atDay(1));
+      boolean occupied =
+          contract != null
+              || contracts.stream()
+                  .anyMatch(k -> k.roomId() == room.id() && continuing.contains(k.id()));
+      utilitiesOnly.setVisible(!occupied);
+      if (occupied) utilitiesOnly.setSelected(false);
       syncRentDisplay();
       rentalInfo.setText(
           contract == null

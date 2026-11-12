@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.16", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.17", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -707,7 +707,9 @@ public final class AppWindow extends JFrame {
               b.roomName(),
               b.tenantName(),
               b.periodLabel(),
-              Ui.money(b.rent()),
+              b.rent().signum() == 0 && !b.tenantName().isBlank()
+                  ? "⚠ Chưa tính tiền phòng"
+                  : Ui.money(b.rent()),
               Ui.money(b.feeTotal()),
               Ui.money(b.total()),
               vn.nhatrohomu.shared.PaymentStatus.of(
@@ -914,6 +916,18 @@ public final class AppWindow extends JFrame {
               a),
           BorderLayout.NORTH);
       heading.add(filterBar, BorderLayout.SOUTH);
+      long missingRent =
+          filtered.stream()
+              .filter(b -> b.rent().signum() == 0 && !b.tenantName().isBlank())
+              .count();
+      if (missingRent > 0)
+        heading.add(
+            Design.label(
+                "⚠ " + missingRent + " hóa đơn chưa tính tiền phòng",
+                12,
+                Design.mode == Design.Mode.HOMURA ? new Color(0xFFD08A) : new Color(0x875317),
+                true),
+            BorderLayout.CENTER);
       show(
           heading,
           new vn.nhatrohomu.shared.SelectionView(table, invoiceActions, 1, "invoices"),

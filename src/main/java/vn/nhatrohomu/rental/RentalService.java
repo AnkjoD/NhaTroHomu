@@ -28,6 +28,7 @@ public final class RentalService {
   public static Bill withRental(Bill utility, Contract contract, BigDecimal rent) {
     if (contract == null) return utility;
     requireMoney(rent, "Tiền phòng kỳ này");
+    requirePositiveRent(rent);
     YearMonth period = YearMonth.parse(utility.month());
     if (contract.roomId() != utility.roomId()
         || date(contract.startDate()).isAfter(period.atEndOfMonth())
@@ -90,6 +91,12 @@ public final class RentalService {
         rent,
         java.util.List.of(),
         "");
+  }
+
+  public static void requirePositiveRent(BigDecimal rent) {
+    if (rent == null || rent.signum() <= 0)
+      throw new IllegalArgumentException(
+          "Chưa có tiền phòng hợp lệ. Nhập tiền phòng lớn hơn 0 trước khi lập hóa đơn.");
   }
 
   public static BigDecimal prorated(BigDecimal monthly, LocalDate first, LocalDate last) {

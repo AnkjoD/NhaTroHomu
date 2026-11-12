@@ -111,4 +111,22 @@ public final class ServiceCatalogStore implements ServiceCatalog {
       }
     }
   }
+
+  public void restore(long id) throws Exception {
+    try (Connection c = DatabaseAccess.open(database)) {
+      c.setAutoCommit(false);
+      try (PreparedStatement p =
+          c.prepareStatement("UPDATE service_catalog SET active=1 WHERE id=? AND active=0")) {
+        p.setLong(1, id);
+        if (p.executeUpdate() != 1)
+          throw new IllegalArgumentException("Khoản phí không tồn tại hoặc chưa được lưu trữ.");
+        AuditLog.record(
+            c, "RESTORE", "service", id, "Khôi phục vào danh mục; không tự gắn lại vào lượt thuê.");
+        c.commit();
+      } catch (Exception ex) {
+        c.rollback();
+        throw ex;
+      }
+    }
+  }
 }

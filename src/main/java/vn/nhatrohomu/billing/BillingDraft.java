@@ -97,9 +97,10 @@ public record BillingDraft(
             rates,
             note);
     if (contract == null) {
-      if (rent == null) return utility;
-      BigDecimal amount = rentText.isBlank() ? rent : RentalService.money(rentText, "Tiền phòng");
-      if (amount.signum() != 0 && amount.compareTo(rent) != 0 && note.isBlank())
+      RentalService.requirePositiveRent(rent);
+      BigDecimal amount = RentalService.money(rentText, "Tiền phòng");
+      RentalService.requirePositiveRent(amount);
+      if (amount.compareTo(rent) != 0 && note.isBlank())
         throw new IllegalArgumentException("Ghi lý do điều chỉnh tiền phòng.");
       return RentalService.withRoomRent(utility, amount);
     }

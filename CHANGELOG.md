@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.17
+
+- Khôi phục phí vào danh mục mà không tự tính lại.
+- Chặn hóa đơn thiếu tiền phòng khi lập theo lượt thuê hoặc lập nhiều phòng; báo hóa đơn cũ có người thuê nhưng chưa tính tiền phòng.
+- Giữ màu chữ cùng ô chú giải điện nước.
+
 ## 0.11.16
 
 - Thẻ phòng đang thuê có viền xanh, nhãn bo góc và dòng người thuê riêng.

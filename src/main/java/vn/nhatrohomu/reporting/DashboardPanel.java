@@ -416,13 +416,11 @@ public final class DashboardPanel extends JPanel {
         }
         g.setColor(Ui.GREEN);
         g.fillRoundRect(left, 7, 14, 9, 3, 3);
-        g.setColor(Design.INK);
         g.drawString(a, left + 20, 16);
         if (!second.isEmpty()) {
           int x = left + 20 + g.getFontMetrics().stringWidth(a) + 22;
           g.setColor(new Color(82, 163, 188));
           g.fillRoundRect(x, 7, 14, 9, 3, 3);
-          g.setColor(Design.INK);
           g.drawString(b, x + 20, 16);
         }
         g.setColor(Design.MUTED);

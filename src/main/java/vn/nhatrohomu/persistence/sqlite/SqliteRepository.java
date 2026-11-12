@@ -565,6 +565,15 @@ public final class SqliteRepository implements Repository {
         Contract rental =
             new RentalStore(database).forMonth(c, b.roomId(), java.time.YearMonth.parse(b.month()));
         if (rental == null) {
+          if (!roomRent) {
+            var continuing =
+                RentalStore.occupancyContinuations(
+                    c, java.time.YearMonth.parse(b.month()).atDay(1));
+            if (!continuing.isEmpty()
+                && RentalStore.contracts(c).stream()
+                    .anyMatch(k -> k.roomId() == b.roomId() && continuing.contains(k.id())))
+              RentalService.requirePositiveRent(b.rent());
+          }
           if (b.contractId() != null || !b.fees().isEmpty())
             throw new IllegalArgumentException("Kỳ này không có hợp đồng thuê.");
           if (roomRent

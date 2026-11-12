@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Atomic schema upgrades; preserve released v1/v2/v3 books. */
 final class Schema {
-  static final int VERSION = 11;
+  static final int VERSION = 12;
   static final String BILL_COLUMNS =
       "id,room_id,room_name,month,e_old,e_new,w_old,w_new,water_mode,water_used,e_rate,w_rate,total,paid,note,e_photo,w_photo,contract_id,tenant_name,rent,due_date";
 
@@ -224,6 +224,18 @@ final class Schema {
                     "CREATE TABLE IF NOT EXISTS historical_bill_people(id INTEGER PRIMARY KEY"
                         + " REFERENCES bills(id), tenant_id INTEGER NOT NULL REFERENCES"
                         + " tenants(id))");
+              if (version < 12) {
+                // Older versions allowed archiving without detaching from open rentals.
+                try (PreparedStatement detach =
+                    c.prepareStatement(
+                        "DELETE FROM contract_charges WHERE service_id IN (SELECT id FROM"
+                            + " service_catalog WHERE active=0) AND contract_id IN (SELECT id FROM"
+                            + " contracts WHERE cancelled_at IS NULL AND closed_date='' AND"
+                            + " (end_date='' OR end_date>=?))")) {
+                  detach.setString(1, java.time.LocalDate.now().toString());
+                  detach.executeUpdate();
+                }
+              }
               try (ResultSet r = s.executeQuery("PRAGMA foreign_key_check")) {
                 if (r.next()) throw new SQLException("Migration có quan hệ dữ liệu không hợp lệ.");
               }

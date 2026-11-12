@@ -159,23 +159,13 @@ public final class BatchBillingDialog extends JDialog {
         bills.stream()
             .map(Bill::total)
             .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-    String utilityRooms =
-        bills.stream()
-            .filter(b -> b.contractId() == null && b.rent().signum() == 0)
-            .map(Bill::roomName)
-            .collect(java.util.stream.Collectors.joining(", "));
     if (!Ui.confirm(
         this,
         "Lập "
             + bills.size()
             + " hóa đơn · Tổng "
             + Ui.money(sum)
-            + "?\nKiểm tra chỉ số mới của từng phòng. Chưa ghi nhận thu tiền."
-            + (utilityRooms.isBlank()
-                ? ""
-                : "\nChỉ điện nước, chưa có tiền phòng: "
-                    + utilityRooms
-                    + ". Nếu cần thu tiền phòng, thiết lập thuê trước."))) return;
+            + "?\nKiểm tra chỉ số mới của từng phòng. Chưa ghi nhận thu tiền.")) return;
     Ui.background(
         this,
         () -> {
@@ -445,7 +435,7 @@ public final class BatchBillingDialog extends JDialog {
       rent.setEditable(draft.rent() != null);
       rent.setToolTipText(
           draft.contract() == null
-              ? "Dùng giá phòng mặc định; nhập 0 nếu chỉ thu điện nước."
+              ? "Dùng giá phòng mặc định. Cần có tiền phòng để lập hóa đơn hàng loạt."
               : "Dùng giá thỏa thuận của lượt thuê.");
       Ui.field(fields, 5, "Tiền phòng (đ)", rent);
       Ui.field(fields, 6, "Ghi chú", note);
@@ -512,7 +502,10 @@ public final class BatchBillingDialog extends JDialog {
         status.setText("Tổng: " + Ui.money(calculate().total()));
         status.setForeground(Ui.GREEN);
       } catch (Exception ex) {
-        status.setText("Nhập chỉ số mới để tính tiền.");
+        status.setText(
+            rent.getText().isBlank() || rent.getText().trim().matches("0+(?:[.,]0+)?")
+                ? "Chưa có tiền phòng hợp lệ."
+                : "Kiểm tra chỉ số mới và tiền phòng.");
         status.setForeground(Design.MUTED);
       }
     }

@@ -10,6 +10,8 @@ public interface ServiceCatalog {
 
   int archive(long id) throws Exception;
 
+  void restore(long id) throws Exception;
+
   List<ServiceItem> archivedItems() throws Exception;
 
   void deleteUnused(long id) throws Exception;

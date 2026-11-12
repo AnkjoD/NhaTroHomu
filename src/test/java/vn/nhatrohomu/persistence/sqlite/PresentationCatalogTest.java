@@ -68,15 +68,17 @@ public final class PresentationCatalogTest {
           repo.rooms().stream().filter(x -> x.name().equals("Room only")).findFirst().orElseThrow();
       var noTenant = BillingDraft.prepare(repo, roomOnly, YearMonth.now());
       check(noTenant.rent().equals(new BigDecimal("1300000")), "Batch did not pick room price");
-      var standalone = noTenant.calculate("0", "0", "", "");
+      var standalone = noTenant.calculate("0", "0", "1300000", "");
       check(
           standalone.total().equals(new BigDecimal("1300000"))
               && standalone.contractId() == null
               && standalone.fees().isEmpty(),
           "Room price missing or invented tenancy");
-      check(
-          noTenant.calculate("0", "0", "0", "").rent().signum() == 0,
-          "Utility-only override failed");
+      try {
+        noTenant.calculate("0", "0", "0", "");
+        throw new AssertionError("Batch accepted missing rent");
+      } catch (IllegalArgumentException expected) {
+      }
       repo.saveBill(standalone, null, null);
       try (var connection = DatabaseAccess.open(repo.database)) {
         DatabaseValidator.validate(connection);
@@ -119,6 +121,14 @@ public final class PresentationCatalogTest {
       repo.services().save(new ServiceItem(0, "Unused", BigDecimal.ONE));
       repo.services().deleteUnused(repo.services().items().getFirst().id());
       check(repo.services().items().isEmpty(), "Unused fee was not deleted");
+      repo.services().restore(fee.id());
+      check(
+          repo.services().items().getFirst().id() == fee.id(),
+          "Restore should return the same fee to the catalog");
+      check(repo.services().archivedItems().isEmpty(), "Restored fee still archived");
+      check(
+          BillingDraft.prepare(repo, room, YearMonth.now().plusMonths(1)).fees().isEmpty(),
+          "Restore must not silently start charging previous rentals");
       LocalUiSettings.load(dir);
       var style = new ReceiptStyle("SansSerif", 26, "CUSTOM SLIP", false, false);
       style.save();

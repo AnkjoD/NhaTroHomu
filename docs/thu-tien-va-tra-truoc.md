@@ -26,7 +26,7 @@ Trong lịch sử thu, chọn khoản trả trước còn số dư rồi **Ghi n
 
 Trong **Dịch vụ & phí** ở sidebar, tạo các khoản như Internet, vệ sinh và giá mặc định. Khi cho thuê, chọn khoản phí rồi điều chỉnh giá thỏa thuận nếu cần. Mỗi lượt thuê và hóa đơn giữ tên/giá tại lúc lập. Sửa hoặc lưu trữ danh mục không đổi chứng từ cũ; khoản phí đã lưu trữ không còn được chọn cho thỏa thuận mới. Phí cũ chưa có danh mục vẫn giữ nguyên dữ liệu.
 
-**Lưu trữ phí** ẩn phí khỏi danh mục và ngừng tính ngay trên các lượt thuê đang mở đã gắn phí. Hóa đơn chưa lập sẽ bỏ khoản đó; hóa đơn đã lập, khoản thu và phí nhập tay không liên kết giữ nguyên. **Xóa phí** dùng cho khoản chưa có liên kết. Nếu khoản phí đã lưu trữ ở phiên bản cũ nhưng vẫn còn tính, bật **Xem phí đã lưu trữ** rồi chọn **Ngừng tính phí**.
+**Lưu trữ phí** ẩn phí khỏi danh mục và ngừng tính ngay trên các lượt thuê đang mở đã gắn phí. Hóa đơn chưa lập sẽ bỏ khoản đó; hóa đơn đã lập, khoản thu và phí nhập tay không liên kết giữ nguyên. **Xóa phí** dùng cho khoản chưa có liên kết. Bật **Xem phí đã lưu trữ** rồi chọn **Khôi phục phí** để đưa phí trở lại danh mục; các phòng không tự bị tính lại.
 
 Trong **Thuê phòng**, chọn dòng thuê rồi **Sửa thông tin & người ở cùng** để sửa liên hệ, CCCD và gia đình. Người chưa có lượt thuê hiện ở phần **Người thuê chưa gắn phòng** ngay bên dưới, với nút sửa thông tin và cho thuê phòng. Không cần chuyển sang mục hồ sơ riêng. Dữ liệu người thuê vẫn lưu riêng với lượt thuê để giữ lịch sử khi đổi phòng/trả phòng.
 
@@ -34,7 +34,7 @@ Trong **Thuê phòng**, chọn dòng thuê rồi **Sửa thông tin & người �
 
 ## Lập hóa đơn nhiều phòng và sửa chỉ số
 
-Trong **Phòng trọ → Lập hóa đơn nhiều phòng** hoặc **Hóa đơn → Lập hóa đơn nhiều phòng**, chọn tháng, nhập số mới theo từng phòng và kiểm tra tổng trước khi lưu. Phòng có lượt thuê lấy sẵn tiền phòng thỏa thuận. Phòng chưa có lượt thuê không được chọn sẵn. Nếu chọn, app dùng giá mặc định của phòng nếu đã cài; nhập 0 để chỉ thu điện nước. Phí dịch vụ cần lượt thuê. Nhiều lượt thuê chưa chốt cùng tháng cần lập riêng để chọn đúng người.
+Trong **Phòng trọ → Lập hóa đơn nhiều phòng** hoặc **Hóa đơn → Lập hóa đơn nhiều phòng**, chọn tháng, nhập số mới theo từng phòng và kiểm tra tổng trước khi lưu. Phòng có lượt thuê lấy sẵn tiền phòng thỏa thuận. Phòng chưa có lượt thuê không được chọn sẵn. Nếu chọn, app dùng giá mặc định của phòng nếu đã cài; báo lỗi nếu thiếu tiền phòng. Phí dịch vụ cần lượt thuê. Nhiều lượt thuê chưa chốt cùng tháng cần lập riêng để chọn đúng người.
 
 Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu được khóa lại; phòng lỗi giữ phần nhập để sửa và thử lại, tránh lập trùng.
 
@@ -49,7 +49,7 @@ Các phòng lưu độc lập. Nếu một phòng lỗi, phòng đã lưu đư�
 
 Số cũ là mốc lấy từ kỳ trước hoặc bàn giao, không sửa tự do trong hóa đơn mới. Chỉ hủy để lập lại hóa đơn cuối đủ điều kiện, không còn thanh toán/trả trước hiệu lực và không làm sai bàn giao/kỳ sau. Sai kỳ cũ có chứng từ nối tiếp cần quy trình điều chỉnh; không tự tính lại tiền hay sửa lịch sử đã thu.
 
-Form lập một phòng ưu tiên giá thỏa thuận nếu có lượt thuê; nếu chưa có, app dùng giá mặc định của phòng và không tự thêm phí dịch vụ. Chọn **Chỉ lập điện nước** để bỏ tiền phòng.
+Form lập một phòng ưu tiên giá thỏa thuận nếu có lượt thuê; nếu chưa có, app dùng giá mặc định của phòng và không tự thêm phí dịch vụ. Phòng trống có thể chọn **Chỉ lập điện nước** khi lập riêng.
 
 ## Mẫu ảnh gửi khách
 

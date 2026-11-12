@@ -74,7 +74,8 @@ public final class ServiceCatalogPanel extends JPanel {
     archived.addActionListener(
         e -> {
           try {
-            archive.setText(archived.isSelected() ? "Ngừng tính phí" : "Lưu trữ phí");
+            archive.setText(archived.isSelected() ? "Khôi phục phí" : "Lưu trữ phí");
+            edit.setEnabled(!archived.isSelected());
             refresh();
           } catch (Exception ex) {
             Ui.error(this, ex);
@@ -98,13 +99,18 @@ public final class ServiceCatalogPanel extends JPanel {
     int row = table.getSelectedRow();
     if (row < 0) return;
     ServiceItem item = items.get(table.convertRowIndexToModel(row));
+    if (archived.isSelected()) {
+      applySelected(
+          "Đưa phí trở lại danh mục? Các phòng sẽ không tự bị tính lại khoản này.",
+          catalog::restore);
+      return;
+    }
     if (!Ui.confirm(
         this,
         item.name()
             + "\n"
             + "Lưu trữ và ngừng tính phí này trên tất cả lượt thuê đang mở? Hóa đơn đã lập và khoản"
-            + " thu giữ nguyên."))
-      return;
+            + " thu giữ nguyên.")) return;
     try {
       int count = catalog.archive(item.id());
       refresh();

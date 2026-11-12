@@ -18,6 +18,10 @@ public record PaymentStatus(String text, boolean paid) {
   }
 
   public Color color() {
+    return color(paid);
+  }
+
+  public static Color color(boolean paid) {
     return Design.mode == Design.Mode.HOMURA
         ? paid ? new Color(108, 220, 167) : new Color(255, 147, 151)
         : paid ? new Color(25, 130, 91) : new Color(174, 53, 55);

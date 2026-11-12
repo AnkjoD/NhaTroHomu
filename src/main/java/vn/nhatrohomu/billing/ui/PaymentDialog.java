@@ -12,13 +12,16 @@ import vn.nhatrohomu.billing.CollectionRepository.PeriodPayment;
 import vn.nhatrohomu.persistence.Repository;
 import vn.nhatrohomu.shared.Design;
 import vn.nhatrohomu.shared.Models.*;
+import vn.nhatrohomu.shared.PaymentStatus;
 import vn.nhatrohomu.shared.Ui;
 
 /** Each row is one actual receipt, rather than a manually toggled boolean. */
 public final class PaymentDialog extends JDialog {
   private final Repository repository;
   private final Bill bill;
-  private final JLabel balance = new JLabel();
+  private final JLabel totalAmount = new JLabel(),
+      paidAmount = new JLabel(),
+      dueAmount = new JLabel();
   private final JLabel state = new JLabel();
   private final JButton addReceipt = new JButton("Ghi tiền thực nhận"),
       fillRemaining = new JButton("Điền số còn thiếu");
@@ -51,9 +54,12 @@ public final class PaymentDialog extends JDialog {
     this.bill = bill;
     JPanel root = new JPanel(new BorderLayout(16, 16));
     root.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
-    balance.setFont(balance.getFont().deriveFont(Font.BOLD, 17));
+    JPanel totals = Design.clear(new GridLayout(1, 3, 12, 0));
+    totals.add(summaryAmount("Tổng hóa đơn", totalAmount, Ui.GREEN));
+    totals.add(summaryAmount("Đã thanh toán", paidAmount, PaymentStatus.color(true)));
+    totals.add(summaryAmount("Còn phải trả", dueAmount, Design.INK));
     JPanel summary = new JPanel(new BorderLayout(0, 8));
-    summary.add(balance, BorderLayout.NORTH);
+    summary.add(totals, BorderLayout.NORTH);
     summary.add(state);
     root.add(summary, BorderLayout.NORTH);
     table.setRowHeight(34);
@@ -357,6 +363,15 @@ public final class PaymentDialog extends JDialog {
     setLocationRelativeTo(owner);
   }
 
+  private static JPanel summaryAmount(String label, JLabel amount, Color color) {
+    JPanel panel = Design.card(new BorderLayout(0, 4), 10);
+    panel.add(Design.label(label, 12, Design.MUTED, false), BorderLayout.NORTH);
+    amount.setFont(amount.getFont().deriveFont(Font.BOLD, 17f));
+    amount.setForeground(color);
+    panel.add(amount);
+    return panel;
+  }
+
   private static String monthLabel(String period) {
     return "Tháng "
         + java.time.YearMonth.parse(period)
@@ -509,13 +524,10 @@ public final class PaymentDialog extends JDialog {
     BigDecimal received =
         payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal rest = bill.total().subtract(received);
-    balance.setText(
-        "Tổng: "
-            + Ui.money(bill.total())
-            + "  ·  Đã thanh toán: "
-            + Ui.money(received)
-            + "  ·  Còn: "
-            + Ui.money(rest));
+    totalAmount.setText(Ui.money(bill.total()));
+    paidAmount.setText(Ui.money(received));
+    dueAmount.setText(Ui.money(rest));
+    dueAmount.setForeground(PaymentStatus.color(rest.signum() <= 0));
     remaining = rest;
     relatedDebts = repository.collections().relatedDebts(bill.id());
     periodScope = List.of();

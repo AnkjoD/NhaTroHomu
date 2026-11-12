@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.32
+
+- Phân biệt tổng, đã trả và còn phải trả bằng màu trên cửa sổ thu tiền.
+
 ## 0.11.31
 
 - Ghi rõ kỳ hóa đơn trong lịch sử thu và phân biệt với phần xem trước khoản thu.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.26
+
+- Đồng bộ màu ô chọn, menu và ô ghi chú theo giao diện Homura và Madoka.
+
 ## 0.11.25
 
 - Tách lượt thuê, hồ sơ chưa gắn phòng và hồ sơ đã lưu trữ thành ba mục riêng.

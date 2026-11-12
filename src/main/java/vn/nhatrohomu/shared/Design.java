@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.geom.*;
 import java.io.InputStream;
 import javax.swing.*;
+import javax.swing.plaf.ColorUIResource;
 import javax.swing.plaf.FontUIResource;
 
 /** Chỉ lo giao diện: palette, chữ, thẻ bo góc và icon vector nhỏ, không đổi nghiệp vụ. */
@@ -76,10 +77,7 @@ public final class Design {
     UIManager.put("TextComponent.arc", 12);
     UIManager.put("Button.margin", new Insets(9, 16, 9, 16));
     UIManager.put("TextField.margin", new Insets(9, 10, 9, 10));
-    UIManager.put("TextField.background", SURFACE);
-    UIManager.put("TextField.foreground", INK);
-    UIManager.put("ComboBox.background", SURFACE);
-    UIManager.put("ComboBox.foreground", INK);
+    applyInputColors(dark);
     UIManager.put("Component.borderColor", LINE);
     UIManager.put("Component.focusColor", Ui.GREEN);
     UIManager.put("Component.accentColor", Ui.GREEN);
@@ -95,6 +93,72 @@ public final class Design {
     UIManager.put("ScrollPane.background", SURFACE);
     UIManager.put("Viewport.background", SURFACE);
     UIManager.put("ScrollBar.width", 8);
+  }
+
+  private static void applyInputColors(boolean dark) {
+    Color ink = new ColorUIResource(INK);
+    Color accent = new ColorUIResource(Ui.GREEN);
+    Color field = new ColorUIResource(dark ? 0x292337 : 0xFFFBFD);
+    Color inactive = new ColorUIResource(dark ? 0x252033 : 0xF8EEF4);
+    Color muted = new ColorUIResource(dark ? 0xB4A8C8 : 0x7B536B);
+    Color choice = new ColorUIResource(dark ? 0x433255 : 0xF8DDEA);
+    Color edge = new ColorUIResource(dark ? 0x5D4A71 : 0xD8AFC5);
+    Color popup = new ColorUIResource(dark ? 0x292235 : 0xFFF8FC);
+    Color thumb = new ColorUIResource(dark ? 0x6C5686 : 0xC89BB4);
+
+    UIManager.put("ComboBox.background", field);
+    UIManager.put("ComboBox.foreground", ink);
+    UIManager.put("ComboBox.disabledBackground", inactive);
+    UIManager.put("ComboBox.disabledForeground", muted);
+    UIManager.put("ComboBox.buttonStyle", "button");
+    UIManager.put("ComboBox.buttonBackground", choice);
+    UIManager.put("ComboBox.buttonEditableBackground", choice);
+    UIManager.put("ComboBox.buttonSeparatorColor", edge);
+    UIManager.put("ComboBox.buttonArrowColor", accent);
+    UIManager.put("ComboBox.buttonHoverArrowColor", ink);
+    UIManager.put("ComboBox.buttonPressedArrowColor", ink);
+    UIManager.put("ComboBox.buttonDisabledArrowColor", muted);
+    UIManager.put("ComboBox.selectionBackground", choice);
+    UIManager.put("ComboBox.selectionForeground", ink);
+    UIManager.put("ComboBox.selectionInsets", new Insets(1, 3, 1, 3));
+    UIManager.put("ComboBox.selectionArc", 8);
+
+    UIManager.put("PopupMenu.background", popup);
+    UIManager.put("PopupMenu.borderColor", edge);
+    UIManager.put("MenuItem.foreground", ink);
+    UIManager.put("MenuItem.selectionBackground", choice);
+    UIManager.put("MenuItem.selectionForeground", ink);
+    UIManager.put("List.background", popup);
+    UIManager.put("List.foreground", ink);
+    UIManager.put("List.selectionBackground", choice);
+    UIManager.put("List.selectionForeground", ink);
+    UIManager.put("List.selectionInactiveBackground", choice);
+    UIManager.put("List.selectionInactiveForeground", ink);
+
+    UIManager.put("TextField.background", field);
+    UIManager.put("TextField.foreground", ink);
+    UIManager.put("TextField.selectionBackground", choice);
+    UIManager.put("TextField.selectionForeground", ink);
+    UIManager.put("TextField.placeholderForeground", muted);
+    UIManager.put("TextArea.background", field);
+    UIManager.put("TextArea.inactiveBackground", inactive);
+    UIManager.put("TextArea.disabledBackground", inactive);
+    UIManager.put("TextArea.foreground", ink);
+    UIManager.put("TextArea.inactiveForeground", muted);
+    UIManager.put("TextArea.caretForeground", accent);
+    UIManager.put("TextArea.selectionBackground", choice);
+    UIManager.put("TextArea.selectionForeground", ink);
+
+    UIManager.put("ScrollBar.track", inactive);
+    UIManager.put("ScrollBar.thumb", thumb);
+    UIManager.put("ScrollBar.hoverThumbColor", accent);
+    UIManager.put("ScrollBar.pressedThumbColor", accent);
+    UIManager.put("TabbedPane.background", inactive);
+    UIManager.put("TabbedPane.foreground", ink);
+    UIManager.put("TabbedPane.selectedBackground", choice);
+    UIManager.put("TabbedPane.hoverColor", choice);
+    UIManager.put("TabbedPane.focusColor", choice);
+    UIManager.put("TabbedPane.underlineColor", accent);
   }
 
   public static JPanel banner() {

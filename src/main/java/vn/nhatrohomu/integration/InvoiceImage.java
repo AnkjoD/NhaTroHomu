@@ -106,6 +106,8 @@ public final class InvoiceImage {
         title = normal.deriveFont(Font.BOLD, style.size() * 1.45f);
     int lineHeight = Math.max(30, style.size() + 8);
     List<String[]> rows = rows(bill);
+    rows.add(new String[] {"Tổng tiền", Ui.money(bill.total())});
+    int totalRow = rows.size() - 1;
     BufferedImage measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
     Graphics2D sizing = measure.createGraphics();
     FontRenderContext context = sizing.getFontRenderContext();
@@ -129,9 +131,10 @@ public final class InvoiceImage {
     int[] heights = new int[rows.size()];
     for (int r = 0; r < rows.size(); r++) {
       String[] row = rows.get(r);
+      Font rowFont = r == totalRow ? bold : normal;
       int lines = 1;
       for (int c = 0; c < row.length; c++)
-        lines = Math.max(lines, wrap(row[c], normal, context, columnWidth(row, c) - 20).size());
+        lines = Math.max(lines, wrap(row[c], rowFont, context, columnWidth(row, c) - 20).size());
       heights[r] = lines * lineHeight + 24;
     }
     sizing.dispose();
@@ -141,10 +144,8 @@ public final class InvoiceImage {
     List<String> advanceLines = advanceLines(payments);
     boolean hasBalance = remaining.signum() > 0;
     boolean showReceived = hasBalance && received.signum() > 0;
-    int summaryHeight =
-        24
-            + (hasBalance ? lineHeight + titleLineHeight : titleLineHeight)
-            + (showReceived ? lineHeight : 0);
+    int summaryHeight = hasBalance ? 24 + title.getSize() : 0;
+    if (showReceived) summaryHeight += lineHeight;
     int height =
         headerHeight
             + 58
@@ -185,21 +186,18 @@ public final class InvoiceImage {
           true);
       top += 58;
       for (int i = 0; i < rows.size(); i++) {
-        paintRow(g, rows.get(i), normal, context, top, heights[i], false);
+        paintRow(g, rows.get(i), i == totalRow ? bold : normal, context, top, heights[i], false);
         top += heights[i];
       }
-      int summaryY = top + 24;
+      int summaryY = top;
       g.setColor(new Color(68, 45, 107));
-      g.setFont(hasBalance ? bold : title);
-      summaryY += hasBalance ? normal.getSize() : title.getSize();
-      g.drawString("Tổng tiền: " + Ui.money(bill.total()), MARGIN, summaryY);
       if (showReceived) {
-        summaryY += lineHeight;
+        summaryY += 24 + normal.getSize();
         g.setFont(normal);
         g.drawString("Đã trả kỳ này: " + Ui.money(received), MARGIN, summaryY);
       }
       if (hasBalance) {
-        summaryY += titleLineHeight;
+        summaryY = top + summaryHeight;
         g.setFont(title);
         g.drawString("Tiền phải trả: " + Ui.money(remaining), MARGIN, summaryY);
       }

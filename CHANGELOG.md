@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.20
+
+- Đưa tổng tiền vào hàng cuối của bảng trong ảnh hóa đơn.
+
 ## 0.11.19
 
 - Căn giữa dòng tiền phòng trong ảnh hóa đơn và hiển thị số tiền phải trả.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.25
+
+- Tách lượt thuê, hồ sơ chưa gắn phòng và hồ sơ đã lưu trữ thành ba mục riêng.
+- Rút gọn menu thao tác trên thẻ người thuê.
+
 ## 0.11.24
 
 - Hiện ngày vào ở ngay trên thẻ người thuê.

@@ -260,7 +260,7 @@ public final class SelectionView extends JPanel {
       }
       if (actions.size() > 2) {
         JPopupMenu menu = new JPopupMenu();
-        for (JButton original : actions) {
+        for (JButton original : actions.subList(rentalCards ? 2 : 0, actions.size())) {
           JMenuItem item = new JMenuItem(original.getText());
           item.addActionListener(e -> run(row, original));
           menu.add(item);

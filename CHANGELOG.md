@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.21
+
+- Giữ liên kết người thuê trên hóa đơn lập lại của người đang thuê từ sổ cũ.
+- Chuyển tổng tiền vào phần xem đầy đủ của thẻ hóa đơn.
+
 ## 0.11.20
 
 - Đưa tổng tiền vào hàng cuối của bảng trong ảnh hóa đơn.

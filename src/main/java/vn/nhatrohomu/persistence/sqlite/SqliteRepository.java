@@ -664,6 +664,13 @@ public final class SqliteRepository implements Repository {
           long id = key.getLong(1);
           RentalStore.saveCharges(c, "bill_charges", "bill_id", id, b.fees());
           updatePaid(c, id);
+          if (roomRent) {
+            try (PreparedStatement link =
+                c.prepareStatement(RentalStore.RESTORE_REISSUED_TENANT + " AND b.id=?")) {
+              link.setLong(1, id);
+              link.executeUpdate();
+            }
+          }
           if (roomRent) AuditLog.record(c, "ISSUE_ROOM_RENT", "bill", id, "Tiền phòng " + b.rent());
           AuditLog.record(
               c,

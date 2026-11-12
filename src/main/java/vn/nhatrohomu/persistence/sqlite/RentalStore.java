@@ -66,6 +66,26 @@ public final class RentalStore implements RentalRepository {
     }
   }
 
+  // The original invoice must link to the explicitly marked continuing occupant.
+  static final String RESTORE_REISSUED_TENANT =
+      """
+      INSERT INTO historical_bill_people(id,tenant_id)
+      SELECT b.id,k.tenant_id
+      FROM bills b JOIN contracts k ON k.room_id=b.room_id
+      WHERE b.voided_at IS NULL AND b.contract_id IS NULL AND b.tenant_name=''
+        AND CAST(b.rent AS NUMERIC)>0
+        AND k.cancelled_at IS NULL
+        AND k.start_date=date(b.month || '-01','+1 month')
+        AND EXISTS(SELECT 1 FROM audit_events a WHERE a.entity_type='tenant'
+            AND a.entity_id=k.tenant_id AND a.action='LINK_PLACEHOLDER')
+        AND NOT EXISTS(SELECT 1 FROM historical_bill_people h WHERE h.id=b.id)
+        AND EXISTS(SELECT 1 FROM bills old JOIN historical_bill_people h ON h.id=old.id
+            WHERE old.room_id=b.room_id AND old.month=b.month AND old.voided_at IS NOT NULL
+              AND h.tenant_id=k.tenant_id)
+        AND NOT EXISTS(SELECT 1 FROM bills old JOIN historical_bill_people h ON h.id=old.id
+            WHERE old.room_id=b.room_id AND old.month=b.month AND h.tenant_id<>k.tenant_id)
+      """;
+
   static Set<Long> occupancyContinuations(Connection c, LocalDate date) throws SQLException {
     Set<Long> ids = new HashSet<>();
     // Only the explicit local import marks an occupant as continuing before the first billing

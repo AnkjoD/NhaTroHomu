@@ -21,6 +21,14 @@ public final class InvoiceImage {
   private static final int WIDTH = 1200, MARGIN = 32;
   private static final int[] COLUMNS = {190, 140, 140, 160, 230, 276};
 
+  private static int columnWidth(String[] row, int column) {
+    if (row.length == 2) {
+      int amountWidth = COLUMNS[COLUMNS.length - 1];
+      return column == 0 ? WIDTH - 2 * MARGIN - amountWidth : amountWidth;
+    }
+    return COLUMNS[column];
+  }
+
   private static Font font(ReceiptStyle style) throws Exception {
     if (!style.font().equals("Be Vietnam Pro"))
       return new Font(style.font(), Font.PLAIN, style.size());
@@ -62,15 +70,15 @@ public final class InvoiceImage {
           Ui.money(bill.waterCost())
         });
     if (bill.contractId() != null || bill.rent().signum() > 0) {
-      String period = "1 tháng";
+      String label = "Tiền phòng";
       if (!bill.periodStart().isBlank()) {
         LocalDate first = LocalDate.parse(bill.periodStart()),
             last = LocalDate.parse(bill.periodEnd());
         if (first.getDayOfMonth() != 1
             || last.getDayOfMonth() != YearMonth.from(last).lengthOfMonth())
-          period = (java.time.temporal.ChronoUnit.DAYS.between(first, last) + 1) + " ngày";
+          label += " (" + (java.time.temporal.ChronoUnit.DAYS.between(first, last) + 1) + " ngày)";
       }
-      result.add(new String[] {"Tiền phòng", "", "", period, "", Ui.money(bill.rent())});
+      result.add(new String[] {label, Ui.money(bill.rent())});
     }
     for (Charge fee : bill.fees())
       result.add(new String[] {fee.label(), "", "", "1 kỳ", "", Ui.money(fee.amount())});
@@ -120,9 +128,10 @@ public final class InvoiceImage {
       headerHeight += wrap(heading, normal, context, WIDTH - 64).size() * lineHeight;
     int[] heights = new int[rows.size()];
     for (int r = 0; r < rows.size(); r++) {
+      String[] row = rows.get(r);
       int lines = 1;
-      for (int c = 0; c < COLUMNS.length; c++)
-        lines = Math.max(lines, wrap(rows.get(r)[c], normal, context, COLUMNS[c] - 20).size());
+      for (int c = 0; c < row.length; c++)
+        lines = Math.max(lines, wrap(row[c], normal, context, columnWidth(row, c) - 20).size());
       heights[r] = lines * lineHeight + 24;
     }
     sizing.dispose();
@@ -130,11 +139,18 @@ public final class InvoiceImage {
         payments.stream().map(Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal remaining = bill.total().subtract(received);
     List<String> advanceLines = advanceLines(payments);
+    boolean hasBalance = remaining.signum() > 0;
+    boolean showReceived = hasBalance && received.signum() > 0;
+    int summaryHeight =
+        24
+            + (hasBalance ? lineHeight + titleLineHeight : titleLineHeight)
+            + (showReceived ? lineHeight : 0);
     int height =
         headerHeight
             + 58
             + java.util.Arrays.stream(heights).sum()
-            + (remaining.signum() > 0 ? received.signum() > 0 ? 182 : 142 : 98)
+            + summaryHeight
+            + MARGIN
             + advanceLines.size() * lineHeight;
     BufferedImage image = new BufferedImage(WIDTH, height, BufferedImage.TYPE_INT_RGB);
     Graphics2D g = image.createGraphics();
@@ -172,25 +188,24 @@ public final class InvoiceImage {
         paintRow(g, rows.get(i), normal, context, top, heights[i], false);
         top += heights[i];
       }
+      int summaryY = top + 24;
       g.setColor(new Color(68, 45, 107));
-      g.setFont(title);
-      g.drawString("TỔNG TIỀN: " + Ui.money(bill.total()), MARGIN, top + 54);
-      g.setColor(new Color(45, 45, 45));
-      g.setFont(normal);
-      if (remaining.signum() > 0) {
-        int debtY = top + 102;
-        if (received.signum() > 0) {
-          g.drawString("Đã trả kỳ này: " + Ui.money(received), MARGIN, debtY);
-          debtY += 38;
-        }
-        g.setFont(bold);
-        g.setColor(new Color(155, 55, 40));
-        g.drawString("CÒN NỢ KỲ NÀY: " + Ui.money(remaining), MARGIN, debtY);
+      g.setFont(hasBalance ? bold : title);
+      summaryY += hasBalance ? normal.getSize() : title.getSize();
+      g.drawString("Tổng tiền: " + Ui.money(bill.total()), MARGIN, summaryY);
+      if (showReceived) {
+        summaryY += lineHeight;
+        g.setFont(normal);
+        g.drawString("Đã trả kỳ này: " + Ui.money(received), MARGIN, summaryY);
+      }
+      if (hasBalance) {
+        summaryY += titleLineHeight;
+        g.setFont(title);
+        g.drawString("Tiền phải trả: " + Ui.money(remaining), MARGIN, summaryY);
       }
       g.setFont(normal);
       g.setColor(new Color(65, 85, 100));
-      int sourceY =
-          remaining.signum() > 0 ? received.signum() > 0 ? top + 180 : top + 142 : top + 100;
+      int sourceY = summaryY + lineHeight;
       for (String source : advanceLines) {
         g.drawString(source, MARGIN, sourceY);
         sourceY += lineHeight;
@@ -210,18 +225,20 @@ public final class InvoiceImage {
       int height,
       boolean header) {
     int x = MARGIN;
-    for (int col = 0; col < COLUMNS.length; col++) {
+    for (int col = 0; col < values.length; col++) {
+      int width = columnWidth(values, col);
       g.setColor(header ? new Color(242, 237, 250) : Color.WHITE);
-      g.fillRect(x, y, COLUMNS[col], height);
+      g.fillRect(x, y, width, height);
       g.setColor(new Color(210, 205, 220));
-      g.drawRect(x, y, COLUMNS[col], height);
+      g.drawRect(x, y, width, height);
       g.setColor(new Color(40, 40, 45));
       int lineY = y + font.getSize() + 12;
-      for (TextLayout line : wrap(values[col], font, context, COLUMNS[col] - 20)) {
-        line.draw(g, x + 10, lineY);
+      for (TextLayout line : wrap(values[col], font, context, width - 20)) {
+        float textX = values.length == 2 && col == 0 ? x + (width - line.getAdvance()) / 2 : x + 10;
+        line.draw(g, textX, lineY);
         lineY += Math.max(30, font.getSize() + 8);
       }
-      x += COLUMNS[col];
+      x += width;
     }
   }
 

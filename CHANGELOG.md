@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.19
+
+- Căn giữa dòng tiền phòng trong ảnh hóa đơn và hiển thị số tiền phải trả.
+
 ## 0.11.18
 
 - Yêu cầu tiền phòng lớn hơn 0 khi lưu phòng và lập hóa đơn.

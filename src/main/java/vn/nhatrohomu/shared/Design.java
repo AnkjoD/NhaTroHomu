@@ -396,6 +396,10 @@ public final class Design {
             d.drawLine(15, 10, 11, 6);
             d.drawLine(15, 10, 11, 14);
           }
+          case "chevron-down" -> {
+            d.drawLine(6, 8, 10, 12);
+            d.drawLine(10, 12, 14, 8);
+          }
           case "calendar" -> {
             d.drawRoundRect(2, 4, 16, 14, 2, 2);
             d.drawLine(2, 8, 18, 8);

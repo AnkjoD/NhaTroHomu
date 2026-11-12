@@ -16,6 +16,20 @@ public interface CollectionRepository {
 
   record Outcome(BigDecimal usedAdvance, BigDecimal appliedCash, BigDecimal savedAdvance) {}
 
+  record PeriodDebt(long billId, String month, BigDecimal balance) {}
+
+  record PeriodPayment(PeriodDebt debt, BigDecimal cash) {}
+
+  default List<PeriodDebt> relatedDebts(long billId) throws Exception {
+    return List.of();
+  }
+
+  default void collectPeriods(
+      long anchorBillId, List<PeriodPayment> payments, String date, String note, String requestKey)
+      throws Exception {
+    throw new UnsupportedOperationException();
+  }
+
   record Refund(long id, long advanceId, BigDecimal amount, String date, String note) {}
 
   List<Advance> available(long billId) throws Exception;

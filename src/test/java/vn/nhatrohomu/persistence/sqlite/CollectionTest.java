@@ -5,6 +5,8 @@ import java.nio.file.*;
 import java.time.*;
 import java.util.*;
 import vn.nhatrohomu.billing.BillingDraft;
+import vn.nhatrohomu.billing.CollectionRepository.PeriodDebt;
+import vn.nhatrohomu.billing.CollectionRepository.PeriodPayment;
 import vn.nhatrohomu.reporting.ReportStore;
 import vn.nhatrohomu.shared.Models.*;
 
@@ -32,6 +34,64 @@ public final class CollectionTest {
       return;
     }
     throw new AssertionError("Unsafe operation accepted");
+  }
+
+  private static void checkPeriodPayments(
+      SqliteRepository repo, long otherBill, YearMonth month, String today) throws Exception {
+    repo.saveRoom(
+        new Room(0, "Period room", "", d("0"), d("0"), "METER", null, true, d("1000000")));
+    Room room =
+        repo.rooms().stream().filter(r -> r.name().equals("Period room")).findFirst().orElseThrow();
+    repo.rentals().saveTenant(new Tenant(0, "Period owner", "", "", true));
+    Tenant tenant =
+        repo.rentals().tenants().stream()
+            .filter(t -> t.name().equals("Period owner"))
+            .findFirst()
+            .orElseThrow();
+    repo.rentals()
+        .createContract(
+            new Contract(
+                0,
+                room.id(),
+                room.name(),
+                tenant.id(),
+                tenant.name(),
+                month.atDay(1).toString(),
+                "",
+                "",
+                d("1000000"),
+                d("0"),
+                5,
+                List.of()));
+    for (int i = 0; i < 2; i++) {
+      var draft = BillingDraft.prepare(repo, room, month.plusMonths(i));
+      repo.saveBill(draft.calculate("0", "0", "1000000", ""), null, null);
+    }
+    var collections = repo.collections();
+    var bills = repo.roomBills(room.id(), month.toString(), month.plusMonths(1).toString());
+    var debts = collections.relatedDebts(bills.getFirst().id());
+    if (debts.size() != 2 || !debts.getFirst().month().equals(month.toString()))
+      throw new AssertionError("Expected oldest first, limited to the same tenant and room");
+    PeriodDebt older = debts.getFirst(), newer = debts.getLast();
+    var stale =
+        List.of(
+            new PeriodPayment(older, d("1000000")),
+            new PeriodPayment(
+                new PeriodDebt(newer.billId(), newer.month(), d("999999")), d("100000")));
+    rejected(() -> collections.collectPeriods(newer.billId(), stale, today, "", "stale"));
+    equal(repo.received(older.billId()), "0");
+    equal(repo.received(newer.billId()), "0");
+    var allocations =
+        List.of(new PeriodPayment(older, d("1000000")), new PeriodPayment(newer, d("730000")));
+    rejected(() -> collections.collectPeriods(otherBill, allocations, today, "", "wrong-room"));
+    collections.collectPeriods(newer.billId(), allocations, today, "", "two-periods");
+    collections.collectPeriods(newer.billId(), allocations, today, "", "two-periods");
+    equal(repo.received(older.billId()), "1000000");
+    equal(repo.received(newer.billId()), "730000");
+    equal(collections.relatedDebts(newer.billId()).getFirst().balance(), "270000");
+    try (var c = DatabaseAccess.open(repo.database)) {
+      DatabaseValidator.validate(c);
+    }
   }
 
   public static void main(String[] args) throws Exception {
@@ -177,6 +237,7 @@ public final class CollectionTest {
       try (var c = DatabaseAccess.open(repo.database)) {
         DatabaseValidator.validate(c);
       }
+      checkPeriodPayments(repo, old.id(), month, today);
       Path backup = dir.resolve("backup.db");
       repo.backup(backup);
       repo.restore(backup);

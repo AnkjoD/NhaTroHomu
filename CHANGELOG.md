@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.30
+
+- Điền nhanh số tiền theo từng kỳ hoặc thu nhiều kỳ trong cùng một lần.
+
 ## 0.11.29
 
 - Gộp công nợ vào Hóa đơn và thêm lối tắt xem hóa đơn theo phòng.

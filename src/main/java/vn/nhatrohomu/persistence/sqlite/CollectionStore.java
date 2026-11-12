@@ -171,132 +171,245 @@ public final class CollectionStore implements CollectionRepository {
       String requestKey,
       Long tenantOwner)
       throws Exception {
+    try (Connection c = DatabaseAccess.open(database)) {
+      c.setAutoCommit(false);
+      try {
+        Outcome result = collect(c, bill, cash, date, note, useAdvance, requestKey, tenantOwner);
+        c.commit();
+        return result;
+      } catch (Exception ex) {
+        c.rollback();
+        throw ex;
+      }
+    }
+  }
+
+  private Outcome collect(
+      Connection c,
+      long bill,
+      BigDecimal cash,
+      String date,
+      String note,
+      boolean useAdvance,
+      String requestKey,
+      Long tenantOwner)
+      throws Exception {
     DataRules.money(cash, "Tiền thực nhận");
     DataRules.actualDate(date);
     DataRules.text(note, "Ghi chú", 2000, false);
     DataRules.text(requestKey, "Mã lần thu", 100, true);
+    try (PreparedStatement lock =
+        c.prepareStatement("UPDATE bills SET paid=paid WHERE id=? AND voided_at IS NULL")) {
+      lock.setLong(1, bill);
+      if (lock.executeUpdate() != 1)
+        throw new IllegalArgumentException("Hóa đơn không tồn tại hoặc đã hủy.");
+    }
+    Owner target = resolveOwner(c, bill, tenantOwner);
+    try (PreparedStatement p =
+        c.prepareStatement("SELECT * FROM collection_events WHERE request_key=?")) {
+      p.setString(1, requestKey);
+      try (ResultSet r = p.executeQuery()) {
+        if (r.next()) {
+          if (r.getLong("bill_id") != bill
+              || new BigDecimal(r.getString("cash")).compareTo(cash) != 0
+              || !r.getString("received_date").equals(date)
+              || !r.getString("note").equals(note)
+              || r.getBoolean("use_advance") != useAdvance
+              || !Objects.equals(
+                  r.getObject("owner_tenant_id") == null ? null : r.getLong("owner_tenant_id"),
+                  target.tenant()))
+            throw new IllegalArgumentException("Mã lần thu đã dùng cho nội dung khác.");
+          Outcome old =
+              new Outcome(
+                  new BigDecimal(r.getString("used_advance")),
+                  new BigDecimal(r.getString("applied_cash")),
+                  new BigDecimal(r.getString("saved_advance")));
+          return old;
+        }
+      }
+    }
+    BigDecimal total;
+    try (PreparedStatement p = c.prepareStatement("SELECT total FROM bills WHERE id=?")) {
+      p.setLong(1, bill);
+      try (ResultSet r = p.executeQuery()) {
+        r.next();
+        total = new BigDecimal(r.getString(1));
+      }
+    }
+    BigDecimal remaining = total.subtract(received(c, bill)), used = BigDecimal.ZERO;
+    if (remaining.signum() < 0)
+      throw new IllegalArgumentException("Hóa đơn đã ghi thanh toán vượt tổng; cần kiểm tra sổ.");
+    List<Advance> available = useAdvance ? available(c, bill, target.tenant()) : List.of();
+    Map<Long, BigDecimal> allocation = new LinkedHashMap<>();
+    for (Advance source : available) {
+      BigDecimal take = source.available().min(remaining.subtract(used));
+      if (take.signum() <= 0) break;
+      if (date.compareTo(source.date()) < 0)
+        throw new IllegalArgumentException(
+            "Ngày sử dụng tiền trả trước không được trước ngày nhận " + source.date());
+      allocation.put(source.id(), take);
+      used = used.add(take);
+    }
+    BigDecimal applied = cash.min(remaining.subtract(used)), surplus = cash.subtract(applied);
+    if (cash.signum() == 0 && used.signum() == 0)
+      throw new IllegalArgumentException("Nhập tiền thực nhận hoặc chọn dùng số dư trả trước.");
+    long event;
+    try (PreparedStatement p =
+        c.prepareStatement(
+            "INSERT INTO"
+                + " collection_events(bill_id,cash,received_date,note,use_advance,request_key,used_advance,applied_cash,saved_advance,created_at,owner_tenant_id)"
+                + " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            Statement.RETURN_GENERATED_KEYS)) {
+      p.setLong(1, bill);
+      p.setString(2, cash.toPlainString());
+      p.setString(3, date);
+      p.setString(4, note);
+      p.setBoolean(5, useAdvance);
+      p.setString(6, requestKey);
+      p.setString(7, used.toPlainString());
+      p.setString(8, applied.toPlainString());
+      p.setString(9, surplus.toPlainString());
+      p.setString(10, Instant.now().toString());
+      if (target.tenant() == null) p.setNull(11, Types.INTEGER);
+      else p.setLong(11, target.tenant());
+      p.executeUpdate();
+      try (ResultSet keys = p.getGeneratedKeys()) {
+        keys.next();
+        event = keys.getLong(1);
+      }
+    }
+    for (Advance source : available)
+      if (allocation.containsKey(source.id()))
+        payment(
+            c,
+            bill,
+            allocation.get(source.id()),
+            date,
+            "Tiền trả trước từ tháng " + source.month() + " (nhận " + source.date() + ")",
+            event,
+            source.id());
+    if (applied.signum() > 0) payment(c, bill, applied, date, note, event, null);
+    if (surplus.signum() > 0) {
+      try (PreparedStatement p =
+          c.prepareStatement(
+              "INSERT INTO"
+                  + " advance_receipts(collection_id,bill_id,amount,received_date,note,created_at,owner_tenant_id)"
+                  + " VALUES(?,?,?,?,?,?,?)")) {
+        p.setLong(1, event);
+        p.setLong(2, bill);
+        p.setString(3, surplus.toPlainString());
+        p.setString(4, date);
+        p.setString(5, note);
+        p.setString(6, Instant.now().toString());
+        if (target.tenant() == null) p.setNull(7, Types.INTEGER);
+        else p.setLong(7, target.tenant());
+        p.executeUpdate();
+      }
+    }
+    SqliteRepository.updatePaid(c, bill);
+    AuditLog.record(
+        c,
+        "COLLECT",
+        "bill",
+        bill,
+        "Thực nhận " + cash + "; dùng trả trước " + used + "; giữ cho kỳ sau " + surplus);
+    return new Outcome(used, applied, surplus);
+  }
+
+  private static final String BILL_PERSON =
+      " FROM bills b LEFT JOIN contracts k ON k.id=b.contract_id"
+          + " LEFT JOIN historical_bill_people h ON h.id=b.id";
+
+  private static Owner linkedOwner(Connection c, long bill) throws SQLException {
+    try (PreparedStatement p =
+        c.prepareStatement(
+            "SELECT b.room_id,coalesce(k.tenant_id,h.tenant_id),b.month"
+                + BILL_PERSON
+                + " WHERE b.id=? AND b.voided_at IS NULL")) {
+      p.setLong(1, bill);
+      try (ResultSet r = p.executeQuery()) {
+        if (!r.next()) throw new IllegalArgumentException("Hóa đơn không tồn tại hoặc đã hủy.");
+        return new Owner(
+            r.getLong(1), r.getObject(2) == null ? null : r.getLong(2), r.getString(3));
+      }
+    }
+  }
+
+  @Override
+  public List<PeriodDebt> relatedDebts(long bill) throws Exception {
+    try (Connection c = DatabaseAccess.open(database)) {
+      Owner anchor = linkedOwner(c, bill);
+      if (anchor.tenant() == null) return List.of();
+      List<PeriodDebt> debts = new ArrayList<>();
+      try (PreparedStatement p =
+          c.prepareStatement(
+              "SELECT b.id,b.month,b.total"
+                  + BILL_PERSON
+                  + " WHERE b.voided_at IS NULL AND b.paid=0 AND b.room_id=?"
+                  + " AND coalesce(k.tenant_id,h.tenant_id)=? ORDER BY b.month,b.id")) {
+        p.setLong(1, anchor.room());
+        p.setLong(2, anchor.tenant());
+        try (ResultSet r = p.executeQuery()) {
+          while (r.next()) {
+            long id = r.getLong(1);
+            BigDecimal rest = new BigDecimal(r.getString(3)).subtract(received(c, id));
+            if (rest.signum() > 0) debts.add(new PeriodDebt(id, r.getString(2), rest));
+          }
+        }
+      }
+      return List.copyOf(debts);
+    }
+  }
+
+  @Override
+  public void collectPeriods(
+      long anchorBill, List<PeriodPayment> payments, String date, String note, String requestKey)
+      throws Exception {
+    if (payments.isEmpty()) throw new IllegalArgumentException("Nhập tiền thực nhận.");
+    DataRules.text(requestKey, "Mã lần thu", 75, true);
     try (Connection c = DatabaseAccess.open(database)) {
       c.setAutoCommit(false);
       try {
         try (PreparedStatement lock =
             c.prepareStatement("UPDATE bills SET paid=paid WHERE id=? AND voided_at IS NULL")) {
-          lock.setLong(1, bill);
+          lock.setLong(1, anchorBill);
           if (lock.executeUpdate() != 1)
             throw new IllegalArgumentException("Hóa đơn không tồn tại hoặc đã hủy.");
         }
-        Owner target = resolveOwner(c, bill, tenantOwner);
-        try (PreparedStatement p =
-            c.prepareStatement("SELECT * FROM collection_events WHERE request_key=?")) {
-          p.setString(1, requestKey);
-          try (ResultSet r = p.executeQuery()) {
-            if (r.next()) {
-              if (r.getLong("bill_id") != bill
-                  || new BigDecimal(r.getString("cash")).compareTo(cash) != 0
-                  || !r.getString("received_date").equals(date)
-                  || !r.getString("note").equals(note)
-                  || r.getBoolean("use_advance") != useAdvance
-                  || !Objects.equals(
-                      r.getObject("owner_tenant_id") == null ? null : r.getLong("owner_tenant_id"),
-                      target.tenant()))
-                throw new IllegalArgumentException("Mã lần thu đã dùng cho nội dung khác.");
-              Outcome old =
-                  new Outcome(
-                      new BigDecimal(r.getString("used_advance")),
-                      new BigDecimal(r.getString("applied_cash")),
-                      new BigDecimal(r.getString("saved_advance")));
-              c.commit();
-              return old;
-            }
-          }
-        }
-        BigDecimal total;
-        try (PreparedStatement p = c.prepareStatement("SELECT total FROM bills WHERE id=?")) {
-          p.setLong(1, bill);
-          try (ResultSet r = p.executeQuery()) {
-            r.next();
-            total = new BigDecimal(r.getString(1));
-          }
-        }
-        BigDecimal remaining = total.subtract(received(c, bill)), used = BigDecimal.ZERO;
-        if (remaining.signum() < 0)
-          throw new IllegalArgumentException(
-              "Hóa đơn đã ghi thanh toán vượt tổng; cần kiểm tra sổ.");
-        List<Advance> available = useAdvance ? available(c, bill, target.tenant()) : List.of();
-        Map<Long, BigDecimal> allocation = new LinkedHashMap<>();
-        for (Advance source : available) {
-          BigDecimal take = source.available().min(remaining.subtract(used));
-          if (take.signum() <= 0) break;
-          if (date.compareTo(source.date()) < 0)
-            throw new IllegalArgumentException(
-                "Ngày sử dụng tiền trả trước không được trước ngày nhận " + source.date());
-          allocation.put(source.id(), take);
-          used = used.add(take);
-        }
-        BigDecimal applied = cash.min(remaining.subtract(used)), surplus = cash.subtract(applied);
-        if (cash.signum() == 0 && used.signum() == 0)
-          throw new IllegalArgumentException("Nhập tiền thực nhận hoặc chọn dùng số dư trả trước.");
-        long event;
-        try (PreparedStatement p =
-            c.prepareStatement(
-                "INSERT INTO"
-                    + " collection_events(bill_id,cash,received_date,note,use_advance,request_key,used_advance,applied_cash,saved_advance,created_at,owner_tenant_id)"
-                    + " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                Statement.RETURN_GENERATED_KEYS)) {
-          p.setLong(1, bill);
-          p.setString(2, cash.toPlainString());
-          p.setString(3, date);
-          p.setString(4, note);
-          p.setBoolean(5, useAdvance);
-          p.setString(6, requestKey);
-          p.setString(7, used.toPlainString());
-          p.setString(8, applied.toPlainString());
-          p.setString(9, surplus.toPlainString());
-          p.setString(10, Instant.now().toString());
-          if (target.tenant() == null) p.setNull(11, Types.INTEGER);
-          else p.setLong(11, target.tenant());
-          p.executeUpdate();
-          try (ResultSet keys = p.getGeneratedKeys()) {
-            keys.next();
-            event = keys.getLong(1);
-          }
-        }
-        for (Advance source : available)
-          if (allocation.containsKey(source.id()))
-            payment(
-                c,
-                bill,
-                allocation.get(source.id()),
-                date,
-                "Tiền trả trước từ tháng " + source.month() + " (nhận " + source.date() + ")",
-                event,
-                source.id());
-        if (applied.signum() > 0) payment(c, bill, applied, date, note, event, null);
-        if (surplus.signum() > 0) {
+        Owner anchor = linkedOwner(c, anchorBill);
+        Set<Long> seen = new HashSet<>();
+        for (PeriodPayment payment : payments) {
+          PeriodDebt debt = payment.debt();
+          Owner target = linkedOwner(c, debt.billId());
+          if (anchor.tenant() == null
+              || !anchor.tenant().equals(target.tenant())
+              || anchor.room() != target.room()
+              || !debt.month().equals(target.month())
+              || !seen.add(debt.billId()))
+            throw new IllegalArgumentException("Các hóa đơn phải thuộc cùng phòng và người thuê.");
+          String key = requestKey + "-" + debt.billId();
+          if (payment.cash().signum() <= 0 || payment.cash().compareTo(debt.balance()) > 0)
+            throw new IllegalArgumentException("Số tiền phân bổ vượt số còn thiếu.");
           try (PreparedStatement p =
               c.prepareStatement(
-                  "INSERT INTO"
-                      + " advance_receipts(collection_id,bill_id,amount,received_date,note,created_at,owner_tenant_id)"
-                      + " VALUES(?,?,?,?,?,?,?)")) {
-            p.setLong(1, event);
-            p.setLong(2, bill);
-            p.setString(3, surplus.toPlainString());
-            p.setString(4, date);
-            p.setString(5, note);
-            p.setString(6, Instant.now().toString());
-            if (target.tenant() == null) p.setNull(7, Types.INTEGER);
-            else p.setLong(7, target.tenant());
-            p.executeUpdate();
+                  "SELECT total, EXISTS(SELECT 1 FROM collection_events WHERE request_key=?)"
+                      + " FROM bills WHERE id=?")) {
+            p.setString(1, key);
+            p.setLong(2, debt.billId());
+            try (ResultSet r = p.executeQuery()) {
+              r.next();
+              if (!r.getBoolean(2)
+                  && new BigDecimal(r.getString(1))
+                          .subtract(received(c, debt.billId()))
+                          .compareTo(debt.balance())
+                      != 0)
+                throw new IllegalArgumentException(
+                    "Số còn thiếu đã thay đổi. Mở lại hộp thu tiền.");
+            }
           }
+          collect(c, debt.billId(), payment.cash(), date, note, false, key, anchor.tenant());
         }
-        SqliteRepository.updatePaid(c, bill);
-        AuditLog.record(
-            c,
-            "COLLECT",
-            "bill",
-            bill,
-            "Thực nhận " + cash + "; dùng trả trước " + used + "; giữ cho kỳ sau " + surplus);
         c.commit();
-        return new Outcome(used, applied, surplus);
       } catch (Exception ex) {
         c.rollback();
         throw ex;

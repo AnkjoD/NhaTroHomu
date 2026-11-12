@@ -7,7 +7,10 @@ import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import vn.nhatrohomu.billing.BillingService;
+import vn.nhatrohomu.billing.CollectionRepository.PeriodDebt;
+import vn.nhatrohomu.billing.CollectionRepository.PeriodPayment;
 import vn.nhatrohomu.persistence.Repository;
+import vn.nhatrohomu.shared.Design;
 import vn.nhatrohomu.shared.Models.*;
 import vn.nhatrohomu.shared.Ui;
 
@@ -20,6 +23,7 @@ public final class PaymentDialog extends JDialog {
   private final JButton addReceipt = new JButton("Ghi tiền thực nhận"),
       fillRemaining = new JButton("Điền số còn thiếu");
   private BigDecimal remaining = BigDecimal.ZERO;
+  private List<PeriodDebt> relatedDebts = List.of(), periodScope = List.of();
   private final JTextField amount = new JTextField(12),
       date = new JTextField(LocalDate.now().toString(), 10),
       note = new JTextField(20);
@@ -58,11 +62,9 @@ public final class PaymentDialog extends JDialog {
     amount.putClientProperty("JTextField.placeholderText", "Nhập số tiền khách vừa trả");
     JPanel receive = new JPanel(new BorderLayout(6, 0));
     receive.add(amount);
+    fillRemaining.setHorizontalTextPosition(SwingConstants.LEFT);
     receive.add(fillRemaining, BorderLayout.EAST);
-    fillRemaining.addActionListener(
-        e ->
-            amount.setText(
-                remaining.subtract(advanceAmount()).max(BigDecimal.ZERO).toPlainString()));
+    fillRemaining.addActionListener(e -> choosePaymentScope());
     form.add(receive);
 
     amount
@@ -246,6 +248,30 @@ public final class PaymentDialog extends JDialog {
                 amount.getText().isBlank()
                     ? BigDecimal.ZERO
                     : BillingService.number(amount.getText(), "Tiền thực nhận");
+            if (!periodScope.isEmpty()) {
+              List<PeriodPayment> allocations = allocate(value);
+              if (value.signum() <= 0 || value.compareTo(scopedBalance()) > 0)
+                throw new IllegalArgumentException("Nhập tiền trong phạm vi số còn thiếu đã chọn.");
+              String lines =
+                  allocations.stream()
+                      .map(
+                          p ->
+                              p.debt().month()
+                                  + " · "
+                                  + Ui.money(p.cash())
+                                  + " · còn "
+                                  + Ui.money(p.debt().balance().subtract(p.cash())))
+                      .collect(java.util.stream.Collectors.joining("\n"));
+              if (!Ui.confirm(this, "Thực nhận " + Ui.money(value) + "\n" + lines)) return;
+              repository
+                  .collections()
+                  .collectPeriods(
+                      bill.id(), allocations, date.getText().trim(), note.getText(), requestKey);
+              requestKey = java.util.UUID.randomUUID().toString();
+              note.setText("");
+              refresh();
+              return;
+            }
             BigDecimal used = advanceAmount(),
                 applied = value.min(remaining.subtract(used)),
                 surplus = value.subtract(applied);
@@ -302,8 +328,8 @@ public final class PaymentDialog extends JDialog {
     entry.add(form);
     JTextArea help =
         new JTextArea(
-            "Nhập tiền khách vừa đưa. Trả thiếu thì giữ số nợ; trả dư thì lưu cho kỳ sau. Muốn sửa"
-                + " tiền đã ghi, chọn dòng gốc rồi Sửa khoản thu nhập nhầm.");
+            "Nhập tiền khách vừa đưa. Khi thu riêng hóa đơn đang mở, tiền dư được giữ cho kỳ sau."
+                + " Muốn sửa tiền đã ghi, chọn dòng gốc rồi Sửa khoản thu nhập nhầm.");
     help.setEditable(false);
     help.setLineWrap(true);
     help.setWrapStyleWord(true);
@@ -319,12 +345,91 @@ public final class PaymentDialog extends JDialog {
     setLocationRelativeTo(owner);
   }
 
+  private void choosePaymentScope() {
+    if (relatedDebts.size() <= 1) {
+      fillCurrent();
+      return;
+    }
+    JPopupMenu menu = new JPopupMenu();
+    JMenuItem all = new JMenuItem("Tất cả kỳ còn thiếu");
+    all.addActionListener(e -> fillPeriods(relatedDebts));
+    menu.add(all);
+    for (PeriodDebt debt : relatedDebts) {
+      JMenuItem month = new JMenuItem("Kỳ " + debt.month() + " · " + Ui.money(debt.balance()));
+      month.addActionListener(
+          e -> {
+            if (debt.billId() == bill.id()) fillCurrent();
+            else fillPeriods(List.of(debt));
+          });
+      menu.add(month);
+    }
+    menu.show(fillRemaining, 0, fillRemaining.getHeight());
+  }
+
+  private void fillCurrent() {
+    periodScope = List.of();
+    useAdvance.setVisible(!advances.isEmpty());
+    advanceOwner.setEnabled(true);
+    fillRemaining.setText(
+        relatedDebts.size() > 1 ? "Kỳ " + bill.month() + "" : "Điền số còn thiếu");
+    amount.setText(remaining.subtract(advanceAmount()).max(BigDecimal.ZERO).toPlainString());
+    validateAmount();
+  }
+
+  private void fillPeriods(List<PeriodDebt> scope) {
+    periodScope = scope;
+    useAdvance.setVisible(false);
+    advanceOwner.setEnabled(false);
+    fillRemaining.setText(scope.size() == 1 ? "Kỳ " + scope.getFirst().month() + "" : "Tất cả kỳ");
+    amount.setText(scopedBalance().toPlainString());
+    validateAmount();
+  }
+
+  private BigDecimal scopedBalance() {
+    return periodScope.stream().map(PeriodDebt::balance).reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private List<PeriodPayment> allocate(BigDecimal cash) {
+    List<PeriodPayment> result = new java.util.ArrayList<>();
+    BigDecimal left = cash;
+    for (PeriodDebt debt : periodScope) {
+      if (left.signum() <= 0) break;
+      BigDecimal used = left.min(debt.balance());
+      result.add(new PeriodPayment(debt, used));
+      left = left.subtract(used);
+    }
+    return result;
+  }
+
   private void validateAmount() {
     try {
       BigDecimal value =
           amount.getText().isBlank()
               ? BigDecimal.ZERO
               : BillingService.number(amount.getText(), "Tiền thực nhận");
+      if (!periodScope.isEmpty()) {
+        BigDecimal balance = scopedBalance();
+        boolean valid =
+            value.signum() > 0
+                && value.stripTrailingZeros().scale() <= 0
+                && value.compareTo(balance) <= 0;
+        addReceipt.setEnabled(valid);
+        String lines =
+            allocate(value).stream()
+                .map(p -> p.debt().month() + ": " + Ui.money(p.cash()))
+                .collect(java.util.stream.Collectors.joining(" · "));
+        preview.setText(
+            value.compareTo(balance) > 0
+                ? "Số còn thiếu đã chọn: " + Ui.money(balance)
+                : lines
+                    + (lines.isEmpty() ? "" : " · ")
+                    + "Còn phải trả: "
+                    + Ui.money(balance.subtract(value)));
+        preview.setToolTipText(
+            "Phân bổ tiền vừa nhận từ kỳ cũ nhất. Tiền trả trước dùng khi thu riêng kỳ đang mở.");
+        return;
+      }
+      preview.setToolTipText(null);
       addReceipt.setEnabled(
           (value.signum() > 0 || advanceAmount().signum() > 0)
               && value.signum() >= 0
@@ -388,11 +493,17 @@ public final class PaymentDialog extends JDialog {
             + "  ·  Còn: "
             + Ui.money(rest));
     remaining = rest;
+    relatedDebts = repository.collections().relatedDebts(bill.id());
+    periodScope = List.of();
+    useAdvance.setVisible(!advances.isEmpty());
+    advanceOwner.setEnabled(true);
+    fillRemaining.setText(relatedDebts.size() > 1 ? "Điền nhanh" : "Điền số còn thiếu");
+    fillRemaining.setIcon(relatedDebts.size() > 1 ? Design.icon("chevron-down", Design.INK) : null);
     amount.setText("");
     boolean owes = rest.signum() > 0;
     amount.setEnabled(true);
     addReceipt.setEnabled(false);
-    fillRemaining.setEnabled(owes);
+    fillRemaining.setEnabled(owes || relatedDebts.size() > 1);
     state.setText(
         !owes
             ? "Đã thu đủ · không còn công nợ"

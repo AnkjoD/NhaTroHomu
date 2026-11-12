@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.27
+
+- Đồng bộ nền và nút xác nhận của hộp thoại theo giao diện sáng hoặc tối.
+- Gợi ý chỉ số khi trả phòng và hiển thị cách tính tiền phòng kỳ cuối.
+
 ## 0.11.26
 
 - Đồng bộ màu ô chọn, menu và ô ghi chú theo giao diện Homura và Madoka.

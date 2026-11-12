@@ -266,8 +266,31 @@ public final class InvoiceWorkflowTest {
                 () -> {
                   try {
                     JDialog checkout = dialog("Trả phòng và chốt kỳ cuối");
-                    ((JTextField) named(checkout, "checkout-electricity")).setText("10");
-                    ((JTextField) named(checkout, "checkout-water")).setText("1");
+                    JTextField endElectricity =
+                        (JTextField) named(checkout, "checkout-electricity");
+                    JTextField endWater = (JTextField) named(checkout, "checkout-water");
+                    JTextField checkoutDate = (JTextField) named(checkout, "checkout-date");
+                    var opening =
+                        repository
+                            .rentals()
+                            .opening(
+                                active.id(),
+                                java.time.YearMonth.from(
+                                    java.time.LocalDate.parse(checkoutDate.getText())));
+                    check(
+                        endElectricity
+                                .getText()
+                                .equals(vn.nhatrohomu.shared.Ui.n(opening.electricity()))
+                            && endWater
+                                .getText()
+                                .equals(vn.nhatrohomu.shared.Ui.n(opening.water())),
+                        "Checkout prefills meter fields from opening readings");
+                    endElectricity.setText("10");
+                    endWater.setText("1");
+                    checkoutDate.setText(checkoutDate.getText());
+                    check(
+                        endElectricity.getText().equals("10") && endWater.getText().equals("1"),
+                        "Refreshing checkout suggestions preserves edited meter readings");
                     ((JCheckBox) named(checkout, "checkout-confirmed")).setSelected(true);
                     DisplayTest.find(checkout, "Chốt hóa đơn và trả phòng").doClick();
                   } catch (Throwable ex) {

@@ -78,6 +78,7 @@ public final class Design {
     UIManager.put("Button.margin", new Insets(9, 16, 9, 16));
     UIManager.put("TextField.margin", new Insets(9, 10, 9, 10));
     applyInputColors(dark);
+    applyDialogColors(dark);
     UIManager.put("Component.borderColor", LINE);
     UIManager.put("Component.focusColor", Ui.GREEN);
     UIManager.put("Component.accentColor", Ui.GREEN);
@@ -93,6 +94,35 @@ public final class Design {
     UIManager.put("ScrollPane.background", SURFACE);
     UIManager.put("Viewport.background", SURFACE);
     UIManager.put("ScrollBar.width", 8);
+  }
+
+  private static void applyDialogColors(boolean dark) {
+    Color surface = new ColorUIResource(Ui.BACKGROUND);
+    Color title = new ColorUIResource(dark ? 0x2A2238 : 0xF8E6F0);
+    Color text = new ColorUIResource(INK);
+    Color accent = new ColorUIResource(Ui.GREEN);
+    Color accentHover = new ColorUIResource(dark ? 0xD2B7FB : 0x96335F);
+    Color accentPressed = new ColorUIResource(dark ? 0xB68BEC : 0x812B51);
+    UIManager.put("OptionPane.background", surface);
+    UIManager.put("OptionPane.foreground", text);
+    UIManager.put("OptionPane.messageForeground", text);
+    UIManager.put("OptionPane.okButtonText", "Đồng ý");
+    UIManager.put("OptionPane.cancelButtonText", "Hủy");
+    UIManager.put("OptionPane.yesButtonText", "Có");
+    UIManager.put("OptionPane.noButtonText", "Không");
+    UIManager.put("TitlePane.unifiedBackground", false);
+    UIManager.put("TitlePane.background", title);
+    UIManager.put("TitlePane.inactiveBackground", surface);
+    UIManager.put("TitlePane.foreground", text);
+    UIManager.put("TitlePane.inactiveForeground", new ColorUIResource(MUTED));
+    UIManager.put("Button.default.background", accent);
+    UIManager.put("Button.default.foreground", new ColorUIResource(ON_ACCENT));
+    UIManager.put("Button.default.focusedBackground", accent);
+    UIManager.put("Button.default.hoverBackground", accentHover);
+    UIManager.put("Button.default.pressedBackground", accentPressed);
+    UIManager.put("Button.default.borderColor", accent);
+    UIManager.put("Button.default.hoverBorderColor", accentHover);
+    UIManager.put("Button.default.focusedBorderColor", accent);
   }
 
   private static void applyInputColors(boolean dark) {

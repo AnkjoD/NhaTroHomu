@@ -3,6 +3,7 @@ package vn.nhatrohomu.billing.ui;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.event.*;
@@ -24,10 +25,11 @@ public final class CheckoutDialog extends JDialog {
       rent = new JTextField(),
       note = new JTextField();
   private final ChargeEditor fees;
-  private final JLabel opening = new JLabel(), summary = new JLabel();
+  private final JLabel opening = new JLabel(), rentHint = new JLabel(), summary = new JLabel();
   private final JCheckBox confirmed =
       new JCheckBox("Đã kiểm tra ngày trả, chỉ số và các khoản tiền. Chưa ghi nhận thu tiền.");
   private boolean updating;
+  private String suggestedElectricity, suggestedWater;
 
   public CheckoutDialog(JFrame owner, Repository repository, Contract contract, Runnable saved)
       throws Exception {
@@ -63,14 +65,18 @@ public final class CheckoutDialog extends JDialog {
         3,
         room.waterMode().equals("METER") ? "Nước lúc trả phòng (m³)" : "Nước khoán kỳ cuối (m³)",
         water);
-    Ui.field(form, 4, "Tiền phòng kỳ cuối (đ)", rent);
+    JPanel rentField = Design.clear(new BorderLayout(0, 6));
+    rentHint.setForeground(Design.MUTED);
+    rentField.add(rent, BorderLayout.CENTER);
+    rentField.add(rentHint, BorderLayout.SOUTH);
+    Ui.field(form, 4, "Tiền phòng kỳ cuối (đ)", rentField);
     Ui.field(form, 5, "Khoản thu thêm kỳ cuối", fees);
-    Ui.field(form, 6, "Ghi chú / lý do điều chỉnh", note);
+    Ui.field(form, 6, "Ghi chú", note);
     JTextArea help =
         new JTextArea(
-            "Tiền phòng và phí được gợi ý theo số ngày / số ngày trong tháng. Bạn có thể sửa theo"
-                + " thỏa thuận. Lưu sẽ chốt hóa đơn cuối, chỉ số trả phòng và kết thúc thuê cùng"
-                + " lúc. Công nợ và cọc vẫn của người cũ; ghi thu/hoàn riêng.",
+            "Kiểm tra và sửa chỉ số gợi ý theo đồng hồ lúc trả phòng. Bạn có thể chỉnh tiền phòng"
+                + " và phí theo thỏa thuận. Lưu sẽ chốt hóa đơn cuối và kết thúc thuê. Công nợ và"
+                + " cọc vẫn thuộc người thuê cũ.",
             4,
             48);
     help.setEditable(false);
@@ -149,6 +155,7 @@ public final class CheckoutDialog extends JDialog {
               ? RentalService.date(contract.startDate())
               : month.atDay(1);
       Readings old = repository.rentals().opening(contract.id(), month);
+      long days = ChronoUnit.DAYS.between(first, last) + 1;
       opening.setText(
           "Điện "
               + Ui.n(old.electricity())
@@ -156,9 +163,17 @@ public final class CheckoutDialog extends JDialog {
               + Ui.n(old.water())
               + " · "
               + first
-              + " → "
-              + last);
-      rent.setText(RentalService.prorated(contract.rent(), first, last).toPlainString());
+              + (first.equals(last) ? "" : " đến " + last));
+      BigDecimal proposedRent = RentalService.prorated(contract.rent(), first, last);
+      rent.setText(proposedRent.toPlainString());
+      rentHint.setText(
+          Ui.money(contract.rent())
+              + " × "
+              + days
+              + "/"
+              + month.lengthOfMonth()
+              + " ngày = "
+              + Ui.money(proposedRent));
       fees.setCharges(
           contract.fees().stream()
               .map(
@@ -173,27 +188,41 @@ public final class CheckoutDialog extends JDialog {
               .filter(b -> java.util.Objects.equals(b.contractId(), contract.id()))
               .findFirst()
               .orElse(null);
-      if (existing != null
-          && (existing.periodEnd().isBlank()
-                  ? month.atEndOfMonth().toString()
-                  : existing.periodEnd())
-              .equals(last.toString())) {
-        rent.setText(existing.rent().toPlainString());
-        fees.setCharges(existing.fees());
-      }
+      boolean reuseExisting =
+          existing != null
+              && (existing.periodEnd().isBlank()
+                      ? month.atEndOfMonth().toString()
+                      : existing.periodEnd())
+                  .equals(last.toString());
+      BigDecimal suggestedEndElectricity = old.electricity();
+      BigDecimal suggestedEndWater = old.water();
       if (room.waterMode().equals("FIXED")) {
         BigDecimal monthly = room.fixedWater() == null ? rates.defaultWater() : room.fixedWater();
-        long days = java.time.temporal.ChronoUnit.DAYS.between(first, last) + 1;
-        water.setText(
+        suggestedEndWater =
             monthly
                 .multiply(BigDecimal.valueOf(days))
                 .divide(
-                    BigDecimal.valueOf(month.lengthOfMonth()), 3, java.math.RoundingMode.HALF_UP)
-                .stripTrailingZeros()
-                .toPlainString());
+                    BigDecimal.valueOf(month.lengthOfMonth()), 3, java.math.RoundingMode.HALF_UP);
       }
+      if (reuseExisting) {
+        rent.setText(existing.rent().toPlainString());
+        rentHint.setText("Theo hóa đơn đã lập: " + Ui.money(existing.rent()));
+        fees.setCharges(existing.fees());
+        suggestedEndElectricity = existing.electricityNew();
+        suggestedEndWater =
+            room.waterMode().equals("FIXED") ? existing.waterUsed() : existing.waterNew();
+      }
+      String nextElectricity = Ui.n(suggestedEndElectricity);
+      String nextWater = Ui.n(suggestedEndWater);
+      if (suggestedElectricity == null || electricity.getText().equals(suggestedElectricity))
+        electricity.setText(nextElectricity);
+      if (suggestedWater == null || water.getText().equals(suggestedWater))
+        water.setText(nextWater);
+      suggestedElectricity = nextElectricity;
+      suggestedWater = nextWater;
     } catch (Exception ex) {
       opening.setText("Chọn ngày hợp lệ trong thời hạn thuê.");
+      rentHint.setText("");
     } finally {
       updating = false;
     }

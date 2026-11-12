@@ -138,7 +138,7 @@ public final class SelectionView extends JPanel {
     if (h.equals("phòng") || h.contains("phòng đang")) return 1;
     if (h.equals("kỳ")) return 2;
     if (h.contains("thiếu")) return 3;
-    if (h.contains("tổng")) return invoiceCards ? 99 : 4;
+    if (h.contains("tổng")) return 4;
     if (h.contains("người thuê") || h.contains("họ tên")) return 2;
     if (h.contains("điện thoại")) return 6;
     if (h.contains("zalo")) return 7;
@@ -199,8 +199,9 @@ public final class SelectionView extends JPanel {
           badge.setForeground(status.color());
           field.add(badge);
         } else field.add(content);
-        boolean invoiceTotal = invoiceCards && table.getModel().getColumnName(col).equals("Tổng");
-        (invoiceTotal || included++ >= 4 ? extra : fields).add(field);
+        boolean invoiceRent =
+            invoiceCards && table.getModel().getColumnName(col).equals("Tiền phòng");
+        (invoiceRent || included++ >= 4 ? extra : fields).add(field);
       }
       JPanel facts = Design.clear(new BorderLayout(0, 8));
       facts.add(fields, BorderLayout.NORTH);

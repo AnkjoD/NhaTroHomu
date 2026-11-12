@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.22
+
+- Hiện tổng tiền trên thẻ hóa đơn, chuyển tiền phòng vào phần xem đầy đủ.
+
 ## 0.11.21
 
 - Giữ liên kết người thuê trên hóa đơn lập lại của người đang thuê từ sổ cũ.

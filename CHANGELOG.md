@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.23
+
+- Đổi tên tab Người thuê, đặt tên người thuê ở đầu thẻ và dùng viền xanh cho người đang thuê.
+
 ## 0.11.22
 
 - Hiện tổng tiền trên thẻ hóa đơn, chuyển tiền phòng vào phần xem đầy đủ.

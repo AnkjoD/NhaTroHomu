@@ -16,6 +16,7 @@ import vn.nhatrohomu.rental.RentalRepository;
 import vn.nhatrohomu.rental.RentalService;
 import vn.nhatrohomu.shared.Design;
 import vn.nhatrohomu.shared.Models.*;
+import vn.nhatrohomu.shared.SelectionView;
 import vn.nhatrohomu.shared.Ui;
 
 /** Screens for rental lifecycle, separate from the meter photo workflow. */
@@ -149,16 +150,14 @@ public final class RentalPanel extends JPanel {
     String title =
         switch (page) {
           case TENANTS -> "Người thuê";
-          case CONTRACTS -> "Thuê phòng";
+          case CONTRACTS -> "Người thuê";
           case DEBTS -> "Công nợ";
         };
     String subtitle =
         switch (page) {
           case TENANTS ->
               "Thông tin liên hệ và lịch sử thuê. Phòng được gắn với người thuê qua hợp đồng.";
-          case CONTRACTS ->
-              "Người đang ở, lịch sử trả phòng và người chưa gắn phòng. Sửa thông tin và người ở"
-                  + " cùng ngay tại đây.";
+          case CONTRACTS -> "Theo dõi người đang ở, người ở cùng và lịch sử thuê.";
           case DEBTS -> "Tất cả hóa đơn còn thiếu tiền, gồm cả các phòng đã ngừng quản lý.";
         };
     JPanel heading = Design.clear(new BorderLayout(0, 10));
@@ -276,18 +275,19 @@ public final class RentalPanel extends JPanel {
       var continuing = rentals.occupancyContinuations(today);
       for (int i = 0; i < contracts.size(); i++) {
         Contract k = contracts.get(i);
+        boolean importedOccupant = continuing.contains(k.id());
         rows[i] =
             new Object[] {
               k.id(),
               k.roomName(),
               k.tenantName(),
-              k.startDate(),
+              importedOccupant ? "Chưa ghi ngày vào ở" : k.startDate(),
               k.endLabel(),
               Ui.money(k.rent()),
               Ui.money(balances.get(k.id())),
-              continuing.contains(k.id())
-                  ? "Đang thuê · lập kỳ từ " + k.startDate().substring(0, 7)
-                  : k.status(),
+              new SelectionView.RentalStatus(
+                  importedOccupant ? "Đang thuê" : k.status(),
+                  k.occupiedOn(today) || importedOccupant),
               familySummary(contractPeople.get(k.tenantId()))
             };
       }
@@ -302,7 +302,7 @@ public final class RentalPanel extends JPanel {
                 "Tiền/tháng",
                 "Cọc đang giữ",
                 "Trạng thái",
-                "Người ở cùng / gia đình"
+                "Người ở cùng"
               },
               rows);
     } else {
@@ -408,7 +408,9 @@ public final class RentalPanel extends JPanel {
             });
     JPanel main = Design.clear(new BorderLayout(0, 12));
     main.add(search, BorderLayout.NORTH);
-    main.add(new vn.nhatrohomu.shared.SelectionView(table, rowActions, 1, "rental-" + page.name()));
+    main.add(
+        new SelectionView(
+            table, rowActions, page == Page.CONTRACTS ? 2 : 1, "rental-" + page.name()));
     if (page == Page.CONTRACTS) {
       List<Tenant> unassigned =
           contractPeople.values().stream()

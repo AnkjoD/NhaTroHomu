@@ -217,6 +217,16 @@ public final class Design {
     };
   }
 
+  public static Color occupiedOutline() {
+    return new Color(mode == Mode.HOMURA ? 0x4C9B77 : 0x5B9C74);
+  }
+
+  public static JLabel occupiedChip(String text) {
+    boolean dark = mode == Mode.HOMURA;
+    return statusChip(
+        text, new Color(dark ? 0xA0E7BD : 0x246542), new Color(dark ? 0x244638 : 0xDDF4E6));
+  }
+
   public static JLabel statusChip(String text, Color ink, Color fill) {
     JLabel chip =
         new JLabel(text) {

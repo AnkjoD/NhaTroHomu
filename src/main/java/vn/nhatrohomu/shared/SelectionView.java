@@ -6,6 +6,13 @@ import javax.swing.*;
 
 /** Cards and table share the same sorted model and row actions. */
 public final class SelectionView extends JPanel {
+  public record RentalStatus(String text, boolean occupied) {
+    @Override
+    public String toString() {
+      return text;
+    }
+  }
+
   private final JTable table;
   private final List<JButton> actions;
   private final JPanel cards = Design.clear(new BorderLayout());
@@ -13,7 +20,7 @@ public final class SelectionView extends JPanel {
   private final JScrollPane tableScroll, cardScroll;
   private int shown = 60;
   private final int titleColumn;
-  private final boolean invoiceCards;
+  private final boolean invoiceCards, rentalCards;
   private final JComboBox<String> layout = new JComboBox<>(new String[] {"Thẻ", "Bảng"});
 
   public SelectionView(JTable table, List<JButton> actions, int titleColumn, String key) {
@@ -23,6 +30,7 @@ public final class SelectionView extends JPanel {
     this.actions = List.copyOf(actions);
     this.titleColumn = titleColumn;
     invoiceCards = key.equals("invoices");
+    rentalCards = key.equals("rental-CONTRACTS");
     cards.setLayout(new BoxLayout(cards, BoxLayout.Y_AXIS));
     JPanel toolbar = Design.clear(new FlowLayout(FlowLayout.RIGHT, 6, 0));
     toolbar.add(new JLabel("Cách xem"));
@@ -136,7 +144,7 @@ public final class SelectionView extends JPanel {
     String h = header.toLowerCase(java.util.Locale.ROOT);
     if (h.contains("trạng") || h.contains("thanh toán")) return 0;
     if (h.equals("phòng") || h.contains("phòng đang")) return 1;
-    if (h.equals("kỳ")) return 2;
+    if (h.equals("kỳ") || (rentalCards && h.equals("người ở cùng"))) return 2;
     if (h.contains("thiếu")) return 3;
     if (h.contains("tổng")) return 4;
     if (h.contains("người thuê") || h.contains("họ tên")) return 2;
@@ -155,8 +163,14 @@ public final class SelectionView extends JPanel {
     for (int view = 0; view < count; view++) {
       int row = table.convertRowIndexToModel(view);
       Color fill = Design.SURFACE;
+      RentalStatus rental = null;
       for (int col = 0; col < table.getModel().getColumnCount(); col++) {
-        if (table.getModel().getValueAt(row, col) instanceof PaymentStatus status) {
+        Object entry = table.getModel().getValueAt(row, col);
+        if (entry instanceof RentalStatus status) {
+          rental = status;
+          break;
+        }
+        if (entry instanceof PaymentStatus status) {
           Color accent = status.paid() ? new Color(25, 130, 91) : new Color(174, 53, 55);
           fill =
               new Color(
@@ -166,10 +180,21 @@ public final class SelectionView extends JPanel {
           break;
         }
       }
-      JPanel card = Design.card(fill, true);
+      boolean occupied = rental != null && rental.occupied();
+      JPanel card = Design.card(fill, true, occupied ? Design.occupiedOutline() : null);
       card.setAlignmentX(Component.LEFT_ALIGNMENT);
       card.setLayout(new BorderLayout(0, 12));
-      card.add(Design.label(value(row, titleColumn), 19, Design.INK, true), BorderLayout.NORTH);
+      JPanel title = Design.clear(new BorderLayout(10, 0));
+      JLabel name = Design.label(value(row, titleColumn), 19, Design.INK, true);
+      name.putClientProperty("html.disable", true);
+      title.add(name, BorderLayout.CENTER);
+      if (rental != null)
+        title.add(
+            occupied
+                ? Design.occupiedChip(rental.text())
+                : Design.statusChip(rental.text(), Design.MUTED, Ui.BACKGROUND),
+            BorderLayout.EAST);
+      card.add(title, BorderLayout.NORTH);
       JPanel fields = Design.clear(new GridLayout(0, 2, 10, 6));
       JPanel extra = Design.clear(new GridLayout(0, 2, 10, 6));
       int included = 0;
@@ -181,7 +206,8 @@ public final class SelectionView extends JPanel {
                       col -> priority(table.getModel().getColumnName(col))))
               .toList();
       for (int col : columns) {
-        if (col == titleColumn) continue;
+        if (col == titleColumn || table.getModel().getValueAt(row, col) instanceof RentalStatus)
+          continue;
         String text = value(row, col);
         if (text.isBlank()) continue;
         JPanel field = Design.clear(new BorderLayout(0, 3));

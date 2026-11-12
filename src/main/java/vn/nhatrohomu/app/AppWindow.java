@@ -72,7 +72,7 @@ public final class AppWindow extends JFrame {
     SidebarMenu menu = new SidebarMenu();
     menu.addButton(nav("dashboard", "Tổng quan", this::showDashboard));
     menu.addButton(nav("rooms", "Phòng trọ", this::showRooms));
-    menu.addButton(nav("contract", "Thuê phòng", this::showContracts));
+    menu.addButton(nav("contract", "Người thuê", this::showContracts));
     menu.addButton(nav("services", "Dịch vụ & phí", this::showServices));
     menu.addButton(nav("bill", "Hóa đơn", this::openCurrentInvoices));
     menu.addButton(nav("debt", "Công nợ", this::showDebts));
@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.22", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.23", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -127,7 +127,7 @@ public final class AppWindow extends JFrame {
     if (currentPage.equals("Hóa đơn")) showHistory();
     else if (currentPage.equals("Cài đặt")) showSettings();
     else if (currentPage.equals("Dịch vụ & phí")) showServices();
-    else if (currentPage.equals("Thuê phòng")) {
+    else if (currentPage.equals("Người thuê")) {
       if (rentalTab == 1) showTenants();
       else showContracts();
     } else if (currentPage.equals("Công nợ")) showDebts();
@@ -452,8 +452,7 @@ public final class AppWindow extends JFrame {
       previous = repository.rentals().opening(contract.id(), java.time.YearMonth.now());
     boolean dark = Design.mode == Design.Mode.HOMURA;
     boolean occupied = contract != null;
-    Color greenOutline = dark ? new Color(0x4C9B77) : new Color(0x5B9C74);
-    JPanel card = Design.card(Design.SURFACE, false, occupied ? greenOutline : null);
+    JPanel card = Design.card(Design.SURFACE, false, occupied ? Design.occupiedOutline() : null);
     card.setLayout(new BorderLayout(0, 18));
     card.setPreferredSize(new Dimension(360, 300));
     JPanel top = Design.clear(new BorderLayout(0, 8));
@@ -461,19 +460,18 @@ public final class AppWindow extends JFrame {
     title.add(Design.label(r.name(), 22, Design.INK, true));
     JPanel actions = Design.clear(new FlowLayout(FlowLayout.RIGHT, 6, 0));
     String state = occupied ? "Đang thuê" : reserved != null ? "Đã đặt" : "Phòng trống";
-    Color chipInk =
-        occupied
-            ? new Color(dark ? 0xA0E7BD : 0x246542)
-            : reserved != null
-                ? new Color(dark ? 0xF4CB87 : 0x784B19)
-                : new Color(dark ? 0xB5D2F0 : 0x355A80);
-    Color chipFill =
-        occupied
-            ? new Color(dark ? 0x244638 : 0xDDF4E6)
-            : reserved != null
-                ? new Color(dark ? 0x473722 : 0xFFF0D6)
-                : new Color(dark ? 0x303F55 : 0xEAF2FC);
-    actions.add(Design.statusChip(state, chipInk, chipFill));
+    if (occupied) actions.add(Design.occupiedChip(state));
+    else {
+      Color chipInk =
+          reserved != null
+              ? new Color(dark ? 0xF4CB87 : 0x784B19)
+              : new Color(dark ? 0xB5D2F0 : 0x355A80);
+      Color chipFill =
+          reserved != null
+              ? new Color(dark ? 0x473722 : 0xFFF0D6)
+              : new Color(dark ? 0x303F55 : 0xEAF2FC);
+      actions.add(Design.statusChip(state, chipInk, chipFill));
+    }
     Contract person = occupied ? contract : reserved;
     if (person != null) {
       String name = person.tenantName();
@@ -619,7 +617,7 @@ public final class AppWindow extends JFrame {
   }
 
   private void showContracts() {
-    showRental("Hợp đồng", RentalPanel.Page.CONTRACTS);
+    showRental("Người thuê", RentalPanel.Page.CONTRACTS);
   }
 
   private void showDebts() {
@@ -627,7 +625,7 @@ public final class AppWindow extends JFrame {
   }
 
   private void showRental(String title, RentalPanel.Page page) {
-    selectNav(page == RentalPanel.Page.DEBTS ? title : "Thuê phòng");
+    selectNav(page == RentalPanel.Page.DEBTS ? title : "Người thuê");
     body.removeAll();
     if (page == RentalPanel.Page.DEBTS)
       body.add(new RentalPanel(this, repository, page, this::billDialog));

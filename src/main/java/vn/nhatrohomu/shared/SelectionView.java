@@ -144,7 +144,8 @@ public final class SelectionView extends JPanel {
     String h = header.toLowerCase(java.util.Locale.ROOT);
     if (h.contains("trạng") || h.contains("thanh toán")) return 0;
     if (h.equals("phòng") || h.contains("phòng đang")) return 1;
-    if (h.equals("kỳ") || (rentalCards && h.equals("người ở cùng"))) return 2;
+    if (h.equals("kỳ") || (rentalCards && h.equals("ngày vào ở"))) return 2;
+    if (rentalCards && h.equals("người ở cùng")) return 3;
     if (h.contains("thiếu")) return 3;
     if (h.contains("tổng")) return 4;
     if (h.contains("người thuê") || h.contains("họ tên")) return 2;
@@ -198,6 +199,7 @@ public final class SelectionView extends JPanel {
       JPanel fields = Design.clear(new GridLayout(0, 2, 10, 6));
       JPanel extra = Design.clear(new GridLayout(0, 2, 10, 6));
       int included = 0;
+      int visibleFields = rentalCards ? 5 : 4;
       java.util.List<Integer> columns =
           java.util.stream.IntStream.range(0, table.getColumnCount())
               .boxed()
@@ -227,7 +229,7 @@ public final class SelectionView extends JPanel {
         } else field.add(content);
         boolean invoiceRent =
             invoiceCards && table.getModel().getColumnName(col).equals("Tiền phòng");
-        (invoiceRent || included++ >= 4 ? extra : fields).add(field);
+        (invoiceRent || included++ >= visibleFields ? extra : fields).add(field);
       }
       JPanel facts = Design.clear(new BorderLayout(0, 8));
       facts.add(fields, BorderLayout.NORTH);

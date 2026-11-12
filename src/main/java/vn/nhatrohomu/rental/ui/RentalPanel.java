@@ -297,7 +297,7 @@ public final class RentalPanel extends JPanel {
                 "Mã",
                 "Phòng",
                 "Người thuê",
-                "Vào ở",
+                "Ngày vào ở",
                 "Đến",
                 "Tiền/tháng",
                 "Cọc đang giữ",

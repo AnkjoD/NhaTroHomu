@@ -8,7 +8,15 @@ public final class TenantRules {
   private TenantRules() {}
 
   public static void birthday(String value) {
-    if (!value.isBlank() && DataRules.date(value).isAfter(LocalDate.now()))
+    if (value.isBlank()) return;
+    LocalDate parsed;
+    try {
+      parsed = DataRules.date(value);
+    } catch (IllegalArgumentException ex) {
+      throw new IllegalArgumentException(
+          "Ngày sinh phải là ngày có thật theo dạng YYYY-MM-DD, ví dụ 2000-05-21.", ex);
+    }
+    if (parsed.isAfter(LocalDate.now()))
       throw new IllegalArgumentException("Ngày sinh không được ở tương lai.");
   }
 

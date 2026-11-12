@@ -619,7 +619,7 @@ public final class RentalPanel extends JPanel {
           fields,
           i,
           labels[i],
-          i == 2 ? vn.nhatrohomu.shared.DatePicker.field(inputs[i], false) : inputs[i]);
+          i == 2 ? vn.nhatrohomu.shared.DatePicker.birthdayField(inputs[i]) : inputs[i]);
     while (JOptionPane.showConfirmDialog(
             roster,
             fields,
@@ -694,7 +694,7 @@ public final class RentalPanel extends JPanel {
         fields,
         5,
         "Ngày sinh YYYY-MM-DD (tùy chọn)",
-        vn.nhatrohomu.shared.DatePicker.field(birthday, false));
+        vn.nhatrohomu.shared.DatePicker.birthdayField(birthday));
     Ui.field(fields, 6, "Địa chỉ thường trú", address);
     Ui.field(fields, 7, "Ghi chú", new JScrollPane(note));
     DefaultTableModel members =
@@ -707,6 +707,9 @@ public final class RentalPanel extends JPanel {
       members.addRow(
           new Object[] {r.name(), r.relationship(), r.birthday(), r.identity(), r.phone()});
     JTable roster = new JTable(members);
+    JTextField birthdayCell = new JTextField();
+    vn.nhatrohomu.shared.DatePicker.configureBirthdayInput(birthdayCell);
+    roster.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(birthdayCell));
     roster.setRowHeight(34);
     roster.putClientProperty("terminateEditOnFocusLost", true);
     roster.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);

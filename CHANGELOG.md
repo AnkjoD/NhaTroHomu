@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.28
+
+- Hướng dẫn và kiểm tra ngày sinh trên hồ sơ người thuê và người ở cùng.
+
 ## 0.11.27
 
 - Đồng bộ nền và nút xác nhận của hộp thoại theo giao diện sáng hoặc tối.

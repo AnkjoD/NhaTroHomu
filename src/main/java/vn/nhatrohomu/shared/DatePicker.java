@@ -3,19 +3,54 @@ package vn.nhatrohomu.shared;
 import java.awt.*;
 import java.time.*;
 import javax.swing.*;
+import javax.swing.text.*;
 
 /** Keep typed ISO values while offering a local calendar, without changing business dates. */
 public final class DatePicker {
   private DatePicker() {}
 
   public static JPanel field(JTextField text, boolean monthOnly) {
+    return field(text, monthOnly, null);
+  }
+
+  public static JPanel birthdayField(JTextField text) {
+    configureBirthdayInput(text);
+    return field(text, false, LocalDate.now());
+  }
+
+  public static void configureBirthdayInput(JTextField text) {
+    text.putClientProperty("JTextField.placeholderText", "YYYY-MM-DD (vd. 2000-05-21)");
+    text.setToolTipText("Nhập năm-tháng-ngày, ví dụ 2000-05-21. Có thể để trống.");
+    ((AbstractDocument) text.getDocument())
+        .setDocumentFilter(
+            new DocumentFilter() {
+              @Override
+              public void insertString(
+                  FilterBypass fb, int offset, String value, AttributeSet attributes)
+                  throws BadLocationException {
+                replace(fb, offset, 0, value, attributes);
+              }
+
+              @Override
+              public void replace(
+                  FilterBypass fb, int offset, int length, String value, AttributeSet attributes)
+                  throws BadLocationException {
+                String input = value == null ? "" : value.strip();
+                if (input.matches("[0-9-]*")
+                    && fb.getDocument().getLength() - length + input.length() <= 10)
+                  fb.replace(offset, length, input, attributes);
+              }
+            });
+  }
+
+  private static JPanel field(JTextField text, boolean monthOnly, LocalDate latest) {
     JPanel panel = Design.clear(new BorderLayout(6, 0));
     panel.add(text);
     JButton button =
         Ui.button(
             "",
             () -> {
-              JPopupMenu menu = calendar(text, monthOnly);
+              JPopupMenu menu = calendar(text, monthOnly, latest);
               menu.show(text, 0, text.getHeight());
             });
     button.setIcon(Design.icon("calendar", Design.INK));
@@ -32,13 +67,17 @@ public final class DatePicker {
   }
 
   public static JPopupMenu calendar(JTextField target, boolean monthOnly) {
+    return calendar(target, monthOnly, null);
+  }
+
+  private static JPopupMenu calendar(JTextField target, boolean monthOnly, LocalDate latest) {
     YearMonth initial = YearMonth.now();
     LocalDate selected = null;
     try {
       if (monthOnly) initial = DataRules.period(target.getText().trim());
       else {
         selected = DataRules.date(target.getText().trim());
-        initial = YearMonth.from(selected);
+        if (latest == null || !selected.isAfter(latest)) initial = YearMonth.from(selected);
       }
     } catch (IllegalArgumentException ignored) {
     }
@@ -48,7 +87,10 @@ public final class DatePicker {
     JComboBox<String> month = new JComboBox<>();
     for (int m = 1; m <= 12; m++) month.addItem("Tháng " + m);
     month.setSelectedIndex(initial.getMonthValue() - 1);
-    JSpinner year = new JSpinner(new SpinnerNumberModel(initial.getYear(), 1900, 9999, 1));
+    JSpinner year =
+        new JSpinner(
+            new SpinnerNumberModel(
+                initial.getYear(), 1900, latest == null ? 9999 : latest.getYear(), 1));
     year.setEditor(new JSpinner.NumberEditor(year, "0"));
     JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
     controls.add(month);
@@ -82,6 +124,7 @@ public final class DatePicker {
                         menu.setVisible(false);
                       });
               pick.setMargin(new Insets(5, 5, 5, 5));
+              pick.setEnabled(latest == null || !date.isAfter(latest));
               if (date.equals(chosen)) Design.primary(pick);
               if (date.equals(LocalDate.now())) pick.setToolTipText("Hôm nay");
               grid.add(pick);

@@ -171,7 +171,7 @@ public final class VisualPreview {
               rooms.setAccessible(true);
               rooms.invoke(app);
               capture(app, "nhatrohomu-rooms.png", output);
-              for (String method : new String[] {"showHistory", "showSettings"}) {
+              for (String method : new String[] {"showHistory", "showDebts", "showSettings"}) {
                 var m = AppWindow.class.getDeclaredMethod(method);
                 m.setAccessible(true);
                 m.invoke(app);
@@ -180,10 +180,12 @@ public final class VisualPreview {
                     app,
                     method.equals("showHistory")
                         ? "nhatrohomu-history.png"
-                        : "nhatrohomu-settings.png",
+                        : method.equals("showDebts")
+                            ? "nhatrohomu-debts.png"
+                            : "nhatrohomu-settings.png",
                     output);
               }
-              for (String method : new String[] {"showTenants", "showContracts", "showDebts"}) {
+              for (String method : new String[] {"showTenants", "showContracts"}) {
                 var navigation = AppWindow.class.getDeclaredMethod(method);
                 navigation.setAccessible(true);
                 navigation.invoke(app);

@@ -31,7 +31,27 @@ public final class AppWindow extends JFrame {
   private final Path dataDirectory;
   private final JPanel body = new JPanel(new BorderLayout());
   private int historyPage;
+
+  private enum InvoicePaymentFilter {
+    ALL("Tất cả"),
+    UNPAID("Chưa trả đủ"),
+    PAID("Đã trả đủ");
+
+    private final String label;
+
+    InvoicePaymentFilter(String label) {
+      this.label = label;
+    }
+
+    @Override
+    public String toString() {
+      return label;
+    }
+  }
+
   private String invoiceMonth;
+  private Room invoiceRoom;
+  private InvoicePaymentFilter invoicePayment = InvoicePaymentFilter.ALL;
   private int rentalTab;
   private JLabel breadcrumb;
   private String currentPage = "Tổng quan";
@@ -75,7 +95,6 @@ public final class AppWindow extends JFrame {
     menu.addButton(nav("contract", "Người thuê", this::showContracts));
     menu.addButton(nav("services", "Dịch vụ & phí", this::showServices));
     menu.addButton(nav("bill", "Hóa đơn", this::openCurrentInvoices));
-    menu.addButton(nav("debt", "Công nợ", this::showDebts));
     menu.addButton(nav("report", "Báo cáo", this::showReports));
     menu.addButton(nav("settings", "Cài đặt", this::showSettings));
     JScrollPane menuScroll = new JScrollPane(menu);
@@ -92,7 +111,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.28", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.29", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -130,8 +149,7 @@ public final class AppWindow extends JFrame {
     else if (currentPage.equals("Người thuê")) {
       if (rentalTab == 1) showTenants();
       else showContracts();
-    } else if (currentPage.equals("Công nợ")) showDebts();
-    else if (currentPage.equals("Báo cáo")) showReports();
+    } else if (currentPage.equals("Báo cáo")) showReports();
     else if (currentPage.equals("Tổng quan")) showDashboard();
     else showRooms();
     revalidate();
@@ -508,6 +526,16 @@ public final class AppWindow extends JFrame {
           }
         });
     popup.add(waterPolicy);
+    JMenuItem invoices = new JMenuItem("Xem hóa đơn của phòng");
+    invoices.addActionListener(
+        e -> {
+          invoiceRoom = r;
+          invoiceMonth = "";
+          invoicePayment = InvoicePaymentFilter.ALL;
+          historyPage = 0;
+          showHistory();
+        });
+    popup.add(invoices);
     JMenuItem archive = new JMenuItem("Ngừng sử dụng phòng");
     archive.addActionListener(
         e -> {
@@ -621,7 +649,10 @@ public final class AppWindow extends JFrame {
   }
 
   private void showDebts() {
-    showRental("Công nợ", RentalPanel.Page.DEBTS);
+    invoiceMonth = "";
+    invoicePayment = InvoicePaymentFilter.UNPAID;
+    historyPage = 0;
+    showHistory();
   }
 
   private void showRental(String title, RentalPanel.Page page) {
@@ -664,6 +695,8 @@ public final class AppWindow extends JFrame {
 
   private void openCurrentInvoices() {
     invoiceMonth = null;
+    invoiceRoom = null;
+    invoicePayment = InvoicePaymentFilter.ALL;
     historyPage = 0;
     showHistory();
   }
@@ -689,16 +722,41 @@ public final class AppWindow extends JFrame {
               .toList();
       if (invoiceMonth == null) invoiceMonth = currentMonth;
       List<Bill> filtered =
-          invoiceMonth == null || invoiceMonth.isBlank()
-              ? all
-              : all.stream().filter(b -> b.month().equals(invoiceMonth)).toList();
+          all.stream()
+              .filter(b -> invoiceMonth.isBlank() || b.month().equals(invoiceMonth))
+              .filter(b -> invoiceRoom == null || b.roomId() == invoiceRoom.id())
+              .filter(
+                  b ->
+                      switch (invoicePayment) {
+                        case ALL -> true;
+                        case UNPAID -> !b.paid() && b.total().signum() > 0;
+                        case PAID -> b.paid() && b.total().signum() > 0;
+                      })
+              .toList();
       int count = filtered.size();
       if (historyPage * 50 >= count) historyPage = Math.max(0, (count - 1) / 50);
       List<Bill> bills = filtered.stream().skip(historyPage * 50L).limit(50).toList();
       Object[][] rows = new Object[bills.size()][9];
       BigDecimal sum = filtered.stream().map(Bill::total).reduce(BigDecimal.ZERO, BigDecimal::add);
+      var received = new java.util.HashMap<Long, BigDecimal>();
+      BigDecimal overdue = BigDecimal.ZERO;
+      if (invoicePayment == InvoicePaymentFilter.UNPAID) {
+        sum = BigDecimal.ZERO;
+        var today = java.time.LocalDate.now();
+        for (Bill bill : filtered) {
+          BigDecimal paid = repository.received(bill.id());
+          received.put(bill.id(), paid);
+          BigDecimal balance = bill.total().subtract(paid).max(BigDecimal.ZERO);
+          sum = sum.add(balance);
+          if (!bill.dueDate().isBlank()
+              && java.time.LocalDate.parse(bill.dueDate()).isBefore(today))
+            overdue = overdue.add(balance);
+        }
+      }
       for (int i = 0; i < bills.size(); i++) {
         Bill b = bills.get(i);
+        BigDecimal paid = received.get(b.id());
+        if (paid == null) paid = repository.received(b.id());
         rows[i] =
             new Object[] {
               b.month(),
@@ -710,8 +768,7 @@ public final class AppWindow extends JFrame {
                   : Ui.money(b.rent()),
               Ui.money(b.feeTotal()),
               Ui.money(b.total()),
-              vn.nhatrohomu.shared.PaymentStatus.of(
-                  b.total(), repository.received(b.id()), b.dueDate()),
+              vn.nhatrohomu.shared.PaymentStatus.of(b.total(), paid, b.dueDate()),
               b.note()
             };
       }
@@ -760,8 +817,34 @@ public final class AppWindow extends JFrame {
           });
       filterBar.add(new JLabel("Tháng hóa đơn"));
       filterBar.add(period);
-      filterBar.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
-      filterBar.add(
+      JComboBox<InvoicePaymentFilter> payment = new JComboBox<>(InvoicePaymentFilter.values());
+      payment.setName("invoice-payment");
+      payment.setSelectedItem(invoicePayment);
+      payment.addActionListener(
+          e -> {
+            invoicePayment = (InvoicePaymentFilter) payment.getSelectedItem();
+            if (invoicePayment == InvoicePaymentFilter.UNPAID) {
+              showDebts();
+              return;
+            }
+            historyPage = 0;
+            showHistory();
+          });
+      filterBar.add(new JLabel("Thanh toán"));
+      filterBar.add(payment);
+      if (invoiceRoom != null) {
+        filterBar.add(
+            Ui.button(
+                invoiceRoom.name() + "  ×",
+                () -> {
+                  invoiceRoom = null;
+                  historyPage = 0;
+                  showHistory();
+                }));
+      }
+      JPanel commands = actions();
+      commands.add(Design.primary(Ui.button("+ Lập hóa đơn", this::newInvoice)));
+      commands.add(
           Ui.button(
               "Lập hóa đơn nhiều phòng",
               () -> {
@@ -773,17 +856,17 @@ public final class AppWindow extends JFrame {
                   Ui.error(this, ex);
                 }
               }));
-      JButton exportMonth = Ui.button("Xuất phiếu các phòng", () -> exportMonthlyInvoices(false));
+      JButton exportMonth = Ui.button("Xuất PDF cả tháng", () -> exportMonthlyInvoices(false));
       exportMonth.setName("export-monthly-invoices");
       exportMonth.setEnabled(
-          invoiceMonth != null && !invoiceMonth.isBlank() && !filtered.isEmpty());
+          !invoiceMonth.isBlank() && all.stream().anyMatch(b -> b.month().equals(invoiceMonth)));
       exportMonth.setToolTipText(
           "Chọn một tháng để xuất mỗi hóa đơn thành một PDF riêng, gồm cả các trang danh sách.");
-      filterBar.add(exportMonth);
-      JButton exportImages = Ui.button("Xuất ảnh các phòng", () -> exportMonthlyInvoices(true));
+      commands.add(exportMonth);
+      JButton exportImages = Ui.button("Xuất ảnh cả tháng", () -> exportMonthlyInvoices(true));
       exportImages.setEnabled(exportMonth.isEnabled());
       exportImages.setToolTipText("Mỗi hóa đơn của tháng đang chọn là một ảnh PNG để gửi khách.");
-      filterBar.add(exportImages);
+      commands.add(exportImages);
       a.add(
           Ui.button(
               "Xem hóa đơn",
@@ -894,15 +977,15 @@ public final class AppWindow extends JFrame {
       next.setEnabled((historyPage + 1) * 50 < count);
       paging.add(
           new JLabel(
-              (invoiceMonth == null || invoiceMonth.isBlank()
-                      ? "Tất cả tháng · Tổng: "
-                      : "Tháng " + invoiceMonth + " · Tổng: ")
+              (invoiceMonth.isBlank() ? "Tất cả tháng" : "Tháng " + invoiceMonth)
+                  + (invoicePayment == InvoicePaymentFilter.UNPAID ? " · Còn thiếu: " : " · Tổng: ")
                   + Ui.money(sum)
+                  + (invoicePayment == InvoicePaymentFilter.UNPAID
+                      ? " · Quá hạn: " + Ui.money(overdue)
+                      : "")
                   + " · "
                   + count
-                  + (count == 0
-                      ? " hóa đơn (chưa có hóa đơn trong tháng đã chọn) · Trang "
-                      : " hóa đơn · Trang ")
+                  + " hóa đơn · Trang "
                   + (historyPage + 1)));
       paging.add(back);
       paging.add(next);
@@ -913,7 +996,10 @@ public final class AppWindow extends JFrame {
               "Tiền phòng, phí, người thuê và đơn giá được giữ theo lúc lập hóa đơn.",
               a),
           BorderLayout.NORTH);
-      heading.add(filterBar, BorderLayout.SOUTH);
+      JPanel toolbar = Ui.column();
+      toolbar.add(filterBar);
+      toolbar.add(commands);
+      heading.add(toolbar, BorderLayout.SOUTH);
       long missingRent =
           filtered.stream()
               .filter(b -> b.rent().signum() == 0 && !b.tenantName().isBlank())
@@ -956,9 +1042,7 @@ public final class AppWindow extends JFrame {
               repository,
               (Room) choice.getSelectedItem(),
               () -> {
-                invoiceMonth = null;
-                historyPage = 0;
-                showHistory();
+                openCurrentInvoices();
               })
           .setVisible(true);
     } catch (Exception ex) {

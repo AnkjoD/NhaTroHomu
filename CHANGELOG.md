@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.29
+
+- Gộp công nợ vào Hóa đơn và thêm lối tắt xem hóa đơn theo phòng.
+
 ## 0.11.28
 
 - Hướng dẫn và kiểm tra ngày sinh trên hồ sơ người thuê và người ở cùng.

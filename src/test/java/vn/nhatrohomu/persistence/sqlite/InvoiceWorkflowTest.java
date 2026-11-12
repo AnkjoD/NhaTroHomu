@@ -74,6 +74,8 @@ public final class InvoiceWorkflowTest {
           null,
           null);
     }
+    Bill paid = repository.billsBetween("2026-08", "2026-08").getFirst();
+    repository.addPayment(paid.id(), paid.total(), "2026-08-20", "Synthetic payment");
     repository.saveRoom(
         new Room(
             0,
@@ -119,6 +121,20 @@ public final class InvoiceWorkflowTest {
             check(
                 table(app.getContentPane()).getRowCount() == 3,
                 "Refreshing preserves the selected scope");
+            ((JComboBox<?>) named(app.getContentPane(), "invoice-period"))
+                .setSelectedItem("2026-08");
+            ((JComboBox<?>) named(app.getContentPane(), "invoice-payment")).setSelectedIndex(1);
+            check(
+                named(app.getContentPane(), "invoice-period") instanceof JComboBox<?> allMonths
+                    && "Tất cả tháng".equals(allMonths.getSelectedItem())
+                    && table(app.getContentPane()).getRowCount() == 2,
+                "Unpaid filter includes debts across months");
+            ((JComboBox<?>) named(app.getContentPane(), "invoice-payment")).setSelectedIndex(2);
+            check(
+                table(app.getContentPane()).getRowCount() == 1
+                    && "2026-08".equals(table(app.getContentPane()).getValueAt(0, 0)),
+                "Paid filter excludes unpaid invoices");
+            ((JComboBox<?>) named(app.getContentPane(), "invoice-payment")).setSelectedIndex(0);
             app.setVisible(true);
             Timer watchdog =
                 new Timer(

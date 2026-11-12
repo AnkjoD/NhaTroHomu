@@ -211,14 +211,9 @@ public final class GuiSmokeTest {
               rentField.setAccessible(true);
               if (!((JTextField) rentField.get(roomDefaults)).getText().equals("1300000"))
                 throw new AssertionError("Missing room rent suggestion without tenancy");
-              var utilityField = ReadingDialog.class.getDeclaredField("utilitiesOnly");
-              utilityField.setAccessible(true);
-              ((JCheckBox) utilityField.get(roomDefaults)).doClick();
-              if (!((JTextField) rentField.get(roomDefaults)).getText().equals("0"))
-                throw new AssertionError("Utility-only form still displays rent");
-              ((JCheckBox) utilityField.get(roomDefaults)).doClick();
-              if (!((JTextField) rentField.get(roomDefaults)).getText().equals("1300000"))
-                throw new AssertionError("Default rent not restored after switching mode");
+              Bill draft = (Bill) calculate.invoke(roomDefaults);
+              if (draft.rent().compareTo(new BigDecimal("1300000")) != 0)
+                throw new AssertionError("Invoice must include default rent without tenancy");
               roomDefaults.dispose();
               ReportPanel report = new ReportPanel(repo);
               var snapshotField = ReportPanel.class.getDeclaredField("snapshot");

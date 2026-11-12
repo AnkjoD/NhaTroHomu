@@ -26,7 +26,6 @@ public final class ReadingDialog extends JDialog {
   private final JLabel rentalInfo = new JLabel(), feesInfo = new JLabel();
   private final JLabel oldElectricity = new JLabel(), oldWater = new JLabel();
   private final JComboBox<Contract> tenancyChoice = new JComboBox<>();
-  private final JCheckBox utilitiesOnly = new JCheckBox("Chỉ lập điện nước, không thu tiền phòng");
   private boolean syncingRental;
   private final JTextField month = new JTextField(YearMonth.now().toString()),
       electricity = new JTextField(),
@@ -108,12 +107,6 @@ public final class ReadingDialog extends JDialog {
     JPanel tenancy = Ui.column();
     tenancy.add(tenancyChoice);
     tenancy.add(rentalInfo);
-    tenancy.add(utilitiesOnly);
-    utilitiesOnly.addActionListener(
-        e -> {
-          syncRentDisplay();
-          update();
-        });
     tenancy.add(
         Ui.button(
             "Thiết lập thuê phòng",
@@ -306,15 +299,14 @@ public final class ReadingDialog extends JDialog {
             note.getText());
     Contract contract = selectedContract();
     if (contract == null) {
-      if (utilitiesOnly.isSelected()) return utility;
       if (room.defaultRent() == null)
-        throw new IllegalArgumentException("Cài giá phòng hoặc chọn Chỉ lập điện nước.");
+        throw new IllegalArgumentException(
+            "Nhập tiền phòng mặc định trong phần Sửa phòng trước khi lập hóa đơn.");
       RentalService.requirePositiveRent(room.defaultRent());
       return RentalService.withRoomRent(utility, room.defaultRent());
     }
-    BigDecimal amount =
-        contract == null ? BigDecimal.ZERO : RentalService.money(rent.getText(), "Tiền phòng");
-    if (contract != null && segmented(contract)) {
+    BigDecimal amount = RentalService.money(rent.getText(), "Tiền phòng");
+    if (segmented(contract)) {
       java.time.LocalDate first = first(contract), last = last(contract);
       List<Charge> fees =
           contract.fees().stream()
@@ -414,16 +406,6 @@ public final class ReadingDialog extends JDialog {
                 .stripTrailingZeros()
                 .toPlainString());
       }
-      var continuing =
-          repository
-              .rentals()
-              .occupancyContinuations(YearMonth.parse(month.getText().trim()).atDay(1));
-      boolean occupied =
-          contract != null
-              || contracts.stream()
-                  .anyMatch(k -> k.roomId() == room.id() && continuing.contains(k.id()));
-      utilitiesOnly.setVisible(!occupied);
-      if (occupied) utilitiesOnly.setSelected(false);
       syncRentDisplay();
       rentalInfo.setText(
           contract == null
@@ -457,10 +439,7 @@ public final class ReadingDialog extends JDialog {
       total.setToolTipText("Tiền phòng + điện + nước + phí. Tiền cọc được quản lý riêng.");
     } catch (Exception ex) {
       total.setForeground(new Color(155, 66, 42));
-      total.setText(
-          selectedContract() == null && !utilitiesOnly.isSelected()
-              ? "Kiểm tra giá phòng, chỉ số mới và tháng"
-              : "Kiểm tra chỉ số mới và tháng");
+      total.setText(ex.getMessage());
       total.setToolTipText(ex.getMessage());
     }
   }
@@ -470,10 +449,7 @@ public final class ReadingDialog extends JDialog {
     rent.setEnabled(true);
     rent.setEditable(contract != null);
     if (contract == null) {
-      rent.setText(
-          utilitiesOnly.isSelected()
-              ? "0"
-              : room.defaultRent() == null ? "" : room.defaultRent().toPlainString());
+      rent.setText(room.defaultRent() == null ? "" : room.defaultRent().toPlainString());
     } else
       rent.setText(
           (segmented(contract)

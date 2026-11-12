@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.18
+
+- Yêu cầu tiền phòng lớn hơn 0 khi lưu phòng và lập hóa đơn.
+
 ## 0.11.17
 
 - Khôi phục phí vào danh mục mà không tự tính lại.

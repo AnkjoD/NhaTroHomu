@@ -4,6 +4,7 @@ import java.awt.*;
 import javax.swing.*;
 import vn.nhatrohomu.billing.BillingService;
 import vn.nhatrohomu.persistence.Repository;
+import vn.nhatrohomu.rental.RentalService;
 import vn.nhatrohomu.shared.Design;
 import vn.nhatrohomu.shared.Models.*;
 import vn.nhatrohomu.shared.Ui;
@@ -49,9 +50,9 @@ public final class RoomDialog extends JDialog {
     rentalHelp.setLineWrap(true);
     rentalHelp.setWrapStyleWord(true);
     rentalHelp.setOpaque(false);
-    Ui.field(form, 6, "Giá thuê mặc định / tháng (đ) *", defaultRent);
+    Ui.field(form, 6, "Tiền phòng mỗi tháng (đ) *", defaultRent);
     rentalHelp.setText(
-        "Bắt buộc nhập giá phòng; nhập 0 nếu miễn tiền phòng. Khi cho thuê tự dùng giá này, chỉ bật"
+        "Nhập tiền phòng lớn hơn 0đ. Khi cho thuê tự dùng giá này, chỉ bật"
             + " giá riêng khi có thỏa thuận khác. Giá hợp đồng đang có và hóa đơn cũ không tự đổi"
             + " khi sửa giá phòng.");
     Ui.field(form, 7, "Tiền phòng", rentalHelp);
@@ -69,8 +70,9 @@ public final class RoomDialog extends JDialog {
                 if (name.getText().trim().isEmpty() || name.getText().length() > 80)
                   throw new IllegalArgumentException("Tên phòng cần 1–80 ký tự.");
                 if (defaultRent.getText().isBlank())
-                  throw new IllegalArgumentException(
-                      "Nhập giá thuê mặc định của phòng; nhập 0 nếu miễn tiền phòng.");
+                  throw new IllegalArgumentException("Nhập tiền phòng mỗi tháng.");
+                var monthlyRent = RentalService.money(defaultRent.getText(), "Tiền phòng");
+                RentalService.requirePositiveRent(monthlyRent);
                 Room value =
                     new Room(
                         room == null ? 0 : room.id(),
@@ -83,8 +85,7 @@ public final class RoomDialog extends JDialog {
                             ? null
                             : BillingService.number(fixed.getText(), "Nước riêng"),
                         true,
-                        vn.nhatrohomu.rental.RentalService.money(
-                            defaultRent.getText(), "Giá thuê mặc định"));
+                        monthlyRent);
                 repository.saveRoom(value);
                 dispose();
                 saved.run();

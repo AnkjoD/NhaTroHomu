@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.15
+
+- Hiện rõ phòng đang thuê, phòng trống và phòng đã đặt; chặn mở form cho thuê khi hết phòng.
+- Tách trạng thái của người đang ở chuyển từ sổ cũ khỏi ngày bắt đầu lập hóa đơn; thêm ô màu chú giải biểu đồ.
+
 ## 0.11.14
 
 - Cho hiển thị người thuê được gắn sau trên hóa đơn lịch sử, giữ nguyên dữ liệu tài chính gốc.

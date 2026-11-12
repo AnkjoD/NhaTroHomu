@@ -213,7 +213,20 @@ public final class RentalPanel extends JPanel {
               },
               rows);
     } else if (page == Page.CONTRACTS) {
-      actions.add(Design.primary(Ui.button("+ Cho thuê phòng", () -> safe(this::contractForm))));
+      JButton let = Design.primary(Ui.button("+ Cho thuê phòng", () -> safe(this::contractForm)));
+      var today = LocalDate.now();
+      let.setEnabled(
+          repository.rooms().stream()
+              .anyMatch(
+                  r ->
+                      contracts.stream()
+                          .noneMatch(
+                              k ->
+                                  k.roomId() == r.id()
+                                      && (k.occupiedOn(today)
+                                          || today.isBefore(LocalDate.parse(k.startDate()))))));
+      if (!let.isEnabled()) let.setToolTipText("Không còn phòng trống để cho thuê.");
+      actions.add(let);
       actions.add(Ui.button("+ Thêm người thuê", () -> tenantForm(null)));
       actions.add(
           Ui.button("Xem chi tiết", () -> safe(() -> contractDetails(contracts.get(selected())))));
@@ -260,6 +273,7 @@ public final class RentalPanel extends JPanel {
                         }
                       })));
       Object[][] rows = new Object[contracts.size()][];
+      var continuing = rentals.occupancyContinuations(today);
       for (int i = 0; i < contracts.size(); i++) {
         Contract k = contracts.get(i);
         rows[i] =
@@ -271,7 +285,9 @@ public final class RentalPanel extends JPanel {
               k.endLabel(),
               Ui.money(k.rent()),
               Ui.money(balances.get(k.id())),
-              k.status(),
+              continuing.contains(k.id())
+                  ? "Đang thuê · lập kỳ từ " + k.startDate().substring(0, 7)
+                  : k.status(),
               familySummary(contractPeople.get(k.tenantId()))
             };
       }
@@ -948,9 +964,20 @@ public final class RentalPanel extends JPanel {
   }
 
   private void contractForm(Long preferredTenant, Long preferredRoom) throws Exception {
-    List<Room> rooms = repository.rooms();
+    var today = LocalDate.now();
+    List<Contract> commitments = rentals.contracts();
+    var occupied =
+        vn.nhatrohomu.rental.RoomAvailability.occupied(
+            commitments, today, rentals.occupancyContinuations(today));
+    var reserved = vn.nhatrohomu.rental.RoomAvailability.reserved(commitments, today, occupied);
+    List<Room> rooms =
+        repository.rooms().stream()
+            .filter(r -> !occupied.containsKey(r.id()) && !reserved.containsKey(r.id()))
+            .toList();
+    if (preferredRoom != null && rooms.stream().noneMatch(r -> r.id() == preferredRoom))
+      throw new IllegalArgumentException("Phòng này đã có người thuê hoặc đã được đặt.");
     List<Tenant> people = rentals.tenants();
-    if (rooms.isEmpty()) throw new IllegalArgumentException("Thêm phòng trước khi cho thuê.");
+    if (rooms.isEmpty()) throw new IllegalArgumentException("Không có phòng trống để cho thuê.");
     JComboBox<Room> room = new JComboBox<>(rooms.toArray(Room[]::new));
     room.setRenderer(
         new DefaultListCellRenderer() {

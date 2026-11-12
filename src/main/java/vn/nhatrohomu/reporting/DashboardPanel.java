@@ -24,7 +24,17 @@ public final class DashboardPanel extends JPanel {
       List<Bill> bills,
       Map<Long, BigDecimal> received,
       List<Contract> contracts,
-      BigDecimal heldDeposit) {
+      BigDecimal heldDeposit,
+      Set<Long> continuations) {
+    public Snapshot(
+        List<Room> rooms,
+        List<Bill> bills,
+        Map<Long, BigDecimal> received,
+        List<Contract> contracts,
+        BigDecimal heldDeposit) {
+      this(rooms, bills, received, contracts, heldDeposit, Set.of());
+    }
+
     public Snapshot(List<Room> rooms, List<Bill> bills, Map<Long, BigDecimal> received) {
       this(rooms, bills, received, List.of(), BigDecimal.ZERO);
     }
@@ -89,7 +99,13 @@ public final class DashboardPanel extends JPanel {
         BigDecimal held = BigDecimal.ZERO;
         for (Contract contract : contracts)
           held = held.add(repository.rentals().heldDeposit(contract.id()));
-        return new Snapshot(repository.rooms(), bills, received, contracts, held);
+        return new Snapshot(
+            repository.rooms(),
+            bills,
+            received,
+            contracts,
+            held,
+            repository.rentals().occupancyContinuations(java.time.LocalDate.now()));
       }
 
       protected void done() {
@@ -148,17 +164,18 @@ public final class DashboardPanel extends JPanel {
             false);
     content.add(scope);
     content.add(Box.createVerticalStrut(16));
-    long occupied =
-        data.rooms().stream()
-            .filter(
-                r ->
-                    data.contracts().stream()
-                        .anyMatch(k -> k.roomId() == r.id() && k.occupiedOn(java.time.LocalDate.now())))
-            .count();
-    JPanel occupation = Design.clear(new GridLayout(1, 3, 12, 0));
-    occupation.add(stat("Đang thuê hôm nay", Long.toString(occupied)));
-    occupation.add(stat("Chưa có hợp đồng hôm nay", Long.toString(data.rooms().size() - occupied)));
-    occupation.add(stat("Cọc đang giữ · mọi hợp đồng", Ui.money(data.heldDeposit())));
+    var today = java.time.LocalDate.now();
+    var inUse =
+        vn.nhatrohomu.rental.RoomAvailability.occupied(
+            data.contracts(), today, data.continuations());
+    var reserved = vn.nhatrohomu.rental.RoomAvailability.reserved(data.contracts(), today, inUse);
+    long occupied = data.rooms().stream().filter(r -> inUse.containsKey(r.id())).count();
+    long booked = data.rooms().stream().filter(r -> reserved.containsKey(r.id())).count();
+    JPanel occupation = Design.clear(new GridLayout(1, booked > 0 ? 4 : 3, 12, 0));
+    occupation.add(stat("Phòng đang thuê", Long.toString(occupied)));
+    occupation.add(stat("Phòng trống", Long.toString(data.rooms().size() - occupied - booked)));
+    if (booked > 0) occupation.add(stat("Phòng đã đặt", Long.toString(booked)));
+    occupation.add(stat("Cọc đang giữ", Ui.money(data.heldDeposit())));
     occupation.setMaximumSize(new Dimension(Integer.MAX_VALUE, 112));
     content.add(occupation);
     content.add(Box.createVerticalStrut(16));
@@ -398,9 +415,16 @@ public final class DashboardPanel extends JPanel {
             g.drawString(label, center - g.getFontMetrics().stringWidth(label) / 2, bottom + 21);
         }
         g.setColor(Ui.GREEN);
-        g.drawString("● " + a, left, 16);
-        g.setColor(new Color(82, 163, 188));
-        if (!second.isEmpty()) g.drawString("● " + b, left + 95, 16);
+        g.fillRoundRect(left, 7, 14, 9, 3, 3);
+        g.setColor(Design.INK);
+        g.drawString(a, left + 20, 16);
+        if (!second.isEmpty()) {
+          int x = left + 20 + g.getFontMetrics().stringWidth(a) + 22;
+          g.setColor(new Color(82, 163, 188));
+          g.fillRoundRect(x, 7, 14, 9, 3, 3);
+          g.setColor(Design.INK);
+          g.drawString(b, x + 20, 16);
+        }
         g.setColor(Design.MUTED);
         g.drawString(unit, getWidth() - 55, 16);
       } finally {

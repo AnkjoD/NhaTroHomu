@@ -32,6 +32,10 @@ public interface RentalRepository {
 
   List<Contract> contracts() throws SQLException;
 
+  default java.util.Set<Long> occupancyContinuations(java.time.LocalDate date) throws SQLException {
+    return java.util.Set.of();
+  }
+
   void createContract(Contract contract) throws SQLException;
 
   default void createContract(Contract contract, Readings opening) throws SQLException {

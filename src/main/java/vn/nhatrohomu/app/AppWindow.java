@@ -92,7 +92,7 @@ public final class AppWindow extends JFrame {
     bottom.add(Box.createVerticalStrut(8));
     bottom.add(Design.label("Gọn nhẹ. Rõ từng con số.", 11, Design.MUTED, false));
     bottom.add(Box.createVerticalStrut(24));
-    bottom.add(Design.label("NHATROHOMU  /  0.11.14", 10, Design.MUTED, false));
+    bottom.add(Design.label("NHATROHOMU  /  0.11.15", 10, Design.MUTED, false));
     sidebar.add(bottom, BorderLayout.SOUTH);
     body.setOpaque(false);
     body.setBorder(BorderFactory.createEmptyBorder(32, 32, 24, 32));
@@ -260,18 +260,27 @@ public final class AppWindow extends JFrame {
     try {
       List<Room> rooms = repository.rooms();
       List<Contract> contracts = repository.rentals().contracts();
-      java.util.Map<Long, Contract> occupied = new java.util.HashMap<>();
-      for (Contract contract : contracts)
-        if (contract.occupiedOn(java.time.LocalDate.now()))
-          occupied.put(contract.roomId(), contract);
+      var today = java.time.LocalDate.now();
+      var occupied =
+          vn.nhatrohomu.rental.RoomAvailability.occupied(
+              contracts, today, repository.rentals().occupancyContinuations(today));
+      var reserved = vn.nhatrohomu.rental.RoomAvailability.reserved(contracts, today, occupied);
+      long available =
+          rooms.stream()
+              .filter(r -> !occupied.containsKey(r.id()) && !reserved.containsKey(r.id()))
+              .count();
+      long occupiedCount = rooms.stream().filter(r -> occupied.containsKey(r.id())).count();
+      long reservedCount = rooms.size() - occupiedCount - available;
       JPanel top = Design.clear(new BorderLayout(0, 12));
       JPanel heading =
           header("Phòng trọ", "Trạng thái thuê, chỉ số và hóa đơn của từng phòng.", null);
       JPanel addArea = Design.clear(new GridBagLayout());
-      addArea.add(
+      JButton let =
           Ui.button(
-              "Cho thuê phòng",
-              () -> RentalPanel.letRoom(this, repository, null, this::showRooms)));
+              "Cho thuê phòng", () -> RentalPanel.letRoom(this, repository, null, this::showRooms));
+      let.setEnabled(available > 0);
+      if (available == 0) let.setToolTipText("Không còn phòng trống để cho thuê.");
+      addArea.add(let);
       addArea.add(Design.primary(Ui.button("+  Thêm phòng", () -> roomDialog(null))));
       heading.add(addArea, BorderLayout.EAST);
       top.add(heading, BorderLayout.NORTH);
@@ -279,10 +288,11 @@ public final class AppWindow extends JFrame {
           Design.label(
               rooms.size()
                   + " phòng · "
-                  + occupied.size()
+                  + occupiedCount
                   + " đang thuê · "
-                  + (rooms.size() - occupied.size())
-                  + " chưa có hợp đồng hiện tại",
+                  + available
+                  + " phòng trống"
+                  + (reservedCount > 0 ? " · " + reservedCount + " đã đặt" : ""),
               13,
               Design.MUTED,
               false),
@@ -324,7 +334,7 @@ public final class AppWindow extends JFrame {
                   .toLowerCase(java.util.Locale.ROOT)
                   .contains(query)) {
                 try {
-                  grid.add(roomCard(r, occupied.get(r.id())));
+                  grid.add(roomCard(r, occupied.get(r.id()), reserved.get(r.id())));
                 } catch (Exception ex) {
                   Ui.error(this, ex);
                 }
@@ -426,7 +436,7 @@ public final class AppWindow extends JFrame {
     return card;
   }
 
-  private JPanel roomCard(Room r, Contract contract) throws Exception {
+  private JPanel roomCard(Room r, Contract contract, Contract reserved) throws Exception {
     Readings previous = repository.previous(r);
     String latest = repository.latestMonth(r.id());
     Bill latestBill =
@@ -435,6 +445,7 @@ public final class AppWindow extends JFrame {
             : repository.roomBills(r.id(), latest, latest).stream().findFirst().orElse(null);
     boolean historicalRental = latestBill != null && latestBill.rent().signum() > 0;
     if (contract != null
+        && contract.covers(java.time.LocalDate.now())
         && repository.rentals().hasHandover(contract.id())
         && (latestBill == null
             || !java.util.Objects.equals(latestBill.contractId(), contract.id())))
@@ -447,18 +458,33 @@ public final class AppWindow extends JFrame {
     identity.setOpaque(false);
     identity.add(Design.label(r.name(), 22, Design.INK, true));
     identity.add(Box.createVerticalStrut(5));
-    identity.add(
+    String state = contract != null ? "Đang thuê" : reserved != null ? "Đã đặt" : "Phòng trống";
+    JLabel badge =
         Design.label(
-            contract != null
-                ? "Đang thuê · " + contract.tenantName()
-                : historicalRental
-                    ? "Có lịch sử thuê · chưa bổ sung hợp đồng"
-                    : r.tenant().isBlank()
-                        ? "Trống · chưa có hợp đồng hiện tại"
-                        : "Chưa xác nhận · tên cũ: " + r.tenant(),
+            state,
             11,
-            Design.MUTED,
-            false));
+            contract != null
+                ? new Color(35, 104, 63)
+                : reserved != null ? new Color(123, 76, 18) : new Color(42, 85, 127),
+            true);
+    badge.setOpaque(true);
+    badge.setBackground(
+        contract != null
+            ? new Color(210, 240, 219)
+            : reserved != null ? new Color(255, 233, 195) : new Color(221, 236, 252));
+    badge.setBorder(BorderFactory.createEmptyBorder(3, 7, 3, 7));
+    JPanel status = Design.clear(new FlowLayout(FlowLayout.LEFT, 6, 0));
+    status.add(badge);
+    if (contract != null || reserved != null)
+      status.add(
+          Design.label(
+              contract != null
+                  ? contract.tenantName()
+                  : reserved.tenantName() + " · " + reserved.startDate(),
+              11,
+              Design.MUTED,
+              false));
+    identity.add(status);
     top.add(identity, BorderLayout.CENTER);
     JButton menu = Ui.button("•••", () -> {});
     menu.putClientProperty("JButton.buttonType", "borderless");
@@ -472,6 +498,7 @@ public final class AppWindow extends JFrame {
     popup.add(rental);
     JMenuItem letRoom = new JMenuItem("Cho thuê phòng · chọn hoặc thêm người thuê");
     letRoom.addActionListener(e -> RentalPanel.letRoom(this, repository, r.id(), this::showRooms));
+    letRoom.setEnabled(contract == null && reserved == null);
     popup.add(letRoom);
     JMenuItem waterPolicy = new JMenuItem("Đổi cách tính nước / số bàn giao");
     waterPolicy.addActionListener(

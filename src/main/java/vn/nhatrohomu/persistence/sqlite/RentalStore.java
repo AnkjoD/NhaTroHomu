@@ -60,6 +60,29 @@ public final class RentalStore implements RentalRepository {
     return tenants(true);
   }
 
+  public Set<Long> occupancyContinuations(LocalDate date) throws SQLException {
+    Set<Long> ids = new HashSet<>();
+    // Only the explicit local import marks an occupant as continuing before the first billing
+    // period.
+    try (Connection c = connection();
+        PreparedStatement p =
+            c.prepareStatement(
+                "SELECT DISTINCT k.id FROM contracts k JOIN bills b ON b.room_id=k.room_id JOIN"
+                    + " historical_bill_people h ON h.id=b.id AND h.tenant_id=k.tenant_id WHERE"
+                    + " k.cancelled_at IS NULL AND k.closed_date='' AND k.start_date=? AND"
+                    + " b.month=? AND b.voided_at IS NULL AND EXISTS(SELECT 1 FROM audit_events a"
+                    + " WHERE a.entity_type='tenant' AND a.entity_id=k.tenant_id AND"
+                    + " a.action='LINK_PLACEHOLDER')")) {
+      var month = YearMonth.from(date);
+      p.setString(1, month.plusMonths(1).atDay(1).toString());
+      p.setString(2, month.toString());
+      try (ResultSet rows = p.executeQuery()) {
+        while (rows.next()) ids.add(rows.getLong(1));
+      }
+    }
+    return ids;
+  }
+
   public List<Tenant> archivedTenants() throws SQLException {
     return tenants(false);
   }
